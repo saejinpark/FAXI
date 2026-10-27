@@ -17,6 +17,7 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
   - `:design` 두 앱이 같이 쓰는 디자인 시스템 코드: `ui/theme`(색·글자·간격 토큰, `FaxiTheme`), `ui/components`의 `Buttons.kt`·`Icons.kt`·`Cards.kt`, 앱 아이콘, 창 바탕 테마(`Theme.Faxi.Base`). 가족 모델(`Member` 등)에 기대지 않는다. 모델이 필요한 표시(`Avatar(member)`, `gradeTone`)는 `:app`의 `MemberBadges.kt`.
 - 빌드 확인: `./gradlew assembleDebug` (네 모듈 모두), 테스트: `./gradlew testDebugUnitTest`. 셸에 Java가 없으면 Android Studio JDK를 쓴다:
   `export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"`
+- 시연: `tools/demo.sh`(차·폰 에뮬레이터를 AVD 이름으로 찾아 빌드·설치·장부 초기화·권한·포트·실행, `--keep` `--no-build`), 영상 촬영 순서는 `tools/DEMO.md`.
 - 실행: Pleos Connect Emulator(AVD는 Cold boot), UI 확인은 갤럭시 폴드 실기기. 폰·폴드에는 Pleos 차량 서비스가 없어서 차량 값이 오지 않고 시연 운행(`FakeTrip`)으로 대신한다.
   - **차 에뮬레이터는 AVD `Pleos_Connect_SDK`를 쓴다**(시스템 이미지 `system-images/android-34/pleos_car_emulator`, Android 14, Pleos Vehicle Service가 들어 있다). 예전 AVD `Pleos_Connect_v2.1.0`은 이름만 Pleos이고 구글 일반 Automotive 이미지(Android 15)라 Pleos SDK가 붙지 않는다.
   - 차량 값 바꾸기(Virtual Console): `adb -s emulator-5554 forward tcp:8088 tcp:8088` → 브라우저 `http://127.0.0.1:8088/`. Gear Selection(P/R/N/D)과 ACCEL/BRAKE 페달로 주행을 흉내 낸다(속도가 올라간다). Odometer 카드는 1km 단위이고 주행 시뮬레이션에 따라 움직이지 않는다. Pleos 이미지는 user 빌드라 `cmd car_service inject-vhal-event`는 막혀 있다.
@@ -37,6 +38,7 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
   - 콜백 스레드는 문서에 없어서 모두 메인으로 옮긴다. 차가 아니거나 서비스가 없으면 아무 값도 오지 않는다(그때는 시연 운행).
   - 운행 거리 = 주행거리계 차이와 속도 적분(앞 속도 × 지난 시간) 중 큰 쪽. 계기판은 단위가 굵고(에뮬레이터는 시뮬레이션 주행에 안 따라 움직임) 적분은 잘게 센다.
   - 하차: 운행 중에 움직였다가(기어 D·R·N 또는 1km/h 이상) P에 들어가면 자동 하차 → 도착 화면 + 음성. 움직이기 전 P는 하차가 아니다.
+  - 운행 중에는 `RideService`(포그라운드 서비스, specialUse, 조용한 알림 "미터기 작동 중 · ○○ 손님")가 프로세스를 살려 둔다. 실제 운행에서는 내비가 앞에 있어 FAXI가 뒤로 가는데, 뒤 앱이 정리되면 요금 엔진이 사라지기 때문. `store.onRideChanged`로 FaxiApp이 켜고 끈다. 에뮬레이터에서 내비를 앞에 두고 `am kill`해도 살아 있고 P에서 자동 하차·음성까지 되는 것을 확인했다.
   - 운행 중이 아닌데 기어가 D이거나 플랫폼 주행 규제(`CarUxRestrictionsManager`, `isRequiresDistractionOptimization`)가 걸리면 `store.lockedForDriving` → `ParkFirstScreen`("주행 중이에요 · 주차하면 열려요")으로 탑승·장부·기사를 닫는다. Pleos 주행 규제 개발 가이드가 "CarUxRestrictions 상태를 기준으로 UX 제한을 적용해야 한다"고 요구한다. 기어는 하차 판정, 규제는 화면 잠금에 쓴다.
   - 주행 안전 가이드(driver-distraction-guideline) 대조: 손님 한마디는 프리셋 문장·짧은 글·움직임 없음이라 맞다("키보드보다 프리셋 선택 우선"). 가이드에 글자 수·시간 같은 숫자 기준은 없다.
   - 주행 중 화면 노출(DO): MainActivity에 `<meta-data android:name="distractionOptimized" android:value="true"/>`. 없으면 Pleos가 D에서 "주행 중에는 사용할 수 없습니다"로 앱 전체를 가린다. Pleos 문서에는 DO 선언 방법이 없어 Android 표준을 썼고, 에뮬레이터 홈은 받아들였지만 CarPackageManagerService가 "not installed from permitted sources"(스토어 설치 아님) 경고를 남긴다. 실제 차·심사에서 확인 필요.

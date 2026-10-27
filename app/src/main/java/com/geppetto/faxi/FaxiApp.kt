@@ -26,6 +26,9 @@ class FaxiApp : Application() {
         store = if (snapshot != null) FaxiStore(snapshot) else FaxiStore.sample()
         store.onChanged = { storage.save(store.snapshot()) }
         if (snapshot == null) storage.save(store.snapshot())
+        // 운행 중에는 포그라운드 서비스로 프로세스를 살려 둔다(내비가 앞에 있어도 요금 엔진이 계속 돈다)
+        store.onRideChanged = { name -> if (name != null) RideService.start(this, "미터기 작동 중 · ${name} 손님") else RideService.stop(this) }
+        store.passengerId?.let { RideService.start(this, "미터기 작동 중 · ${store.member(it).name} 손님") }
         // 손님 폰의 한마디를 받는 창구(같은 Wi-Fi). 앱 프로세스가 사는 동안 연다.
         MessageServer(this, store).start()
         // 주행거리·기어(Pleos Vehicle SDK)와 속도(Android Car API). 차가 아니면 아무 값도 오지 않고 시연 운행으로 대신한다.

@@ -92,6 +92,9 @@ class FaxiStore(
     /** 이번 운행 중에 내비가 도착을 알린 장소 */
     private var rideArrivedAt: String? = null
 
+    /** 운행이 시작되거나(손님 이름) 끝날 때(null). FaxiApp이 운행 서비스(RideService)를 켜고 끄는 데 쓴다. */
+    var onRideChanged: ((passengerName: String?) -> Unit)? = null
+
     /** 하차해서 영수증이 나왔을 때(자동 하차든 시연 버튼이든). MainActivity가 음성 안내에 쓴다. */
     var onArrival: ((Receipt) -> Unit)? = null
 
@@ -260,6 +263,7 @@ class FaxiStore(
         rideWaypoints = 0
         rideArrivedAt = null
         changed()
+        onRideChanged?.invoke(member(passengerId).name)
     }
 
     /**
@@ -388,6 +392,7 @@ class FaxiStore(
         rideWaypoints = 0
         rideArrivedAt = null
         changed()
+        onRideChanged?.invoke(null)
         onArrival?.invoke(receipt)
         return receipt
     }
