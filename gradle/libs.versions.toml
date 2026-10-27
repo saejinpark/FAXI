@@ -12,6 +12,8 @@ kotlinxSerialization = "1.9.0"
 zxing = "3.5.3"
 camerax = "1.4.2"
 pleosVehicle = "2.3.2"
+pleosTts = "3.3.1"
+pleosNavi = "3.0.5"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -35,6 +37,8 @@ androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycl
 androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "camerax" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 
+pleos-navi = { group = "ai.pleos.playground", name = "NaviHelper", version.ref = "pleosNavi" }
+pleos-tts = { group = "ai.pleos.playground", name = "TextToSpeech", version.ref = "pleosTts" }
 pleos-vehicle = { group = "ai.pleos.playground", name = "Vehicle", version.ref = "pleosVehicle" }
 
 [plugins]

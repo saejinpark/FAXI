@@ -102,7 +102,16 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
   - 에뮬레이터 카메라로는 차 화면을 못 찍는다. 시험은 딥 링크로: `adb shell "am start -a android.intent.action.VIEW -d '<링크>' com.geppetto.faxi.phone"`
   - 폰은 손님 화면이라 차 앱의 주행 중 움직임 금지 규칙을 적용하지 않는다. 색·글자·버튼·카드는 차 앱과 같은 `:design` 것을 쓴다(Material 기본 글자 크기를 쓰지 않는다). 폰 화면 가장자리는 `space6`, 좁으니 금액 줄은 항목 쪽이 줄을 바꾼다.
 - `app/src/test/.../FaxiStoreTest.kt` 하차·상계·평생 장부·정산·탕감 단위 테스트. 장부 규칙을 바꾸면 `./gradlew testDebugUnitTest`로 확인한다.
-- `data/Speaker.kt` 음성 창구. 폰은 `AndroidSpeaker`(기기 TTS), 차량용 Pleos TTS는 다음 단계.
+- 내비: `data/NaviFeed.kt`(FaxiApp이 켠다) → `store.onNavi(NaviReading)`, `store.onWaypoint(WaypointChange)`. Pleos NaviHelper SDK `ai.pleos.playground:NaviHelper:3.0.5`, 권한 `pleos.car.permission.NAVI_ROUTE`(get*Info, 읽기만). 경로를 바꾸는 API(NAVI_ROUTE_SEARCH)는 쓰지 않는다.
+  - 지금 위치 주소 `getCurrentLocationInfo()`를 15초마다, 목적지 `getDestinationInfo()`는 시작·경로 시작·목적지 변경 때. 도착 `onDestinationArrived`, 경유지 `onWaypointChanged`(ADD/REMOVE, index ALL).
+  - 영수증 출발지 = 탑승 때 주소(`shortPlace`: 끝 두 마디), 도착지 = 운행 중 도착 알림 장소 → 내비 목적지 → 하차 때 주소. 내비 값이 한 번도 안 온 기기(폰·폴드)는 시연 장소 이름("우리집 → 이마트 성수점").
+  - 경유지: 운행 중 추가 1곳 500원, 빼면 돌려준다, 모두 빼면 0. 하차 때 요금 엔진에 넣는다. 탑승 전에 넣은 경유지는 세지 않는다. 출발지·경유지 수는 저장(snapshot)해서 앱이 다시 켜져도 남는다.
+  - 운행 중 화면 손님 칸에 "목적지 가는 중", "경유지 N곳"(금액은 없음).
+  - 에뮬레이터 내비 앱(`ai.umos.maps.android.navigation.app`)이 응답한다. GPS는 Virtual Console 주행에 따라 움직이지 않아 출발지·도착지 주소가 같게 나온다("수정구 시흥동"). 목적지·경유지는 에뮬레이터에서 아직 못 넣어 봤다(단위 테스트 `NaviRideTest`로 확인).
+- `data/Speaker.kt` 음성 창구. `Speaker.create`: 차면 `PleosSpeaker`, 폰·폴드는 `AndroidSpeaker`(기기 TTS).
+  - `PleosSpeaker`: Pleos TextToSpeech SDK `ai.pleos.playground:TextToSpeech:3.3.1`(권한 `pleos.car.permission.TTS_SERVICE`), **ON_DEVICE 모드**(차 안 엔진: 네트워크·앱 등록 없음, 이름·금액이 차 밖으로 안 나감). 새 말은 하던 말을 멈추고 읽는다.
+  - 로캘은 `Locale.KOREA`(ko-KR). `Locale.KOREAN`은 엔진에 "ko-"로 가서 unsupported locale로 실패한다(에뮬레이터 로그로 확인).
+  - 초기화 실패나 엔진·언어 미지원 오류면 기기 TTS로 바꾸고 방금 문장을 다시 읽는다. SDK AAR이 INTERNET 권한을 같이 선언한다(ON_DEVICE라 쓰지 않음).
 - `ui/theme/`(`:design` 모듈) 디자인 토큰. 색은 `Faxi.colors.*`, 글자는 `Faxi.type.*`, 간격·크기는 `FaxiDimens.*`로만 쓴다. 하드코딩한 색·크기를 새로 만들지 않는다. 테마 진입점은 `FaxiTheme`(야간 기본, dynamic color 안 씀).
   - 색: FAXI 디자인 시스템(https://claude.ai/artifact/13q7cCn7wsigv23nJYGwV2)의 tokens.json과 `ui/theme/Color.kt`는 같은 값이다. 한쪽을 고치면 다른 쪽도 고친다. 폰 앱도 같은 `FaxiTheme`을 쓰므로 값은 한 곳뿐이다.
   - 무드는 산호 `accent`(버튼 면) + 밤 남색 `surface`. `accent`는 면 색이라 글자로 쓰지 않는다. 글자 강조는 `accentInk`. 글자 색은 bg·surface·surfaceRaised 위에서 모두 4.5:1 이상.
@@ -121,7 +130,7 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
 
 ## 아직 가짜인 것
 - 폰 카메라로 차 화면 QR 찍기: 코드는 있지만 실기기로 찍어 보지 못했다(에뮬레이터는 차 화면 스크린샷 해독과 딥 링크로만 확인).
-- 차량 값: 주행거리·속도·기어·냉난방·엉따·와이퍼·창문은 진짜(Pleos 에뮬레이터 Virtual Console로 확인). 승차감 그래프 모양은 가짜(급정거 점 개수만 진짜). 출발지·도착지("우리집 → 이마트 성수점")도 가짜(NaviHelper 전).
+- 차량 값: 주행거리·속도·기어·냉난방·엉따·와이퍼·창문은 진짜(Pleos 에뮬레이터 Virtual Console로 확인). 승차감 그래프 모양은 가짜(급정거 점 개수만 진짜). 출발지·도착지는 내비 값(내비가 없는 기기만 시연 이름).
 - 운행 중 요금 엔진은 저장하지 않는다. 운행 중에 앱이 다시 켜지면 그 운행은 시연 운행으로 계산된다.
 - 손님 한마디: 에뮬레이터 두 대(adb forward)로만 주고받아 봤다. 실제 차 핫스팟·실기기 폰에서는 아직이다.
 
@@ -157,8 +166,8 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
 
 ## 사용할 Pleos SDK (모두 읽기 전용)
 - Vehicle SDK: Odometer(거리요금)·Gear(하차·주행 판별)·HVAC(냉난방)·Seat(엉따)·Wiper(우천 할증)·Window(환기) 연결됨. 속도는 SDK에 없어 Android Car API. Brake 페달은 아직(급정거는 속도 변화로 센다)
-- TextToSpeech SDK: 탑승 인사, 요금 안내, 독촉, 후기 낭독
-- NaviHelper SDK: 목적지·경유지(경유지 추가 요금)
+- TextToSpeech SDK: 연결됨(ON_DEVICE). 탑승 인사("손님, 어디로 모실까요?"), 하차 요금 안내, 독촉. 후기 낭독은 아직
+- NaviHelper SDK: 연결됨. 출발지·도착지 이름, 경유지 추가 요금
 - SDK 문서: https://document.pleos.ai/docs/pleos-only/getting-started
 - 저장소: maven("https://nexus-playground.pleos.ai/repository/maven-releases/") (공식 문서 "Vehicle SDK 가져오기", settings.gradle.kts에 등록됨). SDK 실제 API는 문서보다 AAR(javap)이 정확하다.
 - Pleos SDK는 새 플랫폼이라 API를 추측하지 말고, 공식 문서를 확인하거나 개발자에게 문서를 요청한다.

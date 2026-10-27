@@ -4,6 +4,7 @@ import android.app.Application
 import com.geppetto.faxi.data.FaxiStorage
 import com.geppetto.faxi.data.FaxiStore
 import com.geppetto.faxi.data.MessageServer
+import com.geppetto.faxi.data.NaviFeed
 import com.geppetto.faxi.data.VehicleFeed
 
 /**
@@ -29,5 +30,7 @@ class FaxiApp : Application() {
         MessageServer(this, store).start()
         // 주행거리·기어(Pleos Vehicle SDK)와 속도(Android Car API). 차가 아니면 아무 값도 오지 않고 시연 운행으로 대신한다.
         vehicleFeed = VehicleFeed(this, store::onVehicle).also { it.start() }
+        // 출발지·도착지·경유지(Pleos NaviHelper SDK). 차가 아니면 시연 장소 이름 그대로.
+        NaviFeed(this, store::onNavi, store::onWaypoint).start()
     }
 }

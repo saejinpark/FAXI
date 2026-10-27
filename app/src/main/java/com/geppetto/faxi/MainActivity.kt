@@ -7,7 +7,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import com.geppetto.faxi.data.AndroidSpeaker
 import com.geppetto.faxi.data.Speaker
 import com.geppetto.faxi.data.won
 import com.geppetto.faxi.ui.shell.AppShell
@@ -22,7 +21,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        speaker = AndroidSpeaker(this)
+        speaker = Speaker.create(this)
         // 장부는 Activity가 다시 만들어져도 살아 있도록 FaxiApp이 들고 있다
         val app = application as FaxiApp
         val store = app.store
