@@ -61,7 +61,7 @@ enum class Tab(val label: String, val icon: @Composable (Color, Dp) -> Unit) {
  * - 운행 중이 아닌데 차가 움직이면(Gear.Driving): "주차하면 열려요"만.
  * - 하차 직후(store.arrival): 사이드바 없이 도착 화면(영수증 공개 + 후기). 닫으면 탑승으로.
  * - 주차(Gear.Parked): 왼쪽 사이드바 + 탭 화면. 화면 전환은 즉시(애니메이션 없음).
- * demo = true 면 운행 중 화면에 시연용 하차 버튼이 나온다(차량 값이 없는 폰·폴드 시연용). 하차 안내 음성은 store.onArrival(MainActivity).
+ * demo = true 면 기어 값이 없는 기기(폰·폴드)에서 운행 중 화면에 시연용 하차 버튼이 나온다. 하차 안내 음성은 store.onArrival(MainActivity).
  */
 @Composable
 fun AppShell(store: FaxiStore, speak: (String) -> Unit, demo: Boolean) {
@@ -74,7 +74,9 @@ fun AppShell(store: FaxiStore, speak: (String) -> Unit, demo: Boolean) {
             .safeDrawingPadding(),
     ) {
         if (store.rideActive) {
-            DrivingScreen(store, onDemoPark = if (demo) ({ store.endRide() }) else null)
+            // 시연용 하차 버튼은 기어 값이 안 오는 기기(폰·폴드)에서만. 차에서는 P가 하차이고, 주행 중 운전자가 만질 것을 두지 않는다.
+            val demoPark = demo && store.vehicle.gear == null
+            DrivingScreen(store, onDemoPark = if (demoPark) ({ store.endRide() }) else null)
             return@Box
         }
         val arrival = store.arrival

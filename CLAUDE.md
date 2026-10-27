@@ -17,6 +17,7 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
   - `:design` 두 앱이 같이 쓰는 디자인 시스템 코드: `ui/theme`(색·글자·간격 토큰, `FaxiTheme`), `ui/components`의 `Buttons.kt`·`Icons.kt`·`Cards.kt`, 앱 아이콘, 창 바탕 테마(`Theme.Faxi.Base`). 가족 모델(`Member` 등)에 기대지 않는다. 모델이 필요한 표시(`Avatar(member)`, `gradeTone`)는 `:app`의 `MemberBadges.kt`.
 - 빌드 확인: `./gradlew assembleDebug` (네 모듈 모두), 테스트: `./gradlew testDebugUnitTest`. 셸에 Java가 없으면 Android Studio JDK를 쓴다:
   `export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"`
+- 제출: `README.md`(심사위원용 소개, 스크린샷 `docs/screenshots/`), `tools/package.sh`(테스트 후 차·폰 APK와 설치 방법을 `dist/`에, git에는 안 넣음).
 - 시연: `tools/demo.sh`(차·폰 에뮬레이터를 AVD 이름으로 찾아 빌드·설치·장부 초기화·권한·포트·실행, `--keep` `--no-build`), 영상 촬영 순서는 `tools/DEMO.md`.
 - 실행: Pleos Connect Emulator(AVD는 Cold boot), UI 확인은 갤럭시 폴드 실기기. 폰·폴드에는 Pleos 차량 서비스가 없어서 차량 값이 오지 않고 시연 운행(`FakeTrip`)으로 대신한다.
   - **차 에뮬레이터는 AVD `Pleos_Connect_SDK`를 쓴다**(시스템 이미지 `system-images/android-34/pleos_car_emulator`, Android 14, Pleos Vehicle Service가 들어 있다). 예전 AVD `Pleos_Connect_v2.1.0`은 이름만 Pleos이고 구글 일반 Automotive 이미지(Android 15)라 Pleos SDK가 붙지 않는다.
@@ -26,7 +27,7 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
 
 ## 구조
 - HODOS에서는 `data/Speaker.kt`와 매니페스트 TTS `<queries>`만 가져왔다. 디자인과 화면은 FAXI용으로 새로 만들었다.
-- `MainActivity.kt` `FaxiApp`의 장부와 `AndroidSpeaker`를 `AppShell`에 넘긴다. 처음 켤 때 속도 권한(CAR_SPEED, 차에서는 "위치 정보"로 묻는다)을 받는다. 하차 안내 음성은 `store.onArrival`. `demo = true`면 운행 중 화면에 시연용 하차 버튼이 나온다.
+- `MainActivity.kt` `FaxiApp`의 장부와 `Speaker.create`를 `AppShell`에 넘긴다. 처음 켤 때 속도 권한(CAR_SPEED, 차에서는 "위치 정보"로 묻는다)을 받는다. 하차 안내 음성은 `store.onArrival`. `demo = true`면 기어 값이 없는 기기(폰·폴드)에서만 운행 중 화면에 시연용 하차 버튼이 나온다(차에서는 P가 하차).
 - 차량 값: `data/VehicleFeed.kt`(FaxiApp이 켠다) → `store.onVehicle(VehicleReading)`.
   - 누적 주행거리(km)·기어: Pleos Vehicle SDK `ai.pleos.playground:Vehicle:2.3.2`(`Odometer.registerDistanceDriven`, `Gear.registerGearSelection`, 권한 `pleos.car.permission.CAR_DRIVE`). SDK에는 속도 도메인이 없다. 공식 문서의 도메인 목록에 Gear가 빠져 있지만 SDK(AAR)에는 있다.
   - 속도(m/s): Pleos FAQ 권장대로 Android Car API `CarPropertyManager`의 `PERF_VEHICLE_SPEED`(클러스터와 같은 값). `useLibrary("android.car")` + manifest `uses-library android.car required=false`(폰·폴드에도 깔리게). 권한 `android.car.permission.CAR_SPEED`는 dangerous라 실행 중에 묻는다. API 34 이미지라 `registerCallback`(35부터 subscribePropertyEvents).
@@ -134,7 +135,7 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
 ## 아직 가짜인 것
 - 폰 카메라로 차 화면 QR 찍기: 코드는 있지만 실기기로 찍어 보지 못했다(에뮬레이터는 차 화면 스크린샷 해독과 딥 링크로만 확인).
 - 차량 값: 주행거리·속도·기어·냉난방·엉따·와이퍼·창문은 진짜(Pleos 에뮬레이터 Virtual Console로 확인). 승차감 그래프 모양은 가짜(급정거 점 개수만 진짜). 출발지·도착지는 내비 값(내비가 없는 기기만 시연 이름).
-- 운행 중 요금 엔진은 저장하지 않는다. 운행 중에 앱이 다시 켜지면 그 운행은 시연 운행으로 계산된다.
+- 운행 중 요금 엔진은 저장하지 않는다. 운행 중에 앱이 다시 켜지면 그때부터의 차량 값으로 다시 센다(기본요금 포함, 그 전 거리·시간은 빠진다). 차량 값이 없는 기기면 시연 운행. RideService가 있어 다시 켜질 일은 드물다.
 - 손님 한마디: 에뮬레이터 두 대(adb forward)로만 주고받아 봤다. 실제 차 핫스팟·실기기 폰에서는 아직이다.
 
 ## 앱 아이콘
