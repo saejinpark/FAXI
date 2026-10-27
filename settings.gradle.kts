@@ -19,6 +19,8 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // Pleos Vehicle SDK(공식 문서 "Vehicle SDK 가져오기")
+        maven { url = uri("https://nexus-playground.pleos.ai/repository/maven-releases/") }
     }
 }
 

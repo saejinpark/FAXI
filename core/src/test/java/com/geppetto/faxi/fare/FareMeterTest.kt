@@ -101,4 +101,23 @@ class FareMeterTest {
         meter.addWaypoint()
         assertEquals(FareLine("경유지 추가", "2곳", 1_000), meter.lines().first { it.label == "경유지 추가" })
     }
+
+    @Test
+    fun 감속_중간에_속도가_그대로인_값이_끼어도_급정거는_한_번() {
+        // 차에서는 속도와 주행거리 값이 따로 와서, 같은 속도의 값이 사이사이 들어온다
+        val t = LocalDateTime.of(2026, 10, 27, 9, 0)
+        var odo = 0.0
+        fun at(sec: Long, kmh: Double) = VehicleSample(t.plusSeconds(sec), odo, kmh)
+        val meter = FareMeter(at(0, 100.0))
+        var sec = 0L
+        var kmh = 100.0
+        while (kmh > 0) {
+            sec += 1
+            kmh = maxOf(0.0, kmh - 20.0) // 초당 20km/h = 5.6m/s²
+            odo += 10.0
+            meter.update(at(sec, kmh))
+            meter.update(at(sec, kmh)) // 같은 순간 같은 속도(주행거리 값)
+        }
+        assertEquals(1, meter.hardBrakes)
+    }
 }

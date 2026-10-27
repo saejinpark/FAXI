@@ -17,18 +17,29 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
   - `:design` 두 앱이 같이 쓰는 디자인 시스템 코드: `ui/theme`(색·글자·간격 토큰, `FaxiTheme`), `ui/components`의 `Buttons.kt`·`Icons.kt`·`Cards.kt`, 앱 아이콘, 창 바탕 테마(`Theme.Faxi.Base`). 가족 모델(`Member` 등)에 기대지 않는다. 모델이 필요한 표시(`Avatar(member)`, `gradeTone`)는 `:app`의 `MemberBadges.kt`.
 - 빌드 확인: `./gradlew assembleDebug` (네 모듈 모두), 테스트: `./gradlew testDebugUnitTest`. 셸에 Java가 없으면 Android Studio JDK를 쓴다:
   `export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"`
-- 실행: Pleos Connect Emulator(AVD는 Cold boot), UI 확인은 갤럭시 폴드 실기기. 폰에는 Pleos SDK가 없으므로 차량 데이터는 가짜 구현으로 대체한다.
-  - 차 + 폰 같이 시험: AVD `Pleos_Connect_v2.1.0`(차)과 `Medium_Phone_API_37.0`(폰)을 함께 켠다. 폰 앱에서 시연 가족으로 등록 → 폰의 4자리를 차에 입력.
+- 실행: Pleos Connect Emulator(AVD는 Cold boot), UI 확인은 갤럭시 폴드 실기기. 폰·폴드에는 Pleos 차량 서비스가 없어서 차량 값이 오지 않고 시연 운행(`FakeTrip`)으로 대신한다.
+  - **차 에뮬레이터는 AVD `Pleos_Connect_SDK`를 쓴다**(시스템 이미지 `system-images/android-34/pleos_car_emulator`, Android 14, Pleos Vehicle Service가 들어 있다). 예전 AVD `Pleos_Connect_v2.1.0`은 이름만 Pleos이고 구글 일반 Automotive 이미지(Android 15)라 Pleos SDK가 붙지 않는다.
+  - 차량 값 바꾸기(Virtual Console): `adb -s emulator-5554 forward tcp:8088 tcp:8088` → 브라우저 `http://127.0.0.1:8088/`. Gear Selection(P/R/N/D)과 ACCEL/BRAKE 페달로 주행을 흉내 낸다(속도가 올라간다). Odometer 카드는 1km 단위이고 주행 시뮬레이션에 따라 움직이지 않는다. Pleos 이미지는 user 빌드라 `cmd car_service inject-vhal-event`는 막혀 있다.
+  - 차 + 폰 같이 시험: `Pleos_Connect_SDK`(차)과 `Medium_Phone_API_37.0`(폰)을 함께 켠다. 폰 앱에서 시연 가족으로 등록 → 폰의 4자리를 차에 입력.
   - 차 에뮬레이터는 사용자 10으로 돈다: 데이터 초기화는 `adb shell pm clear --user 10 com.geppetto.faxi`.
 
 ## 구조
 - HODOS에서는 `data/Speaker.kt`와 매니페스트 TTS `<queries>`만 가져왔다. 디자인과 화면은 FAXI용으로 새로 만들었다.
-- `MainActivity.kt` 가짜 저장소(`FaxiStore.sample()`)와 `AndroidSpeaker`를 만들어 `AppShell`에 넘긴다. `demo = true`면 운행 중 화면에 시연용 하차 버튼이 나온다.
+- `MainActivity.kt` `FaxiApp`의 장부와 `AndroidSpeaker`를 `AppShell`에 넘긴다. 처음 켤 때 속도 권한(CAR_SPEED, 차에서는 "위치 정보"로 묻는다)을 받는다. 하차 안내 음성은 `store.onArrival`. `demo = true`면 운행 중 화면에 시연용 하차 버튼이 나온다.
+- 차량 값: `data/VehicleFeed.kt`(FaxiApp이 켠다) → `store.onVehicle(VehicleReading)`.
+  - 누적 주행거리(km)·기어: Pleos Vehicle SDK `ai.pleos.playground:Vehicle:2.3.2`(`Odometer.registerDistanceDriven`, `Gear.registerGearSelection`, 권한 `pleos.car.permission.CAR_DRIVE`). SDK에는 속도 도메인이 없다. 공식 문서의 도메인 목록에 Gear가 빠져 있지만 SDK(AAR)에는 있다.
+  - 속도(m/s): Pleos FAQ 권장대로 Android Car API `CarPropertyManager`의 `PERF_VEHICLE_SPEED`(클러스터와 같은 값). `useLibrary("android.car")` + manifest `uses-library android.car required=false`(폰·폴드에도 깔리게). 권한 `android.car.permission.CAR_SPEED`는 dangerous라 실행 중에 묻는다. API 34 이미지라 `registerCallback`(35부터 subscribePropertyEvents).
+  - 콜백 스레드는 문서에 없어서 모두 메인으로 옮긴다. 차가 아니거나 서비스가 없으면 아무 값도 오지 않는다(그때는 시연 운행).
+  - 운행 거리 = 주행거리계 차이와 속도 적분(앞 속도 × 지난 시간) 중 큰 쪽. 계기판은 단위가 굵고(에뮬레이터는 시뮬레이션 주행에 안 따라 움직임) 적분은 잘게 센다.
+  - 하차: 운행 중에 움직였다가(기어 D·R·N 또는 1km/h 이상) P에 들어가면 자동 하차 → 도착 화면 + 음성. 움직이기 전 P는 하차가 아니다.
+  - 운행 중이 아닌데 기어가 D면 `ParkFirstScreen`("주행 중이에요 · 주차하면 열려요")으로 탑승·장부·기사를 닫는다.
+  - 주행 중 화면 노출(DO): MainActivity에 `<meta-data android:name="distractionOptimized" android:value="true"/>`. 없으면 Pleos가 D에서 "주행 중에는 사용할 수 없습니다"로 앱 전체를 가린다. Pleos 문서에는 DO 선언 방법이 없어 Android 표준을 썼고, 에뮬레이터 홈은 받아들였지만 CarPackageManagerService가 "not installed from permitted sources"(스토어 설치 아님) 경고를 남긴다. 실제 차·심사에서 확인 필요.
+  - 테스트: `app VehicleRideTest`(적분 거리요금, 계기판 우선, 대기·급정거, 움직이기 전 P, 운행 아닐 때 D).
 - 화면 흐름 (탭은 운행·장부·기사 셋뿐. 화면 글자는 "운행", "주행 중"은 차가 움직이는 상태를 말할 때만 쓴다):
   - 운행 탭(제목 "운행 시작") → 미터기 켜기 → 운행 중(전체 화면) → 하차 → 도착 화면(전체 화면, 영수증 공개 + 후기) → 닫으면 탑승 탭.
   - 장부 탭 → 빚 한 줄 누르기 → 두 사람 사이 빚 상세(정산 요청·확인, 둘 사이 운행, 기록, 탕감) → 운행 누르기 → 지난 영수증.
   - "지금 보이는 영수증이 어느 운행 것인지" 늘 분명해야 한다. 영수증만 따로 보여 주는 탭을 다시 만들지 않는다.
-- `ui/shell/AppShell.kt` 기어가 Driving이면 운행 중 화면만, `store.arrival`이 있으면 도착 화면만, 그 외에는 왼쪽 사이드바 + 탭 화면. 기사가 확인할 정산 요청이 있으면 장부 탭에 "확인 N건". 탭은 `rememberSaveable`, 내비게이션 라이브러리 없음, 전환 즉시.
+- `ui/shell/AppShell.kt` 운행 중(`store.rideActive`)이면 운행 중 화면만, 운행 중이 아닌데 기어가 Driving이면 "주차하면 열려요"만, `store.arrival`이 있으면 도착 화면만, 그 외에는 왼쪽 사이드바 + 탭 화면. 기사가 확인할 정산 요청이 있으면 장부 탭에 "확인 N건". 탭은 `rememberSaveable`, 내비게이션 라이브러리 없음, 전환 즉시.
 - `ui/boarding/BoardingScreen.kt` 1 기사 → 2 손님 → 3 탑승 코드 숫자판. 손님을 고르면 밀린 돈 독촉(화면 + 음성), 기사가 그 손님에게 진 빚이 있으면 "먼저 퉁쳐요" 안내.
 - `ui/driving/DrivingScreen.kt` 2×2로 화면을 꽉 채운다: 자격증 | 손님 한마디 / 오늘의 손님(캐릭터, 출발 시각, "미터기 작동 중 · 요금은 내릴 때", "아빠 택시 N번째 탑승") | 요금 붙는 옵션(냉방·엉따·와이퍼·창문 켜짐/꺼짐).
   - 금액은 운행 중 화면에 아예 없다(감춘 요금 칸도 뺐다). 하차 때 도착 화면에서 한 번에 공개한다.
@@ -58,7 +69,8 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
     - 구간(앞 값 → 뒤 값)은 앞 값의 상태로 센다: 옵션 시간, 정차, 할증 모두.
     - 정차 = 1km/h 미만, 급정거 = 감속 3m/s² 이상(한 번 밟는 동안 한 번), 할증은 그 순간 조건(기본요금은 탑승 시각), 남는 거리·초·분은 버림.
     - 거리·대기 100원은 누적값에서 매번 다시 세어 실수 오차가 쌓이지 않게 한다.
-  - `FakeTrip.kt` `TripBuilder`(1초 간격 가짜 차량 값)와 `planExample`(기획서 예시 운행). 하차 시연은 이 운행을 엔진에 돌려 영수증을 만든다.
+  - `FakeTrip.kt` `TripBuilder`(1초 간격 가짜 차량 값)와 `planExample`(기획서 예시 운행). 차량 값이 없을 때(폰·폴드, 운행 중 앱 재시작) 하차 시연은 이 운행을 엔진에 돌려 영수증을 만든다.
+  - 급정거는 감속 3m/s² 이상이 되는 순간 한 번 세고, 다시 속도를 올리거나 멈출 때까지는 같은 한 번이다(차에서는 속도·주행거리 값이 따로 와서 같은 속도 구간이 감속 중간에 낀다).
 - `core/src/test/.../FareMeterTest.kt` 기획서 영수증 예시(15,250원)를 줄 단위로, 거리·대기·심야·우천·급정거·옵션·경유지 규칙을 검사한다. 요금표를 바꾸면 꼭 돌린다.
 - `core/.../auth/` 탑승 인증.
   - `Totp` RFC 6238(HMAC-SHA1, 30초, 4자리), 앞뒤 30초까지 통과. `Base32`(엄격하게 디코드). 테스트는 RFC 예시 값으로 검증한다.
@@ -103,8 +115,8 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
 
 ## 아직 가짜인 것
 - 폰 카메라로 차 화면 QR 찍기: 코드는 있지만 실기기로 찍어 보지 못했다(에뮬레이터는 차 화면 스크린샷 해독과 딥 링크로만 확인).
-- 차량 값: 요금 엔진은 진짜, 넣는 값은 가짜(`FakeTrip.planExample`). 승차감 그래프 모양과 운행 중 옵션 상태(`store.cabin`)도 가짜.
-- 하차: 시연용 버튼. 차량에서는 기어 P를 감지해야 한다.
+- 차량 값: 주행거리·속도·기어는 진짜(Pleos 에뮬레이터 Virtual Console로 확인). 냉난방·엉따·와이퍼·창문(`store.cabin`)은 아직 가짜, 승차감 그래프 모양도 가짜(급정거 점 개수만 진짜). 출발지·도착지("우리집 → 이마트 성수점")도 가짜(NaviHelper 전).
+- 운행 중 요금 엔진은 저장하지 않는다. 운행 중에 앱이 다시 켜지면 그 운행은 시연 운행으로 계산된다.
 - 손님 한마디: 에뮬레이터 두 대(adb forward)로만 주고받아 봤다. 실제 차 핫스팟·실기기 폰에서는 아직이다.
 
 ## 앱 아이콘
@@ -138,9 +150,9 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
 - 계기판(클러스터)은 안전 정보 영역이라 건드리지 않는다. 시도하는 코드도 넣지 않는다.
 
 ## 사용할 Pleos SDK (모두 읽기 전용)
-- Vehicle SDK: Odometer(거리요금), Brake·속도(대기요금, 급정거, 주차 판별), HVAC·Seat·Wiper·Window(옵션 요금, 읽기 권한 확인 전)
+- Vehicle SDK: Odometer(거리요금)·Gear(하차·주행 판별)는 연결됨. 속도는 SDK에 없어 Android Car API. Brake 페달, HVAC(CAR_CLIMATE)·Seat(CAR_SEATS)·Wiper·Window(CAR_WINDOWS)는 다음(Virtual Console에 카드가 있다)
 - TextToSpeech SDK: 탑승 인사, 요금 안내, 독촉, 후기 낭독
 - NaviHelper SDK: 목적지·경유지(경유지 추가 요금)
 - SDK 문서: https://document.pleos.ai/docs/pleos-only/getting-started
-- 저장소: maven("https://connect-nexus.developers.umos.ai/repository/maven-releases")
+- 저장소: maven("https://nexus-playground.pleos.ai/repository/maven-releases/") (공식 문서 "Vehicle SDK 가져오기", settings.gradle.kts에 등록됨). SDK 실제 API는 문서보다 AAR(javap)이 정확하다.
 - Pleos SDK는 새 플랫폼이라 API를 추측하지 말고, 공식 문서를 확인하거나 개발자에게 문서를 요청한다.

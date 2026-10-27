@@ -20,7 +20,8 @@ enum class Grade(val label: String) {
 
 /** 기어 상태. 탑승·영수증·후기·정산은 Parked에서만 연다. */
 @Serializable
-enum class Gear { Parked, Driving }
+/** 차 기어를 앱이 쓰는 세 가지로 줄인 것. R·N·D·1~9단은 모두 Driving(움직일 수 있는 상태). */
+enum class Gear { Parked, Driving, Unknown }
 
 @Serializable
 data class Member(

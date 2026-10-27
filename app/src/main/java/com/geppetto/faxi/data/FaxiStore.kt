@@ -16,6 +16,9 @@ import com.geppetto.faxi.qr.ReceiptTicket
 import com.geppetto.faxi.auth.Totp
 import com.geppetto.faxi.fare.FakeTrip
 import com.geppetto.faxi.fare.FareLine
+import com.geppetto.faxi.fare.FareMeter
+import com.geppetto.faxi.fare.Hvac
+import com.geppetto.faxi.fare.VehicleSample
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -45,8 +48,35 @@ class FaxiStore(
     /** 미터기를 켠 시각. 운행 중 화면에 "출발 09:12"로 보여 준다(움직이는 경과 시간은 쓰지 않는다). */
     var rideStartedAt by mutableStateOf(snapshot.rideStartedAt)
         private set
-    /** 기어. 지금은 운행 중 손님이 있으면 Driving으로 본다. 차량에서는 Vehicle SDK 기어 값으로 바꾼다. */
-    val gear: Gear get() = if (passengerId != null) Gear.Driving else Gear.Parked
+    /** 미터기가 켜져 있는지(탑승 인증 뒤 ~ 하차 전) */
+    val rideActive: Boolean get() = passengerId != null
+
+    /** 지금 차량 값(VehicleFeed). 차가 아닌 기기·Pleos 서비스가 없는 이미지에서는 비어 있다. */
+    var vehicle by mutableStateOf(VehicleReading())
+        private set
+
+    /**
+     * 기어. 차량 값이 있으면 그대로, 없으면(폰·폴드 시연) 운행 중이면 Driving, 아니면 Parked로 본다.
+     * Driving인데 운행 중이 아니면 화면을 잠근다(탑승·장부는 주차 중에만).
+     */
+    val gear: Gear get() = vehicle.gear?.takeIf { it != Gear.Unknown } ?: if (rideActive) Gear.Driving else Gear.Parked
+
+    /** 실제 차량 값으로 도는 요금 엔진. 운행 중이고 거리·속도가 들어올 때만 있다. 저장하지 않는다(앱이 꺼지면 시연 운행으로 대신). */
+    private var liveMeter: FareMeter? = null
+    /** 이번 운행에서 차가 움직였는지. 움직인 뒤 P로 돌아오면 하차로 본다. */
+    private var movedThisRide = false
+    /**
+     * 이번 운행 거리(m) 두 가지. 요금에는 큰 쪽을 쓴다.
+     * - 주행거리계 차이: 정확하지만 단위가 굵다(차량 0.1km, 에뮬레이터 Virtual Console은 1km이고 주행 시뮬레이션에 안 따라 움직인다).
+     * - 속도 적분: 속도 값이 올 때마다 (앞 속도 × 지난 시간)을 더한다. 요금 엔진처럼 앞 값의 상태로 센다.
+     */
+    private var rideStartOdometerKm: Double? = null
+    private var integratedM = 0.0
+    private var lastSpeedAt: LocalDateTime? = null
+    private var lastSpeedKmh = 0.0
+
+    /** 하차해서 영수증이 나왔을 때(자동 하차든 시연 버튼이든). MainActivity가 음성 안내에 쓴다. */
+    var onArrival: ((Receipt) -> Unit)? = null
 
     val debts = mutableStateListOf<Debt>().apply { addAll(snapshot.debts) }
     val events = mutableStateListOf<LedgerEvent>().apply { addAll(snapshot.events) }
@@ -203,28 +233,88 @@ class FaxiStore(
         this.passengerId = passengerId
         passengerMessage = null
         rideStartedAt = clock().withSecond(0).withNano(0)
+        resetRideDistance()
+        liveMeter = sampleNow()?.let { FareMeter(it) }
         changed()
     }
 
     /**
-     * 하차. 이번 운행의 차량 값을 요금 엔진(FareMeter)에 돌려 영수증을 만들고 장부에 반영한다.
-     * 지금은 차량 값 대신 기획서 예시 운행(FakeTrip.planExample)을 쓴다. 밤 10시~새벽 4시에 타면 심야 할증이 붙는다.
+     * 차량 값이 바뀔 때마다(VehicleFeed, 메인 스레드). 운행 중이면 요금 엔진에 한 칸 쌓는다.
+     * 엔진은 구간을 앞 값의 상태로 세므로 값이 바뀔 때만 넣어도 정차 시간·거리가 맞다(하차 때 마지막 값을 한 번 더 넣는다).
+     * 움직였다가 P에 들어가면 하차.
+     */
+    fun onVehicle(reading: VehicleReading) {
+        vehicle = reading
+        if (!rideActive) return
+        integrate()
+        val sample = sampleNow() ?: return
+        val meter = liveMeter
+        if (meter == null) liveMeter = FareMeter(sample) else meter.update(sample)
+        if (reading.gear == Gear.Driving || (reading.speedKmh ?: 0.0) >= 1.0) movedThisRide = true
+        if (reading.gear == Gear.Parked && movedThisRide) endRide()
+    }
+
+    private fun resetRideDistance() {
+        movedThisRide = false
+        rideStartOdometerKm = vehicle.odometerKm
+        integratedM = 0.0
+        lastSpeedAt = vehicle.speedKmh?.let { clock() }
+        lastSpeedKmh = vehicle.speedKmh ?: 0.0
+    }
+
+    /** 앞 속도로 지난 시간만큼 거리를 더하고, 지금 속도를 다음 구간의 기준으로 둔다 */
+    private fun integrate() {
+        val now = clock()
+        lastSpeedAt?.let { at ->
+            val sec = java.time.Duration.between(at, now).toMillis() / 1000.0
+            if (sec > 0) integratedM += lastSpeedKmh / 3.6 * sec
+        }
+        if (vehicle.speedKmh != null) {
+            lastSpeedAt = now
+            lastSpeedKmh = vehicle.speedKmh ?: 0.0
+        }
+        if (rideStartOdometerKm == null) rideStartOdometerKm = vehicle.odometerKm
+    }
+
+    /** 이번 운행 거리(m): 주행거리계 차이와 속도 적분 중 큰 쪽 */
+    private fun rideDistanceM(): Double {
+        val odo = vehicle.odometerKm?.let { km -> rideStartOdometerKm?.let { (km - it) * 1000 } } ?: 0.0
+        return maxOf(odo, integratedM)
+    }
+
+    /** 지금 차량 값 + 옵션 상태로 요금 엔진 한 칸. 속도가 아직 안 왔으면 null. 거리는 운행 시작부터 센 값. */
+    private fun sampleNow(): VehicleSample? {
+        val speed = vehicle.speedKmh ?: return null
+        return VehicleSample(
+            at = clock(), odometerM = rideDistanceM(), speedKmh = speed,
+            hvac = if (cabin.ac) Hvac.Cool else Hvac.Off,
+            seatHeat = cabin.seatHeat, wiper = cabin.wiper, windowOpen = cabin.windowOpen,
+        )
+    }
+
+    /**
+     * 하차. 이번 운행의 요금 엔진(FareMeter)으로 영수증을 만들고 장부에 반영한다.
+     * - 차량 값이 들어온 운행이면 그 엔진(진짜 주행거리·속도·정차). 마지막 값을 한 번 더 넣어 하차 순간까지 센다.
+     * - 차량 값이 없으면(폰·폴드 시연, 운행 중 앱이 다시 켜짐) 기획서 예시 운행(FakeTrip.planExample).
+     * 밤 10시~새벽 4시에 타면 심야 할증이 붙는다.
      * - 손님이 기사에게 밀린 돈은 이월하고 연체 이자(하루 0.1%, 1원 미만 버림, 원금 이하)를 붙인다.
      * - 상계: 기사가 이 손님에게 진 빚이 있으면 먼저 퉁친다.
      * - 예비 기사 손님은 청구하지 않고 평생 장부에 쌓는다.
      */
     fun endRide(): Receipt {
         val passenger = checkNotNull(passengerId)
-        val meter = FakeTrip.run(FakeTrip.planExample(rideStartedAt ?: clock()))
+        if (liveMeter != null) integrate()
+        val live = liveMeter?.also { m -> sampleNow()?.let(m::update) }
+        val meter = live ?: FakeTrip.run(FakeTrip.planExample(rideStartedAt ?: clock()))
         val brakes = meter.hardBrakes
         val base = Receipt(
             id = "r${nextId++}", driverId = driverId, passengerId = passenger,
             from = "우리집", to = "이마트 성수점", km = (meter.distanceM / 1000).roundToInt(),
             endedAt = clock().withSecond(0).withNano(0), lines = meter.lines(),
             reviewQuestion = if (brakes > 0) "오늘 급정거 ${brakes}번, 괜찮으셨나요?" else "오늘 운행 어떠셨나요?",
-            // 승차감 그래프는 아직 가짜 모양. 급정거 점만 엔진이 센 횟수에 맞춘다.
+            // 승차감 그래프는 아직 가짜 모양. 급정거 점의 개수만 엔진이 센 횟수에 맞춰 고르게 찍는다.
             shake = sampleShake(nextId, brakeAt = 82),
-            hardBrakes = if (brakes > 0) listOf(82) else emptyList(),
+            hardBrakes = List(brakes) { i -> (i + 1) * 120 / (brakes + 1) },
         )
         val receipt = if (member(passenger).grade == Grade.Learner) {
             addToLifetime(passenger, base.fareTotal, base.km)
@@ -237,7 +327,10 @@ class FaxiStore(
         passengerId = null
         passengerMessage = null
         rideStartedAt = null
+        liveMeter = null
+        resetRideDistance()
         changed()
+        onArrival?.invoke(receipt)
         return receipt
     }
 

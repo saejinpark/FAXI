@@ -57,10 +57,11 @@ enum class Tab(val label: String, val icon: @Composable (Color, Dp) -> Unit) {
 
 /**
  * 앱 전체 틀. 내비게이션 라이브러리 없이 탭 하나를 rememberSaveable로 들고 있다.
- * - 주행 중(Gear.Driving): 사이드바 없이 운행 중 화면만. 운전자가 만질 곳이 없다.
+ * - 운행 중(store.rideActive): 사이드바 없이 운행 중 화면만. 운전자가 만질 곳이 없다. 움직였다가 P에 들어가면 하차.
+ * - 운행 중이 아닌데 차가 움직이면(Gear.Driving): "주차하면 열려요"만.
  * - 하차 직후(store.arrival): 사이드바 없이 도착 화면(영수증 공개 + 후기). 닫으면 탑승으로.
  * - 주차(Gear.Parked): 왼쪽 사이드바 + 탭 화면. 화면 전환은 즉시(애니메이션 없음).
- * demo = true 면 운행 중 화면에 시연용 하차 버튼이 나온다(폰·에뮬레이터 전용).
+ * demo = true 면 운행 중 화면에 시연용 하차 버튼이 나온다(차량 값이 없는 폰·폴드 시연용). 하차 안내 음성은 store.onArrival(MainActivity).
  */
 @Composable
 fun AppShell(store: FaxiStore, speak: (String) -> Unit, demo: Boolean) {
@@ -72,22 +73,8 @@ fun AppShell(store: FaxiStore, speak: (String) -> Unit, demo: Boolean) {
             .background(Faxi.colors.bg)
             .safeDrawingPadding(),
     ) {
-        if (store.gear == Gear.Driving) {
-            DrivingScreen(
-                store,
-                onDemoPark = if (demo) {
-                    {
-                        val r = store.endRide()
-                        speak(
-                            if (r.toLifetime) {
-                                "도착했습니다. 오늘 요금 ${won(r.fareTotal)}원은 평생 장부에 쌓아 둘게요."
-                            } else {
-                                "도착했습니다. 요금은 ${won(r.billed)}원입니다."
-                            },
-                        )
-                    }
-                } else null,
-            )
+        if (store.rideActive) {
+            DrivingScreen(store, onDemoPark = if (demo) ({ store.endRide() }) else null)
             return@Box
         }
         val arrival = store.arrival
@@ -96,6 +83,11 @@ fun AppShell(store: FaxiStore, speak: (String) -> Unit, demo: Boolean) {
                 store.dismissArrival()
                 tab = Tab.Board
             })
+            return@Box
+        }
+        // 운행 중이 아닌데 차가 움직이면(기어 D·R·N) 탑승·장부·기사 화면을 닫는다. 주차하면 그대로 다시 열린다.
+        if (store.gear == Gear.Driving) {
+            ParkFirstScreen()
             return@Box
         }
         Row(Modifier.fillMaxSize()) {
@@ -108,6 +100,21 @@ fun AppShell(store: FaxiStore, speak: (String) -> Unit, demo: Boolean) {
                 }
             }
         }
+    }
+}
+
+/** 운행 중이 아닌데 차가 움직일 때: 만질 것 없이 한 줄만. 정지 화면. */
+@Composable
+private fun ParkFirstScreen() {
+    val c = Faxi.colors
+    Column(
+        Modifier.fillMaxSize().padding(FaxiDimens.space8),
+        verticalArrangement = Arrangement.spacedBy(FaxiDimens.space4, Alignment.CenterVertically),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text("FAXI", style = Faxi.type.headline, color = c.accentInk)
+        Text("주행 중이에요", style = Faxi.type.display, color = c.ink)
+        Text("주차(P)하면 운행 시작과 장부를 열 수 있어요.", style = Faxi.type.title, color = c.inkMuted)
     }
 }
 

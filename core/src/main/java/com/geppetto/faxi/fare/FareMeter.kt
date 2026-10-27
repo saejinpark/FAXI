@@ -61,12 +61,15 @@ class FareMeter(
         if (stopped) waitSec += dt
         if (prev.speedKmh >= tariff.stopSpeedKmh && s.speedKmh < tariff.stopSpeedKmh) stops++
 
-        // 급정거: 감속이 기준 이상이 되는 순간 한 번
+        // 급정거: 감속이 기준 이상이 되는 순간 한 번. 한 번 밟은 것은 다시 속도를 올리거나 멈출 때까지 한 번이다.
+        // (차량 값은 속도·주행거리가 따로따로 들어와서, 속도가 그대로인 짧은 구간이 감속 중간에 끼어도 새로 세지 않는다)
         if (dt > 0) {
             val decel = (prev.speedKmh - s.speedKmh) / 3.6 / dt
-            val hard = decel >= tariff.hardBrakeMps2
-            if (hard && !braking) hardBrakes++
-            braking = hard
+            if (decel >= tariff.hardBrakeMps2 && !braking) {
+                hardBrakes++
+                braking = true
+            }
+            if (s.speedKmh > prev.speedKmh || s.speedKmh < tariff.stopSpeedKmh) braking = false
         }
 
         distanceM = s.odometerM - startOdometer
