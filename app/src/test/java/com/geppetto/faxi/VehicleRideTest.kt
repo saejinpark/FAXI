@@ -149,4 +149,18 @@ class VehicleRideTest {
         // 실내 온도를 모르면 난방으로 치지 않는다(손님에게 불리하게 매기지 않기)
         assertEquals(Hvac.Off, hvacMode(power = true, ac = false, targetC = 26f, cabinC = null))
     }
+
+    @Test
+    fun 플랫폼_주행_규제면_기어가_P여도_탑승_화면을_닫는다() {
+        feed(gear = Gear.Parked)
+        assertTrue(!store.lockedForDriving)
+        option { it.copy(uxRestricted = true) }
+        assertTrue(store.lockedForDriving)
+        // 운행 중에는 운행 중 화면(DO)이 그대로 보인다
+        store.selectDriver("dad")
+        option { it.copy(uxRestricted = false) }
+        store.startRide("mom")
+        option { it.copy(uxRestricted = true) }
+        assertTrue(!store.lockedForDriving)
+    }
 }

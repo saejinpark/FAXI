@@ -37,7 +37,8 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
   - 콜백 스레드는 문서에 없어서 모두 메인으로 옮긴다. 차가 아니거나 서비스가 없으면 아무 값도 오지 않는다(그때는 시연 운행).
   - 운행 거리 = 주행거리계 차이와 속도 적분(앞 속도 × 지난 시간) 중 큰 쪽. 계기판은 단위가 굵고(에뮬레이터는 시뮬레이션 주행에 안 따라 움직임) 적분은 잘게 센다.
   - 하차: 운행 중에 움직였다가(기어 D·R·N 또는 1km/h 이상) P에 들어가면 자동 하차 → 도착 화면 + 음성. 움직이기 전 P는 하차가 아니다.
-  - 운행 중이 아닌데 기어가 D면 `ParkFirstScreen`("주행 중이에요 · 주차하면 열려요")으로 탑승·장부·기사를 닫는다.
+  - 운행 중이 아닌데 기어가 D이거나 플랫폼 주행 규제(`CarUxRestrictionsManager`, `isRequiresDistractionOptimization`)가 걸리면 `store.lockedForDriving` → `ParkFirstScreen`("주행 중이에요 · 주차하면 열려요")으로 탑승·장부·기사를 닫는다. Pleos 주행 규제 개발 가이드가 "CarUxRestrictions 상태를 기준으로 UX 제한을 적용해야 한다"고 요구한다. 기어는 하차 판정, 규제는 화면 잠금에 쓴다.
+  - 주행 안전 가이드(driver-distraction-guideline) 대조: 손님 한마디는 프리셋 문장·짧은 글·움직임 없음이라 맞다("키보드보다 프리셋 선택 우선"). 가이드에 글자 수·시간 같은 숫자 기준은 없다.
   - 주행 중 화면 노출(DO): MainActivity에 `<meta-data android:name="distractionOptimized" android:value="true"/>`. 없으면 Pleos가 D에서 "주행 중에는 사용할 수 없습니다"로 앱 전체를 가린다. Pleos 문서에는 DO 선언 방법이 없어 Android 표준을 썼고, 에뮬레이터 홈은 받아들였지만 CarPackageManagerService가 "not installed from permitted sources"(스토어 설치 아님) 경고를 남긴다. 실제 차·심사에서 확인 필요.
   - 테스트: `app VehicleRideTest`(적분 거리요금, 계기판 우선, 대기·급정거, 움직이기 전 P, 운행 아닐 때 D, 옵션 분 단위 요금, 옵션 값 없을 때 기본값, 공조 판정).
   - Virtual Console 카드: Gear Selection, ACCEL/BRAKE, HVAC Power, Air Conditioning, Target Temperature, Seat Temperature(Driver/Passenger 고르고 H1~H3), Windshield Wiper Switch, Window Position(창 고르고 %).

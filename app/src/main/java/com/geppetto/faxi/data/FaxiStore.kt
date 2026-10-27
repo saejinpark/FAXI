@@ -61,6 +61,12 @@ class FaxiStore(
      */
     val gear: Gear get() = vehicle.gear?.takeIf { it != Gear.Unknown } ?: if (rideActive) Gear.Driving else Gear.Parked
 
+    /**
+     * 탑승·장부·기사 화면을 닫아야 하는지(운행 중이 아닐 때). 기어가 움직이는 상태이거나,
+     * 플랫폼 주행 규제(CarUxRestrictions)가 주행 중 최적화를 요구하면 닫는다(Pleos 주행 규제 개발 가이드).
+     */
+    val lockedForDriving: Boolean get() = !rideActive && (gear == Gear.Driving || vehicle.uxRestricted)
+
     /** 실제 차량 값으로 도는 요금 엔진. 운행 중이고 거리·속도가 들어올 때만 있다. 저장하지 않는다(앱이 꺼지면 시연 운행으로 대신). */
     private var liveMeter: FareMeter? = null
     /** 이번 운행에서 차가 움직였는지. 움직인 뒤 P로 돌아오면 하차로 본다. */
