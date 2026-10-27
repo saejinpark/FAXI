@@ -86,18 +86,25 @@ class PhoneActivity : ComponentActivity() {
     }
 }
 
-private val TaxiYellow = Color(0xFFFFC83D)
-private val OnTaxiYellow = Color(0xFF1F1600)
+/** FAXI 디자인 시스템과 같은 산호·남색(차 앱 ui/theme/Color.kt) */
+private val Coral = Color(0xFFF2845F)
+private val Navy = Color(0xFF1F2B42)
 private val TimeFormat = DateTimeFormatter.ofPattern("M.d HH:mm")
 
 @Composable
 private fun PhoneTheme(content: @Composable () -> Unit) {
     val dark = isSystemInDarkTheme()
     val scheme = if (dark) {
-        darkColorScheme(primary = TaxiYellow, onPrimary = OnTaxiYellow, background = Color(0xFF0E0F12), surface = Color(0xFF17191E))
+        darkColorScheme(
+            primary = Color(0xFFF79D7D), onPrimary = Navy, background = Color(0xFF121A29), onBackground = Color(0xFFF5F1EC),
+            surface = Navy, onSurface = Color(0xFFF5F1EC), surfaceVariant = Color(0xFF2A3955), onSurfaceVariant = Color(0xFFB5BFCE),
+        )
     } else {
-        // 밝은 바탕에서 노란 글자는 대비가 모자라 글자 강조는 진한 황토색(차 앱 accentInk와 같은 값)
-        lightColorScheme(primary = Color(0xFF7A5500), onPrimary = Color.White, secondary = TaxiYellow, onSecondary = OnTaxiYellow)
+        // 밝은 바탕에서 산호 글자는 대비가 모자라 글자 강조는 진한 산호(차 앱 accentInk와 같은 값)
+        lightColorScheme(
+            primary = Color(0xFFB0462A), onPrimary = Color.White, background = Color(0xFFF2F4F8), onBackground = Navy,
+            surface = Color.White, onSurface = Navy, surfaceVariant = Color(0xFFE6EAF1), onSurfaceVariant = Color(0xFF48566F),
+        )
     }
     MaterialTheme(colorScheme = scheme, content = content)
 }
@@ -340,6 +347,6 @@ private fun BigButton(text: String, onClick: () -> Unit) {
     Button(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = TaxiYellow, contentColor = OnTaxiYellow),
+        colors = ButtonDefaults.buttonColors(containerColor = Coral, contentColor = Navy),
     ) { Text(text) }
 }

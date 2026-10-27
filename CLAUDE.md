@@ -76,7 +76,11 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
 - `app/src/test/.../FaxiStoreTest.kt` 하차·상계·평생 장부·정산·탕감 단위 테스트. 장부 규칙을 바꾸면 `./gradlew testDebugUnitTest`로 확인한다.
 - `data/Speaker.kt` 음성 창구. 폰은 `AndroidSpeaker`(기기 TTS), 차량용 Pleos TTS는 다음 단계.
 - `ui/theme/` 디자인 토큰. 색은 `Faxi.colors.*`, 글자는 `Faxi.type.*`, 간격·크기는 `FaxiDimens.*`로만 쓴다. 하드코딩한 색·크기를 새로 만들지 않는다. 테마 진입점은 `FaxiTheme`(야간 기본, dynamic color 안 씀).
-  - 색: 택시 노랑 `accent`는 버튼·띠의 면 색이라 글자로 쓰지 않는다. 노란 글자가 필요하면 `accentInk`(주간에는 진한 황토색). 글자 색은 bg·surface·surfaceRaised 위에서 모두 4.5:1 이상으로 맞춰 두었다.
+  - 색: FAXI 디자인 시스템(https://claude.ai/artifact/13q7cCn7wsigv23nJYGwV2)의 tokens.json과 `ui/theme/Color.kt`는 같은 값이다. 한쪽을 고치면 다른 쪽도 고친다(폰 앱 PhoneActivity의 테마 값도).
+  - 무드는 산호 `accent`(버튼 면) + 밤 남색 `surface`. `accent`는 면 색이라 글자로 쓰지 않는다. 글자 강조는 `accentInk`. 글자 색은 bg·surface·surfaceRaised 위에서 모두 4.5:1 이상.
+  - `danger`는 산호와 밝기가 비슷하다. 늘 단어나 경고 아이콘과 함께.
+  - 가족 색 `familyPaxi/Maxi/Kixi/Naxi`(`Faxi.colors.family(호출명)`): 그 사람을 가리키는 표시(자격증 왼쪽 띠, 아바타 테두리)에만. 버튼·배경에는 쓰지 않는다.
+  - QR은 `qrPaper` 위 `qrInk`(테마와 상관없이 밝게).
   - 금액은 `Faxi.type.amount` / `amountLarge`(숫자 폭 고정 tnum).
 - `ui/components/Layout.kt` `FaxiPage`(제목 줄 + 본문). 본문은 `row(a, b)` / `full(a)`로 줄 단위로 쌓는다. 칸(Cell)은 받은 Modifier를 카드 맨 바깥에 붙이고, 카드 안 버튼 앞에는 `Spacer(Modifier.weight(1f))`를 둬서 짝꿍 카드와 버튼 줄을 맞춘다.
 - `ui/components/Buttons.kt` `FaxiPrimaryButton`(화면당 하나), `FaxiSecondaryButton`, `FaxiIconButton`, `SelectTile`(고르면 노란 테두리 + 체크).

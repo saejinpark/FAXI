@@ -95,18 +95,25 @@ fun StatusTag(text: String, tone: Tone = Tone.Neutral, icon: (@Composable (Color
  */
 @Composable
 fun Avatar(member: Member, size: Dp, style: TextStyle = Faxi.type.title) {
-    AvatarCircle(avatarOf(member.avatar)?.emoji, member.callsign.take(1), size, style)
+    // 테두리는 그 사람의 가족 색: 누구인지 색으로도 한 번 더 알린다(이름·호출명과 함께)
+    AvatarCircle(avatarOf(member.avatar)?.emoji, member.callsign.take(1), size, style, Faxi.colors.family(member.callsign))
 }
 
 /** 원 안에 캐릭터 이모지(있으면) 또는 글자 하나. 이모지는 원 지름의 55% 크기. */
 @Composable
-fun AvatarCircle(emoji: String?, fallback: String, size: Dp, style: TextStyle = Faxi.type.title) {
+fun AvatarCircle(
+    emoji: String?,
+    fallback: String,
+    size: Dp,
+    style: TextStyle = Faxi.type.title,
+    ring: Color = Faxi.colors.lineStrong,
+) {
     val c = Faxi.colors
     Box(
         Modifier
             .size(size)
             .background(c.surfaceRaised, CircleShape)
-            .border(FaxiDimens.borderWidth, c.lineStrong, CircleShape)
+            .border(FaxiDimens.borderWidth, ring, CircleShape)
             .clearAndSetSemantics { },
         contentAlignment = Alignment.Center,
     ) {
