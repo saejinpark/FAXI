@@ -11,7 +11,7 @@ stamp=$(date +%Y%m%d)
 rm -rf dist && mkdir -p dist
 cp app/build/outputs/apk/debug/app-debug.apk "dist/FAXI-car-${version}-${stamp}.apk"
 cp phone/build/outputs/apk/debug/phone-debug.apk "dist/FAXI-phone-${version}-${stamp}.apk"
-cat > dist/설치.txt <<TXT
+cat > dist/INSTALL.txt <<TXT   # GitHub 릴리스는 한글 파일 이름을 default.txt로 바꿔서 영문 이름으로 둔다
 FAXI 설치 방법
 1. 차: Pleos Connect 에뮬레이터(Pleos 이미지)를 켜고
    adb install -r FAXI-car-${version}-${stamp}.apk

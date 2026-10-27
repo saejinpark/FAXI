@@ -17,7 +17,7 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
   - `:design` 두 앱이 같이 쓰는 디자인 시스템 코드: `ui/theme`(색·글자·간격 토큰, `FaxiTheme`), `ui/components`의 `Buttons.kt`·`Icons.kt`·`Cards.kt`, 앱 아이콘, 창 바탕 테마(`Theme.Faxi.Base`). 가족 모델(`Member` 등)에 기대지 않는다. 모델이 필요한 표시(`Avatar(member)`, `gradeTone`)는 `:app`의 `MemberBadges.kt`.
 - 빌드 확인: `./gradlew assembleDebug` (네 모듈 모두), 테스트: `./gradlew testDebugUnitTest`. 셸에 Java가 없으면 Android Studio JDK를 쓴다:
   `export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"`
-- 제출: `README.md`(심사위원용 소개, 스크린샷 `docs/screenshots/`), `tools/package.sh`(테스트 후 차·폰 APK와 설치 방법을 `dist/`에, git에는 안 넣음).
+- 제출: `README.md`(심사위원용 소개, 스크린샷 `docs/screenshots/`), `tools/package.sh`(테스트 후 차·폰 APK와 설치 방법 INSTALL.txt를 `dist/`에, git에는 안 넣음).
 - 시연: `tools/demo.sh`(차·폰 에뮬레이터를 AVD 이름으로 찾아 빌드·설치·장부 초기화·권한·포트·실행, `--keep` `--no-build`), 영상 촬영 순서는 `tools/DEMO.md`.
 - 실행: Pleos Connect Emulator(AVD는 Cold boot), UI 확인은 갤럭시 폴드 실기기. 폰·폴드에는 Pleos 차량 서비스가 없어서 차량 값이 오지 않고 시연 운행(`FakeTrip`)으로 대신한다.
   - **차 에뮬레이터는 AVD `Pleos_Connect_SDK`를 쓴다**(시스템 이미지 `system-images/android-34/pleos_car_emulator`, Android 14, Pleos Vehicle Service가 들어 있다). 예전 AVD `Pleos_Connect_v2.1.0`은 이름만 Pleos이고 구글 일반 Automotive 이미지(Android 15)라 Pleos SDK가 붙지 않는다.
