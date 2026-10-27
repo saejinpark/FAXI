@@ -7,6 +7,13 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import com.geppetto.faxi.ui.components.FaxiSecondaryButton
+import com.geppetto.faxi.ui.components.QrImage
+import com.geppetto.faxi.ui.components.WarningIcon
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
@@ -101,6 +108,7 @@ fun MemberDetailScreen(
                 }
             },
         )
+        full { m -> PhoneLinkCard(store, memberId, m) }
         full { m -> AvatarPicker(store, memberId, m) }
     }
 }
@@ -140,6 +148,45 @@ private fun ReviewItem(store: FaxiStore, r: Receipt, review: Review) {
             Text("  ${store.name(r.passengerId)} · ${r.endedAt.format(ReceiptTimeFormat)} ${r.to}", style = t.caption, color = c.inkMuted)
         }
         if (review.tags.isNotEmpty()) Text(review.tags.joinToString(" · "), style = t.body, color = c.ink)
+    }
+}
+
+/**
+ * 폰 연결: 이 사람 폰의 FAXI 앱이 찍을 초대 QR. 탑승 비밀 열쇠가 들어 있어서 눌러야 보이고,
+ * 화면을 떠나면 다시 숨는다. 주차 상태의 차 안에서 그 사람이 직접 찍는 것을 전제로 한다.
+ */
+@Composable
+private fun PhoneLinkCard(store: FaxiStore, memberId: String, modifier: Modifier) {
+    val c = Faxi.colors
+    val t = Faxi.type
+    val member = store.member(memberId)
+    var shown by remember(memberId) { mutableStateOf(false) }
+    FaxiCard(modifier) {
+        SectionTitle("폰 연결")
+        Text(
+            "${member.name} 폰의 FAXI 앱에서 \"초대 QR 찍기\"를 누르고 이 QR을 찍으면, 그 폰에 탑승 코드가 떠요.",
+            style = t.body, color = c.ink,
+        )
+        if (!shown) {
+            FaxiSecondaryButton("초대 QR 보이기", onClick = { shown = true })
+        } else {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space6),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                QrImage(store.inviteFor(memberId).toLink(), 240.dp, "${member.name} 초대 QR 코드")
+                Column(verticalArrangement = Arrangement.spacedBy(FaxiDimens.space4)) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space3),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        WarningIcon(c.danger, FaxiDimens.iconMd)
+                        Text("${member.name}의 탑승 열쇠가 들어 있어요. 다른 사람이 찍지 않게 해 주세요.", style = t.body, color = c.ink)
+                    }
+                    FaxiSecondaryButton("QR 숨기기", onClick = { shown = false })
+                }
+            }
+        }
     }
 }
 

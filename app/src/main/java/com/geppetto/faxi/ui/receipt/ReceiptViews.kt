@@ -2,17 +2,24 @@ package com.geppetto.faxi.ui.receipt
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.geppetto.faxi.ui.components.FaxiSecondaryButton
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -25,7 +32,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
@@ -43,14 +49,13 @@ import com.geppetto.faxi.ui.components.Divider
 import com.geppetto.faxi.ui.components.FaxiCard
 import com.geppetto.faxi.ui.components.FaxiPrimaryButton
 import com.geppetto.faxi.ui.components.MoneyRow
+import com.geppetto.faxi.ui.components.QrImage
 import com.geppetto.faxi.ui.components.SectionTitle
 import com.geppetto.faxi.ui.components.SelectTile
 import com.geppetto.faxi.ui.components.StarIcon
-import com.geppetto.faxi.ui.theme.DayColors
 import com.geppetto.faxi.ui.theme.Faxi
 import com.geppetto.faxi.ui.theme.FaxiDimens
 import java.time.format.DateTimeFormatter
-import java.util.Random
 
 val ReceiptTimeFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("M.d HH:mm")
 
@@ -82,10 +87,9 @@ fun ReceiptCard(
                 )
                 Text("${r.from} → ${r.to} · ${r.endedAt.format(ReceiptTimeFormat)}", style = t.caption, color = c.inkMuted)
             }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                ReceiptQr(r.id)
-                Text("폰으로 찍어 저장", style = t.caption, color = c.inkMuted)
-            }
+            // 진짜 QR: 영수증 + 지금 손님의 정산 현황(core의 ReceiptTicket, 69칸 이하로 줄여 싣는다)
+            val link = remember(r, store.debts.toList()) { store.ticketFor(r).toLink() }
+            ReceiptQrBox(link)
         }
         if (r.toLifetime) {
             Text("${passenger.name}의 평생 장부에 쌓였어요", style = t.bodyStrong, color = c.inkMuted)
@@ -180,41 +184,6 @@ fun ReviewForm(r: Receipt, onSubmit: (Review) -> Unit) {
 }
 
 /**
- * 영수증 QR 자리. 지금은 영수증 id로 만든 모양만 흉내 낸 그림이라 찍어도 읽히지 않는다.
- * 실제 QR 인코딩은 폰 앱 단계에서 붙인다.
- * 폰이 읽을 수 있게 야간 테마에서도 밝은 바탕(DayColors)에 어두운 점으로 그린다.
- */
-@Composable
-private fun ReceiptQr(seed: String) {
-    val paper = DayColors.surface
-    val dot = DayColors.ink
-    Box(
-        Modifier
-            .size(132.dp)
-            .background(paper, RoundedCornerShape(FaxiDimens.radiusSm))
-            .border(FaxiDimens.borderWidth, Faxi.colors.line, RoundedCornerShape(FaxiDimens.radiusSm))
-            .padding(FaxiDimens.space3)
-            .semantics { contentDescription = "영수증 QR 코드" },
-    ) {
-        Canvas(Modifier.fillMaxWidth().size(108.dp)) {
-            val n = 21
-            val cell = size.width / n
-            val rnd = Random(seed.hashCode().toLong())
-            fun finder(x: Int, y: Int) {
-                drawRect(dot, Offset(x * cell, y * cell), Size(7 * cell, 7 * cell))
-                drawRect(paper, Offset((x + 1) * cell, (y + 1) * cell), Size(5 * cell, 5 * cell))
-                drawRect(dot, Offset((x + 2) * cell, (y + 2) * cell), Size(3 * cell, 3 * cell))
-            }
-            for (y in 0 until n) for (x in 0 until n) {
-                val inFinder = (x < 8 && y < 8) || (x >= n - 8 && y < 8) || (x < 8 && y >= n - 8)
-                if (!inFinder && rnd.nextBoolean()) drawRect(dot, Offset(x * cell, y * cell), Size(cell, cell))
-            }
-            finder(0, 0); finder(n - 7, 0); finder(0, n - 7)
-        }
-    }
-}
-
-/**
  * 오늘의 승차감: 운행 동안의 흔들림을 한 줄로(심전도처럼). 급정거 자리는 위험색 점 + 글자로 표시한다.
  * 하차 뒤(주차 상태)에만 보이는 정지 그림이다. 운행 중에 흐르게 그리지 않는다.
  */
@@ -266,5 +235,50 @@ fun RideComfortChart(r: Receipt, modifier: Modifier = Modifier) {
             }
         }
         Text("선이 높을수록 많이 흔들렸어요.", style = t.caption, color = c.inkMuted)
+    }
+}
+
+/**
+ * 영수증 QR. 카드 안 작은 QR은 칸이 너무 작아(차 화면은 1dp = 1px 안팎) 폰 카메라가 못 읽는다.
+ * 눌러서 화면 가득 크게 띄운 상태로 찍는다. 주차 상태 화면에서만 쓰인다.
+ */
+@Composable
+private fun ReceiptQrBox(link: String) {
+    val c = Faxi.colors
+    var big by remember { mutableStateOf(false) }
+    Column(
+        Modifier
+            .clip(RoundedCornerShape(FaxiDimens.radiusSm))
+            .clickable(role = Role.Button, onClickLabel = "영수증 QR 크게 보기") { big = true }
+            .padding(FaxiDimens.space1),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        QrImage(link, 132.dp, "영수증 QR 코드")
+        Text("눌러서 크게 보기", style = Faxi.type.caption, color = c.inkMuted)
+    }
+    if (big) {
+        Dialog(onDismissRequest = { big = false }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+            // 가로 화면: 왼쪽 QR(화면 높이에 맞춰 최대한 크게), 오른쪽 안내 + 닫기. 닫기가 화면 밖으로 밀리지 않게.
+            BoxWithConstraints(Modifier.fillMaxSize().background(c.bg).padding(FaxiDimens.space8)) {
+                val qr = minOf(maxHeight, maxWidth * 0.6f)
+                Row(
+                    Modifier.fillMaxSize(),
+                    horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space8, Alignment.CenterHorizontally),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(Modifier.clickable(role = Role.Button, onClickLabel = "닫기") { big = false }) {
+                        QrImage(link, qr, "영수증 QR 코드")
+                    }
+                    Column(
+                        Modifier.weight(1f, fill = false),
+                        verticalArrangement = Arrangement.spacedBy(FaxiDimens.space6),
+                    ) {
+                        Text("손님 폰의 FAXI 앱에서\n\"영수증 QR 찍기\"로 찍어 주세요.", style = Faxi.type.title, color = c.ink)
+                        Text("영수증과 지금 정산 현황이 폰에 저장돼요.", style = Faxi.type.body, color = c.inkMuted)
+                        FaxiSecondaryButton("닫기", onClick = { big = false })
+                    }
+                }
+            }
+        }
     }
 }

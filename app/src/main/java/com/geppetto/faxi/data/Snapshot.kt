@@ -20,6 +20,8 @@ import java.time.LocalDateTime
 @Serializable
 data class FaxiSnapshot(
     val version: Int = 1,
+    /** 가족 ID. 초대·영수증 QR에 담겨, 폰이 "어느 차의 가족인지" 안다. 예전 장부는 시연 가족으로 본다. */
+    val familyId: String = com.geppetto.faxi.auth.DemoFamily.FAMILY_ID,
     val members: List<Member>,
     val driverId: String,
     val debts: List<Debt>,

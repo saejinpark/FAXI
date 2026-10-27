@@ -13,7 +13,7 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
 - 모듈 셋(git 저장소, 작업은 브랜치에서):
   - `:app` 차 앱(Pleos Connect), 패키지 `com.geppetto.faxi`
   - `:phone` 폰 앱(가족 모두의 폰), 패키지 `com.geppetto.faxi.phone`
-  - `:core` 두 앱이 같이 쓰는 순수 로직(요금 엔진 `fare`, 탑승 인증 `auth`). 화면·안드로이드 기능에 기대지 않는다.
+  - `:core` 두 앱이 같이 쓰는 순수 로직(요금 엔진 `fare`, 탑승 인증 `auth`, QR `qr`). 화면·안드로이드 기능에 기대지 않는다.
 - 빌드 확인: `./gradlew assembleDebug` (세 모듈 모두), 테스트: `./gradlew testDebugUnitTest`. 셸에 Java가 없으면 Android Studio JDK를 쓴다:
   `export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"`
 - 실행: Pleos Connect Emulator(AVD는 Cold boot), UI 확인은 갤럭시 폴드 실기기. 폰에는 Pleos SDK가 없으므로 차량 데이터는 가짜 구현으로 대체한다.
@@ -62,7 +62,16 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
   - `FaxiInvite` 초대 링크 `faxi://join?f=&m=&n=&c=&s=`(차 화면 QR에 담을 내용). 비밀 열쇠가 차 → 폰으로 가는 유일한 길.
   - `DemoFamily` 시연 가족 고정 열쇠. 차 앱 시연 데이터와 폰 앱 "시연 가족으로 등록"이 같은 열쇠를 써서 QR 없이도 인증을 시연한다. 누구나 아는 열쇠라 실제 가족에게는 쓰지 않는다.
 - 차 앱 인증: `Member.secret`(Base32)을 장부에 저장, `store.verifyBoardingCode(손님, 코드)`. 열쇠가 없는 예전 장부는 불러올 때 채운다.
-- `phone/` 폰 앱 뼈대: 등록(초대 QR 찍기는 준비 중, 링크 붙여넣기, 시연 가족) → 탑승 코드(30초마다, 남은 시간 막대) + 내 자격증·영수증 자리. 등록 정보는 SharedPreferences(백업 끔).
+- `core/.../qr/` QR(zxing, 인터넷·구글 서비스 없이).
+  - `QrCodec` 만들기(차 화면)·읽기(폰 카메라 밝기 값). 기본 오류 정정 M.
+  - `ReceiptTicket` 영수증 QR 내용: 영수증 + 그 순간 손님의 받을 돈·갚을 돈. `faxi://receipt?d=`(이름표 없는 배열 JSON → Deflate → Base64). 영수증 줄은 `FareCodes` 기호로 줄여 싣는다(대기요금/신호 7회 → W/7).
+  - **QR 크기 규칙(실측)**: 77칸짜리는 차 스크린샷에서 주변에 따라 못 읽었다. 영수증 QR은 69칸(버전 13) 이하를 `QrTest`가 지킨다. 필드를 늘리면 이 테스트가 먼저 깨진다. 새 값은 배열 끝에만 붙인다(자리를 바꾸면 예전 QR을 못 읽는다).
+  - 차 화면에서는 1dp ≈ 1px 안팎이라 작은 QR은 못 읽는다. 영수증 QR은 카드 안에 작게, 눌러서 화면 높이만큼 크게 띄워 찍는다. 초대 QR은 240dp.
+- 차 앱 QR: `ui/components/QrImage.kt`(밝은 종이 + 4칸 여백, 야간에도 밝게). 기사 상세 "폰 연결" 카드의 초대 QR은 눌러야 보이고(비밀 열쇠), 화면을 떠나면 숨는다. 디버그 빌드는 도착 때 영수증 링크를 `FaxiReceipt` 로그로 남긴다(에뮬레이터 폰으로 시험용, 비밀 없음).
+- `phone/` 폰 앱: 등록(초대 QR 찍기, 링크 붙여넣기, 시연 가족) → 탑승 코드(30초마다, 남은 시간 막대) + 영수증 QR 찍기 + 내 정산 현황(마지막 영수증 기준 사본) + 내 영수증(눌러서 항목 펼치기).
+  - QR 찍기: `QrScanner.kt`(CameraX 미리보기 + :core QrCodec). `faxi://` 링크는 딥 링크로도 열린다(같은 `handleLink`). 초대는 확인 창을 거쳐 등록, 영수증은 내 가족·내 것만 저장.
+  - 등록 정보와 영수증은 SharedPreferences(백업 끔). 폰은 차 장부를 바꾸지 못한다.
+  - 에뮬레이터 카메라로는 차 화면을 못 찍는다. 시험은 딥 링크로: `adb shell "am start -a android.intent.action.VIEW -d '<링크>' com.geppetto.faxi.phone"`
   - 폰은 손님 화면이라 차 앱의 주행 중 움직임 금지 규칙을 적용하지 않는다.
 - `app/src/test/.../FaxiStoreTest.kt` 하차·상계·평생 장부·정산·탕감 단위 테스트. 장부 규칙을 바꾸면 `./gradlew testDebugUnitTest`로 확인한다.
 - `data/Speaker.kt` 음성 창구. 폰은 `AndroidSpeaker`(기기 TTS), 차량용 Pleos TTS는 다음 단계.
@@ -78,7 +87,7 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
 - 화면에 나중에 생기는 줄(안내 문구 등)이 버튼을 밀어내지 않게 자리를 미리 잡아 둔다. 버튼이 손가락 밑에서 움직이면 안 된다.
 
 ## 아직 가짜인 것
-- 가족 초대 QR: 차 화면에 QR을 그리는 것과 폰 카메라로 읽는 것이 아직 없다. 지금은 시연 가족 등록이나 링크 붙여넣기로 등록한다.
+- 폰 카메라로 차 화면 QR 찍기: 코드는 있지만 실기기로 찍어 보지 못했다(에뮬레이터는 차 화면 스크린샷 해독과 딥 링크로만 확인).
 - 차량 값: 요금 엔진은 진짜, 넣는 값은 가짜(`FakeTrip.planExample`). 승차감 그래프 모양과 운행 중 옵션 상태(`store.cabin`)도 가짜.
 - 영수증 QR: 모양만 흉내 낸 그림이라 찍어도 읽히지 않는다.
 - 하차: 시연용 버튼. 차량에서는 기어 P를 감지해야 한다.

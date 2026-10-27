@@ -21,5 +21,7 @@ android {
 
 dependencies {
     api(libs.kotlinx.serialization.json)
+    // QR 만들기·읽기(순수 Java, 인터넷·구글 서비스 없이 돈다)
+    api(libs.zxing.core)
     testImplementation(libs.junit)
 }

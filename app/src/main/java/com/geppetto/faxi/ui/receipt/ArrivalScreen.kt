@@ -1,5 +1,9 @@
 package com.geppetto.faxi.ui.receipt
 
+import android.content.pm.ApplicationInfo
+import android.util.Log
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import com.geppetto.faxi.data.FaxiStore
@@ -20,6 +24,13 @@ import com.geppetto.faxi.ui.theme.Faxi
 @Composable
 fun ArrivalScreen(store: FaxiStore, receipt: Receipt, onClose: () -> Unit) {
     val reviewed = store.reviews[receipt.id]
+    // 디버그 빌드에서만: 에뮬레이터 카메라로 차 화면을 찍을 수 없어서, 폰 앱 시험용으로 영수증 링크를 남긴다(비밀 없음)
+    val context = LocalContext.current
+    LaunchedEffect(receipt.id) {
+        if (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0) {
+            Log.d("FaxiReceipt", store.ticketFor(receipt).toLink())
+        }
+    }
     // 닫기는 제목 줄에 둔다. 카드 안 맨 아래에 두면 영수증·후기가 길 때 화면 밖으로 밀린다.
     // 후기 남기기가 이 화면의 주 버튼이라, 후기 전에는 닫기를 보조 버튼으로 둔다.
     FaxiPage(

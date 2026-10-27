@@ -7,6 +7,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.geppetto.faxi.auth.Base32
 import com.geppetto.faxi.auth.DemoFamily
+import com.geppetto.faxi.auth.FaxiInvite
+import com.geppetto.faxi.qr.Balance
+import com.geppetto.faxi.qr.ReceiptTicket
 import com.geppetto.faxi.auth.Totp
 import com.geppetto.faxi.fare.FakeTrip
 import com.geppetto.faxi.fare.FareLine
@@ -29,6 +32,7 @@ class FaxiStore(
     snapshot: FaxiSnapshot,
     private val clock: () -> LocalDateTime = LocalDateTime::now,
 ) {
+    val familyId: String = snapshot.familyId
     val members = mutableStateListOf<Member>().apply { addAll(snapshot.members.map(::withSecret)) }
 
     var driverId by mutableStateOf(snapshot.driverId)
@@ -67,6 +71,7 @@ class FaxiStore(
     val today: LocalDate get() = clock().toLocalDate()
 
     fun snapshot(): FaxiSnapshot = FaxiSnapshot(
+        familyId = familyId,
         members = members.toList(),
         driverId = driverId,
         debts = debts.toList(),
@@ -119,6 +124,32 @@ class FaxiStore(
         val i = members.indexOfFirst { it.id == memberId }
         members[i] = members[i].copy(avatar = avatar)
         changed()
+    }
+
+    /** 이 사람 폰에 건넬 초대(차 화면 QR). 비밀 열쇠가 들어 있으니 그 사람 앞에서만 띄운다. */
+    fun inviteFor(memberId: String): FaxiInvite {
+        val m = member(memberId)
+        return FaxiInvite(familyId, m.id, m.name, m.callsign, m.secret)
+    }
+
+    /** 영수증 QR에 담을 내용: 영수증 + 지금 이 손님의 받을 돈·갚을 돈 */
+    fun ticketFor(r: Receipt): ReceiptTicket {
+        val p = r.passengerId
+        val driver = member(r.driverId)
+        val balances = debts.mapNotNull { d ->
+            when (p) {
+                d.debtorId -> Balance(name(d.creditorId), owedToMe = false, amount = d.amount, disputed = d.disputed)
+                d.creditorId -> Balance(name(d.debtorId), owedToMe = true, amount = d.amount, disputed = d.disputed)
+                else -> null
+            }
+        }
+        return ReceiptTicket(
+            familyId = familyId, id = r.id, passengerId = p, passenger = name(p),
+            driver = "${driver.name} · ${driver.callsign}", route = "${r.from} → ${r.to}",
+            endedAt = r.endedAt.toString(), lines = r.lines, fareTotal = r.fareTotal, billed = r.billed,
+            carriedOver = r.carriedOver, lateInterest = r.lateInterest, offset = r.offset, toLifetime = r.toLifetime,
+            balances = balances,
+        )
     }
 
     fun selectDriver(id: String) {
