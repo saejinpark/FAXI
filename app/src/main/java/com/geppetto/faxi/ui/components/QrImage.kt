@@ -12,10 +12,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import com.geppetto.faxi.qr.QrCodec
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
-import com.geppetto.faxi.ui.theme.DayColors
+import com.geppetto.faxi.ui.theme.Faxi
 
 /**
- * 진짜 QR 그림. 폰 카메라가 읽을 수 있게 야간 테마에서도 밝은 바탕(DayColors)에 어두운 칸으로,
+ * 진짜 QR 그림. 폰 카메라가 읽을 수 있게 야간 테마에서도 밝은 종이(qrPaper)에 어두운 점(qrInk)으로,
  * 둘레에 4칸 여백(quiet zone)을 둔다. 정지 그림이라 주행 중 규칙과 무관하다.
  * label은 TalkBack이 읽는 이름(링크 내용은 읽어 주지 않는다. 초대 QR에는 비밀 열쇠가 들어 있다).
  */
@@ -27,8 +27,8 @@ fun QrImage(
     ecc: ErrorCorrectionLevel = ErrorCorrectionLevel.M,
 ) {
     val matrix = remember(text, ecc) { QrCodec.encode(text, ecc) }
-    val paper = DayColors.surface
-    val dot = DayColors.ink
+    val paper = Faxi.colors.qrPaper
+    val dot = Faxi.colors.qrInk
     Canvas(Modifier.size(size).semantics { contentDescription = label }) {
         val quiet = 4
         val cells = matrix.size + quiet * 2

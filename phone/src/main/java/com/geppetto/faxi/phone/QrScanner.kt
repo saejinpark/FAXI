@@ -15,10 +15,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -29,9 +26,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
+import com.geppetto.faxi.ui.components.FaxiPrimaryButton
+import com.geppetto.faxi.ui.components.FaxiSecondaryButton
+import com.geppetto.faxi.ui.theme.Faxi
+import com.geppetto.faxi.ui.theme.FaxiDimens
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import com.geppetto.faxi.qr.QrCodec
@@ -51,19 +53,20 @@ fun QrScanner(title: String, onResult: (String) -> Unit, onCancel: () -> Unit) {
     val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted = it }
     LaunchedEffect(Unit) { if (!granted) ask.launch(Manifest.permission.CAMERA) }
 
+    val c = Faxi.colors
     Column(
-        Modifier.fillMaxSize().padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        Modifier.fillMaxSize().padding(FaxiDimens.space6),
+        verticalArrangement = Arrangement.spacedBy(FaxiDimens.space4),
     ) {
-        Text(title, style = MaterialTheme.typography.headlineSmall)
+        Text(title, style = Faxi.type.headline, color = c.ink)
         if (granted) {
-            Box(Modifier.fillMaxWidth().aspectRatio(3f / 4f)) { CameraPreview(onResult) }
-            Text("차 화면의 QR이 네모 안에 다 들어오게 비춰 주세요.", style = MaterialTheme.typography.bodyMedium)
+            Box(Modifier.fillMaxWidth().aspectRatio(3f / 4f).clip(RoundedCornerShape(FaxiDimens.radiusLg))) { CameraPreview(onResult) }
+            Text("차 화면의 QR이 네모 안에 다 들어오게 비춰 주세요.", style = Faxi.type.body, color = c.inkMuted)
         } else {
-            Text("QR을 찍으려면 카메라 권한이 필요해요.", style = MaterialTheme.typography.bodyLarge)
-            OutlinedButton(onClick = { ask.launch(Manifest.permission.CAMERA) }) { Text("카메라 허용") }
+            Text("QR을 찍으려면 카메라 권한이 필요해요.", style = Faxi.type.body, color = c.ink)
+            FaxiPrimaryButton("카메라 허용", onClick = { ask.launch(Manifest.permission.CAMERA) }, modifier = Modifier.fillMaxWidth())
         }
-        OutlinedButton(onClick = onCancel, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) { Text("닫기") }
+        FaxiSecondaryButton("닫기", onClick = onCancel, modifier = Modifier.fillMaxWidth())
     }
 }
 
