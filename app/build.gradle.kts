@@ -52,6 +52,8 @@ dependencies {
     implementation(project(":design"))
     // 차량 값: 주행거리·기어는 Pleos Vehicle SDK, 속도는 Android Car API(CarPropertyManager, Pleos FAQ 권장)
     implementation(libs.pleos.vehicle)
+    // 음성 안내: Pleos TextToSpeech SDK(차 안 엔진, ON_DEVICE)
+    implementation(libs.pleos.tts)
     implementation(libs.kotlinx.serialization.json)
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
