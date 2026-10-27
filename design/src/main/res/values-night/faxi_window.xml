@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="faxi_window_bg">#FF121A29</color>
+    <style name="Theme.Faxi.Base" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/faxi_window_bg</item>
+    </style>
+</resources>

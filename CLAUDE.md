@@ -10,11 +10,12 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
 
 ## 기술 스택
 - Kotlin + Jetpack Compose, Gradle Kotlin DSL, minSdk 28. 내비게이션·DI 라이브러리는 필요해질 때까지 넣지 않는다.
-- 모듈 셋(git 저장소, 작업은 브랜치에서):
+- 모듈 넷(git 저장소, 작업은 브랜치에서):
   - `:app` 차 앱(Pleos Connect), 패키지 `com.geppetto.faxi`
   - `:phone` 폰 앱(가족 모두의 폰), 패키지 `com.geppetto.faxi.phone`
   - `:core` 두 앱이 같이 쓰는 순수 로직(요금 엔진 `fare`, 탑승 인증 `auth`, QR `qr`). 화면·안드로이드 기능에 기대지 않는다.
-- 빌드 확인: `./gradlew assembleDebug` (세 모듈 모두), 테스트: `./gradlew testDebugUnitTest`. 셸에 Java가 없으면 Android Studio JDK를 쓴다:
+  - `:design` 두 앱이 같이 쓰는 디자인 시스템 코드: `ui/theme`(색·글자·간격 토큰, `FaxiTheme`), `ui/components`의 `Buttons.kt`·`Icons.kt`·`Cards.kt`, 앱 아이콘, 창 바탕 테마(`Theme.Faxi.Base`). 가족 모델(`Member` 등)에 기대지 않는다. 모델이 필요한 표시(`Avatar(member)`, `gradeTone`)는 `:app`의 `MemberBadges.kt`.
+- 빌드 확인: `./gradlew assembleDebug` (네 모듈 모두), 테스트: `./gradlew testDebugUnitTest`. 셸에 Java가 없으면 Android Studio JDK를 쓴다:
   `export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"`
 - 실행: Pleos Connect Emulator(AVD는 Cold boot), UI 확인은 갤럭시 폴드 실기기. 폰에는 Pleos SDK가 없으므로 차량 데이터는 가짜 구현으로 대체한다.
   - 차 + 폰 같이 시험: AVD `Pleos_Connect_v2.1.0`(차)과 `Medium_Phone_API_37.0`(폰)을 함께 켠다. 폰 앱에서 시연 가족으로 등록 → 폰의 4자리를 차에 입력.
@@ -72,20 +73,20 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
   - QR 찍기: `QrScanner.kt`(CameraX 미리보기 + :core QrCodec). `faxi://` 링크는 딥 링크로도 열린다(같은 `handleLink`). 초대는 확인 창을 거쳐 등록, 영수증은 내 가족·내 것만 저장.
   - 등록 정보와 영수증은 SharedPreferences(백업 끔). 폰은 차 장부를 바꾸지 못한다.
   - 에뮬레이터 카메라로는 차 화면을 못 찍는다. 시험은 딥 링크로: `adb shell "am start -a android.intent.action.VIEW -d '<링크>' com.geppetto.faxi.phone"`
-  - 폰은 손님 화면이라 차 앱의 주행 중 움직임 금지 규칙을 적용하지 않는다.
+  - 폰은 손님 화면이라 차 앱의 주행 중 움직임 금지 규칙을 적용하지 않는다. 색·글자·버튼·카드는 차 앱과 같은 `:design` 것을 쓴다(Material 기본 글자 크기를 쓰지 않는다). 폰 화면 가장자리는 `space6`, 좁으니 금액 줄은 항목 쪽이 줄을 바꾼다.
 - `app/src/test/.../FaxiStoreTest.kt` 하차·상계·평생 장부·정산·탕감 단위 테스트. 장부 규칙을 바꾸면 `./gradlew testDebugUnitTest`로 확인한다.
 - `data/Speaker.kt` 음성 창구. 폰은 `AndroidSpeaker`(기기 TTS), 차량용 Pleos TTS는 다음 단계.
-- `ui/theme/` 디자인 토큰. 색은 `Faxi.colors.*`, 글자는 `Faxi.type.*`, 간격·크기는 `FaxiDimens.*`로만 쓴다. 하드코딩한 색·크기를 새로 만들지 않는다. 테마 진입점은 `FaxiTheme`(야간 기본, dynamic color 안 씀).
-  - 색: FAXI 디자인 시스템(https://claude.ai/artifact/13q7cCn7wsigv23nJYGwV2)의 tokens.json과 `ui/theme/Color.kt`는 같은 값이다. 한쪽을 고치면 다른 쪽도 고친다(폰 앱 PhoneActivity의 테마 값도).
+- `ui/theme/`(`:design` 모듈) 디자인 토큰. 색은 `Faxi.colors.*`, 글자는 `Faxi.type.*`, 간격·크기는 `FaxiDimens.*`로만 쓴다. 하드코딩한 색·크기를 새로 만들지 않는다. 테마 진입점은 `FaxiTheme`(야간 기본, dynamic color 안 씀).
+  - 색: FAXI 디자인 시스템(https://claude.ai/artifact/13q7cCn7wsigv23nJYGwV2)의 tokens.json과 `ui/theme/Color.kt`는 같은 값이다. 한쪽을 고치면 다른 쪽도 고친다. 폰 앱도 같은 `FaxiTheme`을 쓰므로 값은 한 곳뿐이다.
   - 무드는 산호 `accent`(버튼 면) + 밤 남색 `surface`. `accent`는 면 색이라 글자로 쓰지 않는다. 글자 강조는 `accentInk`. 글자 색은 bg·surface·surfaceRaised 위에서 모두 4.5:1 이상.
   - `danger`는 산호와 밝기가 비슷하다. 늘 단어나 경고 아이콘과 함께.
   - 가족 색 `familyPaxi/Maxi/Kixi/Naxi`(`Faxi.colors.family(호출명)`): 그 사람을 가리키는 표시(자격증 왼쪽 띠, 아바타 테두리)에만. 버튼·배경에는 쓰지 않는다.
   - QR은 `qrPaper` 위 `qrInk`(테마와 상관없이 밝게).
   - 금액은 `Faxi.type.amount` / `amountLarge`(숫자 폭 고정 tnum).
 - `ui/components/Layout.kt` `FaxiPage`(제목 줄 + 본문). 본문은 `row(a, b)` / `full(a)`로 줄 단위로 쌓는다. 칸(Cell)은 받은 Modifier를 카드 맨 바깥에 붙이고, 카드 안 버튼 앞에는 `Spacer(Modifier.weight(1f))`를 둬서 짝꿍 카드와 버튼 줄을 맞춘다.
-- `ui/components/Buttons.kt` `FaxiPrimaryButton`(화면당 하나), `FaxiSecondaryButton`, `FaxiIconButton`, `SelectTile`(고르면 노란 테두리 + 체크).
+- `ui/components/Buttons.kt` `FaxiPrimaryButton`(화면당 하나), `FaxiSecondaryButton`, `FaxiIconButton`, `SelectTile`(고르면 accent 굵은 테두리 + 체크).
 - `ui/components/Cards.kt` `FaxiCard`, `SectionTitle`, `StatusTag`(단어로 상태 표시), `Avatar`/`AvatarCircle`(캐릭터 또는 호출명 첫 글자), `MoneyRow`, `BigWon`.
-- `ui/components/LicenseCard.kt` `DriverLicenseCard`: 신분증 모양(왼쪽 노란 띠, 3:4 사진 칸, 성명·등록·운행 칸). 위에 가득 찬 띠나 아래 통계 줄을 두면 티켓처럼 보이니 피한다. `large`(운행 중 화면)는 칸 글자 24sp 이상.
+- `ui/components/LicenseCard.kt` `DriverLicenseCard`: 신분증 모양(왼쪽 가족 색 띠, 3:4 사진 칸, 성명·등록·운행 칸). 위에 가득 찬 띠나 아래 통계 줄을 두면 티켓처럼 보이니 피한다. `large`(운행 중 화면)는 칸 글자 24sp 이상.
 - `ui/components/Icons.kt` 아이콘 라이브러리 없이 Canvas로 28×28 격자, 선 3단위. 모두 정지 그림.
 - `ui/components/Previews.kt` `@FaxiPreviews`(차량 1920dp + 폴드 900dp)와 `PreviewFrame`. 화면 파일마다 아래에 둔다.
 - 화면에 나중에 생기는 줄(안내 문구 등)이 버튼을 밀어내지 않게 자리를 미리 잡아 둔다. 버튼이 손가락 밑에서 움직이면 안 된다.
@@ -93,7 +94,6 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
 ## 아직 가짜인 것
 - 폰 카메라로 차 화면 QR 찍기: 코드는 있지만 실기기로 찍어 보지 못했다(에뮬레이터는 차 화면 스크린샷 해독과 딥 링크로만 확인).
 - 차량 값: 요금 엔진은 진짜, 넣는 값은 가짜(`FakeTrip.planExample`). 승차감 그래프 모양과 운행 중 옵션 상태(`store.cabin`)도 가짜.
-- 영수증 QR: 모양만 흉내 낸 그림이라 찍어도 읽히지 않는다.
 - 하차: 시연용 버튼. 차량에서는 기어 P를 감지해야 한다.
 
 ## 앱 아이콘
@@ -101,7 +101,7 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
   - 위 칸 = 택시 지붕 표시등, 안에 A·X·I. 첫 글자 자리는 비어 있다(빠진 F는 아이콘 자체).
   - 아래 칸 = 차 지붕. 위 칸보다 왼쪽으로 한 계단 나와 F 기둥이 계단처럼 보인다.
   - 모서리는 둥글게, 글자는 둥근 끝 선으로(시스템 글꼴 아님). 산호 글자/남색 대비 5.56:1.
-- `res/drawable/ic_launcher_foreground.xml`(남색 칸 + 글자), `ic_launcher_background.xml`(산호 = F), `ic_launcher_monochrome.xml`(테마 아이콘: F만 남기고 칸은 뚫음), `mipmap-anydpi/ic_launcher*.xml`. 차 앱과 폰 앱에 **같은 파일**(하나를 고치면 둘 다).
+- `design/src/main/res/drawable/ic_launcher_foreground.xml`(남색 칸 + 글자), `ic_launcher_background.xml`(산호 = F), `ic_launcher_monochrome.xml`(테마 아이콘: F만 남기고 칸은 뚫음), `mipmap-anydpi/ic_launcher*.xml`. `:design`에 한 벌만 있고 차 앱·폰 앱이 같이 쓴다.
 - 108dp 격자 그대로 그린다. 보이는 영역(가운데 72dp, 18~90) 안에서 F 기둥·윗막대·가운데 막대가 읽히게 놓았다. 위치를 바꾸면 원 모양 마스크(차 런처)로 꼭 확인한다.
 - 아이콘을 바꾼 뒤 차 런처에 옛 아이콘이 보이면 캐시다: `adb shell am force-stop com.android.car.carlauncher`.
 - minSdk 28이라 적응형 아이콘만 쓴다. 예전 비트맵 아이콘은 없다.

@@ -26,11 +26,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
-import com.geppetto.faxi.data.Grade
-import com.geppetto.faxi.data.Member
-import com.geppetto.faxi.data.avatarOf
-import com.geppetto.faxi.data.won
 import com.geppetto.faxi.ui.theme.Faxi
 import com.geppetto.faxi.ui.theme.FaxiDimens
 
@@ -89,16 +84,6 @@ fun StatusTag(text: String, tone: Tone = Tone.Neutral, icon: (@Composable (Color
     }
 }
 
-/**
- * 사진 자리. 폰 → 차 사진 전송이 정해지기 전까지는 고른 캐릭터를,
- * 캐릭터도 없으면 호출명 첫 글자를 보여 준다.
- */
-@Composable
-fun Avatar(member: Member, size: Dp, style: TextStyle = Faxi.type.title) {
-    // 테두리는 그 사람의 가족 색: 누구인지 색으로도 한 번 더 알린다(이름·호출명과 함께)
-    AvatarCircle(avatarOf(member.avatar)?.emoji, member.callsign.take(1), size, style, Faxi.colors.family(member.callsign))
-}
-
 /** 원 안에 캐릭터 이모지(있으면) 또는 글자 하나. 이모지는 원 지름의 55% 크기. */
 @Composable
 fun AvatarCircle(
@@ -126,12 +111,6 @@ fun AvatarCircle(
     }
 }
 
-fun gradeTone(grade: Grade): Tone = when (grade) {
-    Grade.Full -> Tone.Accent
-    Grade.Learner -> Tone.Neutral
-    Grade.Honorary -> Tone.Ok
-}
-
 /** 영수증·장부 한 줄: 왼쪽 항목(+ 설명), 오른쪽 금액 */
 @Composable
 fun MoneyRow(
@@ -148,7 +127,9 @@ fun MoneyRow(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        // 좁은 폰 화면에서는 항목 쪽이 줄을 바꾸고 금액은 늘 한 줄로 남는다
         Row(
+            Modifier.weight(1f, fill = false).padding(end = FaxiDimens.space4),
             horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space3),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -159,6 +140,7 @@ fun MoneyRow(
             "${won(amount)}원",
             style = if (strong) t.amount.copy(fontWeight = FontWeight.Bold) else t.amount,
             color = amountColor,
+            maxLines = 1,
         )
     }
 }
@@ -171,6 +153,9 @@ fun BigWon(amount: Int, color: Color = Faxi.colors.ink) {
         modifier = Modifier.semantics(mergeDescendants = true) { },
     ) {
         Text(won(amount), style = Faxi.type.amountLarge, color = color)
-        Text(" 원", style = Faxi.type.title, color = Faxi.colors.inkMuted, modifier = Modifier.padding(bottom = 8.dp))
+        Text(" 원", style = Faxi.type.title, color = Faxi.colors.inkMuted, modifier = Modifier.padding(bottom = FaxiDimens.space2))
     }
 }
+
+/** 1원 단위 금액 글자: 18379 → "18,379". 반올림하지 않는다. 차 앱 data.won()과 같은 모양. */
+internal fun won(value: Int): String = "%,d".format(value)
