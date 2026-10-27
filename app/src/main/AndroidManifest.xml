@@ -12,6 +12,10 @@
     <!-- 손님 한마디: 같은 Wi-Fi 안에서 폰 → 차 TCP 한 줄(인터넷 서버는 쓰지 않는다) -->
     <!-- 차량 값(읽기만). 주행거리·기어·브레이크: Pleos Vehicle SDK의 @RequiresPermission -->
     <uses-permission android:name="pleos.car.permission.CAR_DRIVE" />
+    <!-- 옵션 요금(읽기만): 냉난방 HVAC, 엉따 Seat, 와이퍼·창문 Wiper·Window -->
+    <uses-permission android:name="pleos.car.permission.CAR_CLIMATE" />
+    <uses-permission android:name="pleos.car.permission.CAR_SEATS" />
+    <uses-permission android:name="pleos.car.permission.CAR_WINDOWS" />
     <!-- 속도: Android Car API PERF_VEHICLE_SPEED. dangerous 권한이라 실행 중에 묻는다 -->
     <uses-permission android:name="android.car.permission.CAR_SPEED" />
     <uses-permission android:name="android.permission.INTERNET" />

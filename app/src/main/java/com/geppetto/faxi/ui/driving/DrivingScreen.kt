@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import com.geppetto.faxi.data.CabinState
 import com.geppetto.faxi.data.FaxiStore
 import com.geppetto.faxi.data.Grade
+import com.geppetto.faxi.fare.Hvac
 import com.geppetto.faxi.ui.components.Avatar
 import com.geppetto.faxi.ui.components.ChatIcon
 import com.geppetto.faxi.ui.components.DriverLicenseCard
@@ -39,6 +40,7 @@ import com.geppetto.faxi.ui.components.PreviewFrame
 import com.geppetto.faxi.ui.components.SeatHeatIcon
 import com.geppetto.faxi.ui.components.SectionTitle
 import com.geppetto.faxi.ui.components.SnowflakeIcon
+import com.geppetto.faxi.ui.components.SunIcon
 import com.geppetto.faxi.ui.components.TwoColumnMin
 import com.geppetto.faxi.ui.components.WindowIcon
 import com.geppetto.faxi.ui.components.WiperIcon
@@ -187,7 +189,10 @@ private fun OptionsCell(cabin: CabinState, modifier: Modifier) {
         SectionTitle("요금 붙는 옵션")
         Column(verticalArrangement = Arrangement.spacedBy(FaxiDimens.space3)) {
             Row(horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space3)) {
-                OptionChip("냉방", "분당 30원", cabin.ac, Modifier.weight(1f)) { col, s -> SnowflakeIcon(col, s) }
+                OptionChip(
+                    "냉난방", "분당 30원", cabin.hvac != Hvac.Off, Modifier.weight(1f),
+                    onWord = if (cabin.hvac == Hvac.Heat) "난방" else "냉방",
+                ) { col, s -> if (cabin.hvac == Hvac.Heat) SunIcon(col, s) else SnowflakeIcon(col, s) }
                 OptionChip("엉따", "분당 20원", cabin.seatHeat, Modifier.weight(1f)) { col, s -> SeatHeatIcon(col, s) }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space3)) {

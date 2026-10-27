@@ -87,7 +87,7 @@ class FaxiStore(
     val reviews = mutableStateMapOf<String, Review>().apply { putAll(snapshot.reviews) }
 
     /** 차량 옵션 상태. 저장하지 않는다(차가 늘 지금 값을 알려 준다). */
-    var cabin by mutableStateOf(CabinState(ac = true, seatHeat = true, wiper = false, windowOpen = false))
+    var cabin by mutableStateOf(CabinState.Demo)
         private set
 
     /** 운행 중 손님이 폰으로 보낸 마지막 한마디. 운행이 바뀌면 지운다. 저장하지 않는다(그 운행 동안만 의미가 있다). */
@@ -245,6 +245,8 @@ class FaxiStore(
      */
     fun onVehicle(reading: VehicleReading) {
         vehicle = reading
+        // 옵션 상태가 하나라도 들어오면 차량 값으로(안 온 칸은 꺼짐). 요금 엔진은 바뀐 순간의 값을 다음 구간에 쓴다.
+        reading.cabin()?.let { cabin = it }
         if (!rideActive) return
         integrate()
         val sample = sampleNow() ?: return
@@ -287,7 +289,7 @@ class FaxiStore(
         val speed = vehicle.speedKmh ?: return null
         return VehicleSample(
             at = clock(), odometerM = rideDistanceM(), speedKmh = speed,
-            hvac = if (cabin.ac) Hvac.Cool else Hvac.Off,
+            hvac = cabin.hvac,
             seatHeat = cabin.seatHeat, wiper = cabin.wiper, windowOpen = cabin.windowOpen,
         )
     }

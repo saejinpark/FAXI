@@ -29,12 +29,18 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
 - 차량 값: `data/VehicleFeed.kt`(FaxiApp이 켠다) → `store.onVehicle(VehicleReading)`.
   - 누적 주행거리(km)·기어: Pleos Vehicle SDK `ai.pleos.playground:Vehicle:2.3.2`(`Odometer.registerDistanceDriven`, `Gear.registerGearSelection`, 권한 `pleos.car.permission.CAR_DRIVE`). SDK에는 속도 도메인이 없다. 공식 문서의 도메인 목록에 Gear가 빠져 있지만 SDK(AAR)에는 있다.
   - 속도(m/s): Pleos FAQ 권장대로 Android Car API `CarPropertyManager`의 `PERF_VEHICLE_SPEED`(클러스터와 같은 값). `useLibrary("android.car")` + manifest `uses-library android.car required=false`(폰·폴드에도 깔리게). 권한 `android.car.permission.CAR_SPEED`는 dangerous라 실행 중에 묻는다. API 34 이미지라 `registerCallback`(35부터 subscribePropertyEvents).
+  - 옵션 요금(SDK, 칸마다 따로 등록해서 하나가 막혀도 나머지는 받는다):
+    - 냉난방: HVAC 전원·에어컨은 **실내 전체 구역**(`SeatArea(1열 좌·우, 2열 좌·중·우)` = areaId 117)으로 등록해야 값이 온다(운전석만 등록하면 안 옴, 에뮬레이터 로그로 확인). 설정 온도·실내 온도는 운전석. 판정 `hvacMode`: 꺼짐 → 꺼짐, 에어컨 → 냉방, 에어컨 없이 설정 온도 > 실내 온도 → 난방(실내 온도를 모르면 난방 아님). 권한 CAR_CLIMATE.
+    - 엉따: `Seat.registerHvacSeatTemperature` **조수석**(ROW_1_RIGHT, 손님 자리) 값 > 0. 음수는 통풍(요금 없음), 운전석 열선도 요금 없음. 권한 CAR_SEATS.
+    - 와이퍼: `Wiper.registerWiperState` 앞유리 ON. 창문: `Window.registerWindowPosition` 1·2열 네 창 중 하나라도 > 0%. 권한 CAR_WINDOWS.
+    - 옵션 값이 하나도 안 오면(폰·폴드) `CabinState.Demo`(냉방·엉따 켜짐)를 그대로 둔다. 하나라도 오면 안 온 칸은 꺼짐.
   - 콜백 스레드는 문서에 없어서 모두 메인으로 옮긴다. 차가 아니거나 서비스가 없으면 아무 값도 오지 않는다(그때는 시연 운행).
   - 운행 거리 = 주행거리계 차이와 속도 적분(앞 속도 × 지난 시간) 중 큰 쪽. 계기판은 단위가 굵고(에뮬레이터는 시뮬레이션 주행에 안 따라 움직임) 적분은 잘게 센다.
   - 하차: 운행 중에 움직였다가(기어 D·R·N 또는 1km/h 이상) P에 들어가면 자동 하차 → 도착 화면 + 음성. 움직이기 전 P는 하차가 아니다.
   - 운행 중이 아닌데 기어가 D면 `ParkFirstScreen`("주행 중이에요 · 주차하면 열려요")으로 탑승·장부·기사를 닫는다.
   - 주행 중 화면 노출(DO): MainActivity에 `<meta-data android:name="distractionOptimized" android:value="true"/>`. 없으면 Pleos가 D에서 "주행 중에는 사용할 수 없습니다"로 앱 전체를 가린다. Pleos 문서에는 DO 선언 방법이 없어 Android 표준을 썼고, 에뮬레이터 홈은 받아들였지만 CarPackageManagerService가 "not installed from permitted sources"(스토어 설치 아님) 경고를 남긴다. 실제 차·심사에서 확인 필요.
-  - 테스트: `app VehicleRideTest`(적분 거리요금, 계기판 우선, 대기·급정거, 움직이기 전 P, 운행 아닐 때 D).
+  - 테스트: `app VehicleRideTest`(적분 거리요금, 계기판 우선, 대기·급정거, 움직이기 전 P, 운행 아닐 때 D, 옵션 분 단위 요금, 옵션 값 없을 때 기본값, 공조 판정).
+  - Virtual Console 카드: Gear Selection, ACCEL/BRAKE, HVAC Power, Air Conditioning, Target Temperature, Seat Temperature(Driver/Passenger 고르고 H1~H3), Windshield Wiper Switch, Window Position(창 고르고 %).
 - 화면 흐름 (탭은 운행·장부·기사 셋뿐. 화면 글자는 "운행", "주행 중"은 차가 움직이는 상태를 말할 때만 쓴다):
   - 운행 탭(제목 "운행 시작") → 미터기 켜기 → 운행 중(전체 화면) → 하차 → 도착 화면(전체 화면, 영수증 공개 + 후기) → 닫으면 탑승 탭.
   - 장부 탭 → 빚 한 줄 누르기 → 두 사람 사이 빚 상세(정산 요청·확인, 둘 사이 운행, 기록, 탕감) → 운행 누르기 → 지난 영수증.
@@ -115,7 +121,7 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
 
 ## 아직 가짜인 것
 - 폰 카메라로 차 화면 QR 찍기: 코드는 있지만 실기기로 찍어 보지 못했다(에뮬레이터는 차 화면 스크린샷 해독과 딥 링크로만 확인).
-- 차량 값: 주행거리·속도·기어는 진짜(Pleos 에뮬레이터 Virtual Console로 확인). 냉난방·엉따·와이퍼·창문(`store.cabin`)은 아직 가짜, 승차감 그래프 모양도 가짜(급정거 점 개수만 진짜). 출발지·도착지("우리집 → 이마트 성수점")도 가짜(NaviHelper 전).
+- 차량 값: 주행거리·속도·기어·냉난방·엉따·와이퍼·창문은 진짜(Pleos 에뮬레이터 Virtual Console로 확인). 승차감 그래프 모양은 가짜(급정거 점 개수만 진짜). 출발지·도착지("우리집 → 이마트 성수점")도 가짜(NaviHelper 전).
 - 운행 중 요금 엔진은 저장하지 않는다. 운행 중에 앱이 다시 켜지면 그 운행은 시연 운행으로 계산된다.
 - 손님 한마디: 에뮬레이터 두 대(adb forward)로만 주고받아 봤다. 실제 차 핫스팟·실기기 폰에서는 아직이다.
 
@@ -150,7 +156,7 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
 - 계기판(클러스터)은 안전 정보 영역이라 건드리지 않는다. 시도하는 코드도 넣지 않는다.
 
 ## 사용할 Pleos SDK (모두 읽기 전용)
-- Vehicle SDK: Odometer(거리요금)·Gear(하차·주행 판별)는 연결됨. 속도는 SDK에 없어 Android Car API. Brake 페달, HVAC(CAR_CLIMATE)·Seat(CAR_SEATS)·Wiper·Window(CAR_WINDOWS)는 다음(Virtual Console에 카드가 있다)
+- Vehicle SDK: Odometer(거리요금)·Gear(하차·주행 판별)·HVAC(냉난방)·Seat(엉따)·Wiper(우천 할증)·Window(환기) 연결됨. 속도는 SDK에 없어 Android Car API. Brake 페달은 아직(급정거는 속도 변화로 센다)
 - TextToSpeech SDK: 탑승 인사, 요금 안내, 독촉, 후기 낭독
 - NaviHelper SDK: 목적지·경유지(경유지 추가 요금)
 - SDK 문서: https://document.pleos.ai/docs/pleos-only/getting-started
