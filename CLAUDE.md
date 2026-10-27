@@ -10,10 +10,15 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
 
 ## 기술 스택
 - Kotlin + Jetpack Compose, Gradle Kotlin DSL, minSdk 28. 내비게이션·DI 라이브러리는 필요해질 때까지 넣지 않는다.
-- 패키지: `com.geppetto.faxi`
-- 빌드 확인: `./gradlew assembleDebug`. 셸에 Java가 없으면 Android Studio JDK를 쓴다:
+- 모듈 셋(git 저장소, 작업은 브랜치에서):
+  - `:app` 차 앱(Pleos Connect), 패키지 `com.geppetto.faxi`
+  - `:phone` 폰 앱(가족 모두의 폰), 패키지 `com.geppetto.faxi.phone`
+  - `:core` 두 앱이 같이 쓰는 순수 로직(요금 엔진 `fare`, 탑승 인증 `auth`). 화면·안드로이드 기능에 기대지 않는다.
+- 빌드 확인: `./gradlew assembleDebug` (세 모듈 모두), 테스트: `./gradlew testDebugUnitTest`. 셸에 Java가 없으면 Android Studio JDK를 쓴다:
   `export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"`
 - 실행: Pleos Connect Emulator(AVD는 Cold boot), UI 확인은 갤럭시 폴드 실기기. 폰에는 Pleos SDK가 없으므로 차량 데이터는 가짜 구현으로 대체한다.
+  - 차 + 폰 같이 시험: AVD `Pleos_Connect_v2.1.0`(차)과 `Medium_Phone_API_37.0`(폰)을 함께 켠다. 폰 앱에서 시연 가족으로 등록 → 폰의 4자리를 차에 입력.
+  - 차 에뮬레이터는 사용자 10으로 돈다: 데이터 초기화는 `adb shell pm clear --user 10 com.geppetto.faxi`.
 
 ## 구조
 - HODOS에서는 `data/Speaker.kt`와 매니페스트 TTS `<queries>`만 가져왔다. 디자인과 화면은 FAXI용으로 새로 만들었다.
@@ -44,14 +49,21 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
   - 운행 중 손님과 닫지 않은 도착 화면도 저장해서, 앱이 꺼졌다 켜져도 이어진다.
   - 빚은 `since`(시작한 날)를 저장하고 연체 일수는 `store.daysOf(debt)`로 오늘 기준 계산한다. 일수를 숫자로 저장하지 않는다.
   - 시연 데이터를 다시 보고 싶으면 앱 데이터를 지운다: `adb shell pm clear com.geppetto.faxi`
-- `fare/` 요금 엔진(안드로이드에 기대지 않는 순수 Kotlin, 나중에 폰 앱과 공유).
+- `core/.../fare/` 요금 엔진(`:core` 모듈). 영수증 줄 `FareLine`도 여기 있다.
   - `Tariff.kt` 요금표(기획서 값) + `VehicleSample`(시각, 누적 주행거리 m, 속도, 냉난방, 엉따, 와이퍼, 창문). 차량에서는 Vehicle SDK 값으로 채운다. 단위는 SDK 문서를 확인하고 맞춘다.
   - `FareMeter.kt` 탑승 순간 값으로 켜고 `update(sample)`로 쌓는다. `lines()`가 영수증 줄.
     - 구간(앞 값 → 뒤 값)은 앞 값의 상태로 센다: 옵션 시간, 정차, 할증 모두.
     - 정차 = 1km/h 미만, 급정거 = 감속 3m/s² 이상(한 번 밟는 동안 한 번), 할증은 그 순간 조건(기본요금은 탑승 시각), 남는 거리·초·분은 버림.
     - 거리·대기 100원은 누적값에서 매번 다시 세어 실수 오차가 쌓이지 않게 한다.
   - `FakeTrip.kt` `TripBuilder`(1초 간격 가짜 차량 값)와 `planExample`(기획서 예시 운행). 하차 시연은 이 운행을 엔진에 돌려 영수증을 만든다.
-- `app/src/test/.../FareMeterTest.kt` 기획서 영수증 예시(15,250원)를 줄 단위로, 거리·대기·심야·우천·급정거·옵션·경유지 규칙을 검사한다. 요금표를 바꾸면 꼭 돌린다.
+- `core/src/test/.../FareMeterTest.kt` 기획서 영수증 예시(15,250원)를 줄 단위로, 거리·대기·심야·우천·급정거·옵션·경유지 규칙을 검사한다. 요금표를 바꾸면 꼭 돌린다.
+- `core/.../auth/` 탑승 인증.
+  - `Totp` RFC 6238(HMAC-SHA1, 30초, 4자리), 앞뒤 30초까지 통과. `Base32`(엄격하게 디코드). 테스트는 RFC 예시 값으로 검증한다.
+  - `FaxiInvite` 초대 링크 `faxi://join?f=&m=&n=&c=&s=`(차 화면 QR에 담을 내용). 비밀 열쇠가 차 → 폰으로 가는 유일한 길.
+  - `DemoFamily` 시연 가족 고정 열쇠. 차 앱 시연 데이터와 폰 앱 "시연 가족으로 등록"이 같은 열쇠를 써서 QR 없이도 인증을 시연한다. 누구나 아는 열쇠라 실제 가족에게는 쓰지 않는다.
+- 차 앱 인증: `Member.secret`(Base32)을 장부에 저장, `store.verifyBoardingCode(손님, 코드)`. 열쇠가 없는 예전 장부는 불러올 때 채운다.
+- `phone/` 폰 앱 뼈대: 등록(초대 QR 찍기는 준비 중, 링크 붙여넣기, 시연 가족) → 탑승 코드(30초마다, 남은 시간 막대) + 내 자격증·영수증 자리. 등록 정보는 SharedPreferences(백업 끔).
+  - 폰은 손님 화면이라 차 앱의 주행 중 움직임 금지 규칙을 적용하지 않는다.
 - `app/src/test/.../FaxiStoreTest.kt` 하차·상계·평생 장부·정산·탕감 단위 테스트. 장부 규칙을 바꾸면 `./gradlew testDebugUnitTest`로 확인한다.
 - `data/Speaker.kt` 음성 창구. 폰은 `AndroidSpeaker`(기기 TTS), 차량용 Pleos TTS는 다음 단계.
 - `ui/theme/` 디자인 토큰. 색은 `Faxi.colors.*`, 글자는 `Faxi.type.*`, 간격·크기는 `FaxiDimens.*`로만 쓴다. 하드코딩한 색·크기를 새로 만들지 않는다. 테마 진입점은 `FaxiTheme`(야간 기본, dynamic color 안 씀).
@@ -66,7 +78,7 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
 - 화면에 나중에 생기는 줄(안내 문구 등)이 버튼을 밀어내지 않게 자리를 미리 잡아 둔다. 버튼이 손가락 밑에서 움직이면 안 된다.
 
 ## 아직 가짜인 것
-- 탑승 코드: 4자리면 통과. 실제 TOTP 검사는 폰 앱 단계.
+- 가족 초대 QR: 차 화면에 QR을 그리는 것과 폰 카메라로 읽는 것이 아직 없다. 지금은 시연 가족 등록이나 링크 붙여넣기로 등록한다.
 - 차량 값: 요금 엔진은 진짜, 넣는 값은 가짜(`FakeTrip.planExample`). 승차감 그래프 모양과 운행 중 옵션 상태(`store.cabin`)도 가짜.
 - 영수증 QR: 모양만 흉내 낸 그림이라 찍어도 읽히지 않는다.
 - 하차: 시연용 버튼. 차량에서는 기어 P를 감지해야 한다.

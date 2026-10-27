@@ -123,7 +123,7 @@ fun BoardingScreen(
                         modifier = Modifier.fillMaxWidth(),
                         onClick = {
                             val p = passengerId ?: return@FaxiPrimaryButton
-                            if (store.verifyBoardingCode(code)) {
+                            if (store.verifyBoardingCode(p, code)) {
                                 speak("손님, 어디로 모실까요?")
                                 store.startRide(p)
                                 code = ""

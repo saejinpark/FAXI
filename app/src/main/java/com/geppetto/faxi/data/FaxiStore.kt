@@ -5,9 +5,14 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.geppetto.faxi.auth.Base32
+import com.geppetto.faxi.auth.DemoFamily
+import com.geppetto.faxi.auth.Totp
 import com.geppetto.faxi.fare.FakeTrip
+import com.geppetto.faxi.fare.FareLine
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.ZoneId
 import kotlin.math.roundToInt
 
 /**
@@ -24,7 +29,7 @@ class FaxiStore(
     snapshot: FaxiSnapshot,
     private val clock: () -> LocalDateTime = LocalDateTime::now,
 ) {
-    val members = mutableStateListOf<Member>().apply { addAll(snapshot.members) }
+    val members = mutableStateListOf<Member>().apply { addAll(snapshot.members.map(::withSecret)) }
 
     var driverId by mutableStateOf(snapshot.driverId)
         private set
@@ -122,8 +127,15 @@ class FaxiStore(
         changed()
     }
 
-    /** 가짜 인증: 4자리면 통과. 실제로는 손님 폰의 TOTP 코드를 검사한다. */
-    fun verifyBoardingCode(code: String): Boolean = code.length == 4 && code.all { it.isDigit() }
+    /**
+     * 탑승 인증: 손님 폰에 뜬 4자리가 그 손님 비밀 열쇠로 지금(±30초) 만든 코드와 같은지.
+     * 인터넷 없이 차 안에서 끝난다. 다른 가족의 코드나 1분 넘은 코드는 통과하지 못한다.
+     */
+    fun verifyBoardingCode(passengerId: String, code: String): Boolean {
+        val secret = Base32.decode(member(passengerId).secret) ?: return false
+        val now = clock().atZone(ZoneId.systemDefault()).toEpochSecond()
+        return Totp.verify(secret, code, now)
+    }
 
     fun startRide(passengerId: String) {
         require(passengerId != driverId)
@@ -258,6 +270,16 @@ class FaxiStore(
     }
 
     companion object {
+        /**
+         * 비밀 열쇠가 없는 가족(열쇠 기능 전에 저장된 장부)에게 열쇠를 채운다.
+         * 시연 가족은 폰 앱 "시연 가족으로 등록"과 맞도록 고정 열쇠, 그 밖에는 새로 만든다.
+         */
+        private fun withSecret(m: Member): Member = when {
+            m.secret.isNotEmpty() -> m
+            DemoFamily.people.any { it.memberId == m.id } -> m.copy(secret = DemoFamily.secretOf(m.id))
+            else -> m.copy(secret = Base32.encode(Totp.newSecret()))
+        }
+
         /**
          * 가짜 승차감 데이터: 잔잔한 흔들림 + 과속방지턱 몇 번 + 급정거 한 번.
          * 차량에서는 운행 중 가속도·브레이크 값을 고르게 모아 만든다.

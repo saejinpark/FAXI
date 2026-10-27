@@ -1,6 +1,5 @@
 package com.geppetto.faxi.fare
 
-import com.geppetto.faxi.data.FareLine
 import java.time.Duration
 import kotlin.math.floor
 

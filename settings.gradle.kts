@@ -24,4 +24,6 @@ dependencyResolutionManagement {
 
 rootProject.name = "FAXI"
 include(":app")
+include(":core")
+include(":phone")
  

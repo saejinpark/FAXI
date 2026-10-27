@@ -4,6 +4,7 @@ package com.geppetto.faxi.data
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
+import com.geppetto.faxi.fare.FareLine
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
@@ -37,13 +38,14 @@ data class Member(
     val avatar: String? = null,
     /** 자격증 사진 파일 이름(차 내부 저장소). 폰 → 차 사진 전송 통로가 정해지면 쓴다. */
     val photoFile: String? = null,
+    /**
+     * 탑승 인증 비밀 열쇠(Base32). 가족 등록 때 차가 만들고 초대 QR로 그 사람 폰에 한 번 건넨다.
+     * 차 밖으로는 그 QR 말고 나가지 않는다.
+     */
+    val secret: String = "",
 ) {
     val canDrive: Boolean get() = grade == Grade.Full
 }
-
-/** 영수증 한 줄. amount는 1원 단위, 환급은 음수. */
-@Serializable
-data class FareLine(val label: String, val detail: String?, val amount: Int)
 
 @Serializable
 data class Receipt(

@@ -1,9 +1,5 @@
-package com.geppetto.faxi
+package com.geppetto.faxi.fare
 
-import com.geppetto.faxi.data.FareLine
-import com.geppetto.faxi.fare.FakeTrip
-import com.geppetto.faxi.fare.Hvac
-import com.geppetto.faxi.fare.TripBuilder
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
