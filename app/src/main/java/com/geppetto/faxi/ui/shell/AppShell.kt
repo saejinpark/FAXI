@@ -85,8 +85,9 @@ fun AppShell(store: FaxiStore, speak: (String) -> Unit, demo: Boolean) {
             })
             return@Box
         }
-        // 운행 중이 아닌데 차가 움직이면(기어 D·R·N) 탑승·장부·기사 화면을 닫는다. 주차하면 그대로 다시 열린다.
-        if (store.gear == Gear.Driving) {
+        // 운행 중이 아닌데 차가 움직이거나(기어 D·R·N) 플랫폼이 주행 규제를 걸면 탑승·장부·기사 화면을 닫는다.
+        // 주차하면 그대로 다시 열린다.
+        if (store.lockedForDriving) {
             ParkFirstScreen()
             return@Box
         }

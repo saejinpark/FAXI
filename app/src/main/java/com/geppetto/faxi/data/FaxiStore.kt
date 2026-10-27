@@ -61,6 +61,12 @@ class FaxiStore(
      */
     val gear: Gear get() = vehicle.gear?.takeIf { it != Gear.Unknown } ?: if (rideActive) Gear.Driving else Gear.Parked
 
+    /**
+     * 탑승·장부·기사 화면을 닫아야 하는지(운행 중이 아닐 때). 기어가 움직이는 상태이거나,
+     * 플랫폼 주행 규제(CarUxRestrictions)가 주행 중 최적화를 요구하면 닫는다(Pleos 주행 규제 개발 가이드).
+     */
+    val lockedForDriving: Boolean get() = !rideActive && (gear == Gear.Driving || vehicle.uxRestricted)
+
     /** 실제 차량 값으로 도는 요금 엔진. 운행 중이고 거리·속도가 들어올 때만 있다. 저장하지 않는다(앱이 꺼지면 시연 운행으로 대신). */
     private var liveMeter: FareMeter? = null
     /** 이번 운행에서 차가 움직였는지. 움직인 뒤 P로 돌아오면 하차로 본다. */
@@ -96,6 +102,7 @@ class FaxiStore(
     val lifetime = mutableStateListOf<LifetimeLedger>().apply { addAll(snapshot.lifetime) }
     val requests = mutableStateListOf<SettlementRequest>().apply { addAll(snapshot.requests) }
     val reviews = mutableStateMapOf<String, Review>().apply { putAll(snapshot.reviews) }
+    private val reviewsReadAloud = snapshot.reviewsReadAloud.toMutableSet()
 
     /** 차량 옵션 상태. 저장하지 않는다(차가 늘 지금 값을 알려 준다). */
     var cabin by mutableStateOf(CabinState.Demo)
@@ -130,6 +137,7 @@ class FaxiStore(
         lifetime = lifetime.toList(),
         requests = requests.toList(),
         reviews = reviews.toMap(),
+        reviewsReadAloud = reviewsReadAloud.toSet(),
         ridePassengerId = passengerId,
         rideStartedAt = rideStartedAt,
         rideFrom = rideFrom,
@@ -421,6 +429,17 @@ class FaxiStore(
     fun dismissArrival() {
         arrival = null
         changed()
+    }
+
+    /**
+     * 후기 낭독: 이 기사가 받은 후기 중 아직 소리 내어 읽지 않은 가장 최근 것을 꺼내고 읽음으로 표시한다.
+     * 기사를 고를 때(탑승 화면, 주차 중) 차가 읽어 준다. 운전자는 주행 중에 후기를 보거나 듣지 않는다.
+     */
+    fun takeUnreadReview(driverId: String): Pair<Receipt, Review>? {
+        val next = reviewsOf(driverId).firstOrNull { (r, _) -> r.id !in reviewsReadAloud } ?: return null
+        reviewsReadAloud += next.first.id
+        changed()
+        return next
     }
 
     fun submitReview(receiptId: String, review: Review) {

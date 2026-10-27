@@ -2,6 +2,7 @@ package com.geppetto.faxi.data
 
 import android.car.Car
 import android.car.VehiclePropertyIds
+import android.car.drivingstate.CarUxRestrictionsManager
 import android.car.hardware.CarPropertyValue
 import android.car.hardware.property.CarPropertyManager
 import android.content.Context
@@ -37,6 +38,8 @@ import com.geppetto.faxi.fare.Hvac
  *   - 엉따: `Seat.registerHvacSeatTemperature` 조수석(손님 자리) 값이 0보다 크면 열선 (CAR_SEATS). 음수는 통풍.
  *   - 와이퍼: `Wiper.registerWiperState` 앞유리 ON (CAR_WINDOWS)
  *   - 창문: `Window.registerWindowPosition` 1·2열 네 창 중 하나라도 0%보다 열리면 (CAR_WINDOWS)
+ * - 주행 규제(CarUxRestrictions): Pleos 주행 규제 개발 가이드대로 플랫폼이 "주행 중 최적화 필요"라고 하면 그 상태를 그대로 넘긴다.
+ *   기어와 따로 본다(기어는 하차 판정, 규제는 화면 잠금). 권한은 필요 없다.
  * 권한·지원 여부는 칸마다 다를 수 있어서 하나가 실패해도 나머지는 계속 붙인다.
  *
  * 콜백이 어느 스레드에서 오는지 문서에 없어서 모두 메인 스레드로 옮겨 [onUpdate]에 넘긴다(장부는 메인에서만 바꾼다).
@@ -46,6 +49,8 @@ class VehicleFeed(private val context: Context, private val onUpdate: (VehicleRe
     private val main = Handler(Looper.getMainLooper())
     private var vehicle: Vehicle? = null
     private var car: Car? = null
+    /** 주행 규제는 권한 없이 받을 수 있어서 속도용 Car와 따로 연결한다 */
+    private var uxCar: Car? = null
     private var reading = VehicleReading()
 
     private val distance = object : DistanceDrivenListener {
@@ -134,8 +139,22 @@ class VehicleFeed(private val context: Context, private val onUpdate: (VehicleRe
                 registerOptions(v)
             }
         }.onFailure { Log.w(TAG, "Pleos Vehicle SDK를 쓸 수 없어요", it) }.isSuccess
-        return startSpeed() || pleos
+        val ux = startUxRestrictions()
+        return startSpeed() || pleos || ux
     }
+
+    private fun startUxRestrictions(): Boolean = runCatching {
+        val c = Car.createCar(context) ?: return false
+        val ux = c.getCarManager(Car.CAR_UX_RESTRICTION_SERVICE) as CarUxRestrictionsManager
+        val apply = { r: android.car.drivingstate.CarUxRestrictions? ->
+            val restricted = r?.isRequiresDistractionOptimization == true
+            post { reading.copy(uxRestricted = restricted) }
+        }
+        apply(ux.currentCarUxRestrictions)
+        ux.registerListener { apply(it) }
+        uxCar = c
+        true
+    }.onFailure { Log.w(TAG, "주행 규제 상태를 받을 수 없어요", it) }.getOrDefault(false)
 
     /**
      * 속도는 권한(CAR_SPEED)을 허용받은 뒤에야 붙는다. MainActivity가 허용받으면 다시 부른다.
@@ -198,6 +217,13 @@ class VehicleFeed(private val context: Context, private val onUpdate: (VehicleRe
             }
         }
         car = null
+        uxCar?.let { c ->
+            runCatching {
+                (c.getCarManager(Car.CAR_UX_RESTRICTION_SERVICE) as CarUxRestrictionsManager).unregisterListener()
+                c.disconnect()
+            }
+        }
+        uxCar = null
     }
 
     private fun post(next: () -> VehicleReading) = main.post {
@@ -230,6 +256,8 @@ data class VehicleReading(
     val wiperOn: Boolean? = null,
     /** 창 이름 → 열린 정도(%) */
     val windowPercent: Map<String, Int> = emptyMap(),
+    /** 플랫폼 주행 규제: 주행 중 최적화(DO) 화면만 보여야 하는 상태 */
+    val uxRestricted: Boolean = false,
 ) {
     /** 옵션 상태가 하나도 안 왔으면 null(그때는 시연 기본값을 그대로 둔다). 안 온 칸은 꺼짐으로 본다. */
     fun cabin(): CabinState? {
