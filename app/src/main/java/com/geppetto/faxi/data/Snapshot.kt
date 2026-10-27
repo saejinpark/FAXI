@@ -33,6 +33,10 @@ data class FaxiSnapshot(
     /** 운행 중에 앱이 꺼졌다 켜져도 이어 가도록 */
     val ridePassengerId: String? = null,
     val rideStartedAt: LocalDateTime? = null,
+    /** 운행 중 출발지(내비 주소). 앱이 다시 켜져도 영수증에 남게 */
+    val rideFrom: String? = null,
+    /** 운행 중 경유지 수 */
+    val rideWaypoints: Int = 0,
     /** 도착 화면을 닫기 전에 앱이 꺼졌다 켜져도 다시 띄우도록 */
     val arrivalReceiptId: String? = null,
     val nextId: Int = 100,

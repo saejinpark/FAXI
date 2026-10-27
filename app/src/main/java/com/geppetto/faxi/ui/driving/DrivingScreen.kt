@@ -167,6 +167,9 @@ private fun PassengerCell(store: FaxiStore, modifier: Modifier) {
             Column(verticalArrangement = Arrangement.spacedBy(FaxiDimens.space2)) {
                 Text("${p.name} · ${p.callsign}", style = t.headline, color = c.ink)
                 store.rideStartedAt?.let { Text("${it.format(StartFormat)} 출발", style = t.body, color = c.inkMuted) }
+                // 내비 목적지와 경유지(금액은 운행 중에 보이지 않는다). 바뀔 때만 바뀌는 정지 표시.
+                store.navi.destination?.let { Text("$it 가는 중", style = t.body, color = c.ink, maxLines = 1) }
+                if (store.rideWaypoints > 0) Text("경유지 ${store.rideWaypoints}곳", style = t.body, color = c.inkMuted)
             }
         }
         Spacer(Modifier.weight(1f))

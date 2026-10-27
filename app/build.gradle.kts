@@ -54,6 +54,8 @@ dependencies {
     implementation(libs.pleos.vehicle)
     // 음성 안내: Pleos TextToSpeech SDK(차 안 엔진, ON_DEVICE)
     implementation(libs.pleos.tts)
+    // 출발지·도착지·경유지: Pleos NaviHelper SDK(읽기만)
+    implementation(libs.pleos.navi)
     implementation(libs.kotlinx.serialization.json)
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))

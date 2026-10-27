@@ -75,6 +75,17 @@ class FaxiStore(
     private var lastSpeedAt: LocalDateTime? = null
     private var lastSpeedKmh = 0.0
 
+    /** 내비 값(NaviFeed). 차가 아니면 비어 있다. */
+    var navi by mutableStateOf(NaviReading())
+        private set
+    /** 이번 운행 출발지(탑승 때 내비 주소) */
+    private var rideFrom: String? = snapshot.rideFrom
+    /** 이번 운행에 추가된 경유지 수(빼면 줄어든다). 하차 때 요금 엔진에 넣는다. */
+    var rideWaypoints by mutableStateOf(snapshot.rideWaypoints)
+        private set
+    /** 이번 운행 중에 내비가 도착을 알린 장소 */
+    private var rideArrivedAt: String? = null
+
     /** 하차해서 영수증이 나왔을 때(자동 하차든 시연 버튼이든). MainActivity가 음성 안내에 쓴다. */
     var onArrival: ((Receipt) -> Unit)? = null
 
@@ -121,6 +132,8 @@ class FaxiStore(
         reviews = reviews.toMap(),
         ridePassengerId = passengerId,
         rideStartedAt = rideStartedAt,
+        rideFrom = rideFrom,
+        rideWaypoints = rideWaypoints,
         arrivalReceiptId = arrival?.id,
         nextId = nextId,
     )
@@ -235,6 +248,9 @@ class FaxiStore(
         rideStartedAt = clock().withSecond(0).withNano(0)
         resetRideDistance()
         liveMeter = sampleNow()?.let { FareMeter(it) }
+        rideFrom = navi.currentAddress?.let(::shortPlace)
+        rideWaypoints = 0
+        rideArrivedAt = null
         changed()
     }
 
@@ -284,6 +300,33 @@ class FaxiStore(
         return maxOf(odo, integratedM)
     }
 
+    /** 내비 값이 바뀔 때(NaviFeed, 메인 스레드). 운행 중에 도착을 알리면 그 장소를 도착지로 쓴다. */
+    fun onNavi(reading: NaviReading) {
+        if (rideActive && reading.arrivedAt != null && reading.arrivedAt != navi.arrivedAt) rideArrivedAt = reading.arrivedAt
+        navi = reading
+    }
+
+    /** 내비에서 경유지를 넣거나 뺄 때. 운행 중일 때만 센다(경유지 1곳 500원, 빼면 돌려준다). */
+    fun onWaypoint(change: WaypointChange) {
+        if (!rideActive) return
+        rideWaypoints = when (change) {
+            WaypointChange.Added -> rideWaypoints + 1
+            WaypointChange.Removed -> maxOf(0, rideWaypoints - 1)
+            WaypointChange.AllRemoved -> 0
+        }
+        changed()
+    }
+
+    /**
+     * 영수증의 출발지·도착지. 내비 값이 하나라도 왔으면 실제 장소(없으면 "출발지"/"도착지"),
+     * 내비가 없는 기기(폰·폴드 시연)면 시연 장소 이름.
+     */
+    private fun rideRoute(): Pair<String, String> {
+        if (!navi.connected && rideFrom == null) return "우리집" to "이마트 성수점"
+        val to = rideArrivedAt ?: navi.destination ?: navi.currentAddress?.let(::shortPlace)
+        return (rideFrom ?: "출발지") to (to ?: "도착지")
+    }
+
     /** 지금 차량 값 + 옵션 상태로 요금 엔진 한 칸. 속도가 아직 안 왔으면 null. 거리는 운행 시작부터 센 값. */
     private fun sampleNow(): VehicleSample? {
         val speed = vehicle.speedKmh ?: return null
@@ -308,10 +351,12 @@ class FaxiStore(
         if (liveMeter != null) integrate()
         val live = liveMeter?.also { m -> sampleNow()?.let(m::update) }
         val meter = live ?: FakeTrip.run(FakeTrip.planExample(rideStartedAt ?: clock()))
+        repeat(rideWaypoints) { meter.addWaypoint() }
+        val (from, to) = rideRoute()
         val brakes = meter.hardBrakes
         val base = Receipt(
             id = "r${nextId++}", driverId = driverId, passengerId = passenger,
-            from = "우리집", to = "이마트 성수점", km = (meter.distanceM / 1000).roundToInt(),
+            from = from, to = to, km = (meter.distanceM / 1000).roundToInt(),
             endedAt = clock().withSecond(0).withNano(0), lines = meter.lines(),
             reviewQuestion = if (brakes > 0) "오늘 급정거 ${brakes}번, 괜찮으셨나요?" else "오늘 운행 어떠셨나요?",
             // 승차감 그래프는 아직 가짜 모양. 급정거 점의 개수만 엔진이 센 횟수에 맞춰 고르게 찍는다.
@@ -331,6 +376,9 @@ class FaxiStore(
         rideStartedAt = null
         liveMeter = null
         resetRideDistance()
+        rideFrom = null
+        rideWaypoints = 0
+        rideArrivedAt = null
         changed()
         onArrival?.invoke(receipt)
         return receipt
