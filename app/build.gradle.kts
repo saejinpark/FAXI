@@ -9,6 +9,8 @@ android {
     compileSdk {
         version = release(37)
     }
+    // 속도(PERF_VEHICLE_SPEED)를 읽는 Android Car API. 기기에 있으면 쓰고, 폰·폴드에서는 없어도 깔린다(manifest uses-library required=false).
+    useLibrary("android.car")
 
     defaultConfig {
         applicationId = "com.geppetto.faxi"
@@ -48,6 +50,8 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(project(":core"))
     implementation(project(":design"))
+    // 차량 값: 주행거리·기어는 Pleos Vehicle SDK, 속도는 Android Car API(CarPropertyManager, Pleos FAQ 권장)
+    implementation(libs.pleos.vehicle)
     implementation(libs.kotlinx.serialization.json)
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))

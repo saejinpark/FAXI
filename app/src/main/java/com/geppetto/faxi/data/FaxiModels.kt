@@ -2,12 +2,14 @@
 
 package com.geppetto.faxi.data
 
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.UseSerializers
 import com.geppetto.faxi.fare.FareLine
+import com.geppetto.faxi.fare.Hvac
+import com.geppetto.faxi.message.RideMessage
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.UseSerializers
 
 /** 기사 등급. 실제 면허증은 받지 않고 "면허가 있습니다" 자기 선언으로 정식 기사가 된다. */
 @Serializable
@@ -19,7 +21,8 @@ enum class Grade(val label: String) {
 
 /** 기어 상태. 탑승·영수증·후기·정산은 Parked에서만 연다. */
 @Serializable
-enum class Gear { Parked, Driving }
+/** 차 기어를 앱이 쓰는 세 가지로 줄인 것. R·N·D·1~9단은 모두 Driving(움직일 수 있는 상태). */
+enum class Gear { Parked, Driving, Unknown }
 
 @Serializable
 data class Member(
@@ -122,14 +125,22 @@ data class LifetimeLedger(
 
 /**
  * 요금이 붙는 차량 옵션의 지금 상태. 운행 중 화면에 켜짐/꺼짐으로 보여 준다(바뀔 때만 바뀌는 정지 표시).
- * 지금은 가짜 값. Vehicle SDK의 HVAC·Seat·Wiper·Window 상태로 바꾼다(읽기 권한 확인 전).
+ * 차에서는 VehicleFeed가 Vehicle SDK의 HVAC·Seat·Wiper·Window 값으로 채운다. 차량 값이 없으면(폰·폴드) 시연용 기본값.
  */
 data class CabinState(
-    val ac: Boolean,
+    val hvac: Hvac,
     val seatHeat: Boolean,
     val wiper: Boolean,
     val windowOpen: Boolean,
-)
+) {
+    companion object {
+        /** 시연 운행(기획서 예시)과 같은 상태: 냉방·엉따 켜짐 */
+        val Demo = CabinState(Hvac.Cool, seatHeat = true, wiper = false, windowOpen = false)
+    }
+}
+
+/** 운행 중 손님이 보낸 한마디와 받은 시각 */
+data class PassengerMessage(val message: RideMessage, val at: LocalDateTime)
 
 @Serializable
 data class Review(val stars: Int, val tags: Set<String>)

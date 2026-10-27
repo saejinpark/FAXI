@@ -5,6 +5,8 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.intl.LocaleList
+import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.ui.unit.sp
 
 /**
@@ -14,6 +16,15 @@ import androidx.compose.ui.unit.sp
 val FaxiFont: FontFamily = FontFamily.Default
 
 private const val TabularNumbers = "tnum"
+
+/**
+ * 한국어 줄바꿈을 글자 단위가 아니라 어절(띄어쓰기) 단위로: "차 화\n면" 대신 "차\n화면".
+ * WordBreak.Phrase는 Android 13+에서 적용되고, 그 아래 기기에서는 무시된다(글자 단위로 돌아감).
+ */
+private val KoreanLineBreak = LineBreak.Paragraph.copy(wordBreak = LineBreak.WordBreak.Phrase)
+
+/** 기기 언어가 영어여도 글자는 한국어 규칙(줄바꿈, 글꼴 선택)으로 */
+private val Korean = LocaleList("ko-KR")
 
 @Immutable
 data class FaxiType(
@@ -31,19 +42,19 @@ data class FaxiType(
 )
 
 val FaxiTypography = FaxiType(
-    display = TextStyle(fontFamily = FaxiFont, fontSize = 64.sp, lineHeight = 72.sp, fontWeight = FontWeight.Bold),
-    headline = TextStyle(fontFamily = FaxiFont, fontSize = 40.sp, lineHeight = 48.sp, fontWeight = FontWeight.Bold),
-    title = TextStyle(fontFamily = FaxiFont, fontSize = 32.sp, lineHeight = 40.sp, fontWeight = FontWeight.SemiBold),
-    body = TextStyle(fontFamily = FaxiFont, fontSize = 24.sp, lineHeight = 32.sp, fontWeight = FontWeight.Normal),
-    bodyStrong = TextStyle(fontFamily = FaxiFont, fontSize = 24.sp, lineHeight = 32.sp, fontWeight = FontWeight.SemiBold),
-    label = TextStyle(fontFamily = FaxiFont, fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.SemiBold),
-    caption = TextStyle(fontFamily = FaxiFont, fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.Normal),
+    display = TextStyle(fontFamily = FaxiFont, lineBreak = KoreanLineBreak, localeList = Korean, fontSize = 64.sp, lineHeight = 72.sp, fontWeight = FontWeight.Bold),
+    headline = TextStyle(fontFamily = FaxiFont, lineBreak = KoreanLineBreak, localeList = Korean, fontSize = 40.sp, lineHeight = 48.sp, fontWeight = FontWeight.Bold),
+    title = TextStyle(fontFamily = FaxiFont, lineBreak = KoreanLineBreak, localeList = Korean, fontSize = 32.sp, lineHeight = 40.sp, fontWeight = FontWeight.SemiBold),
+    body = TextStyle(fontFamily = FaxiFont, lineBreak = KoreanLineBreak, localeList = Korean, fontSize = 24.sp, lineHeight = 32.sp, fontWeight = FontWeight.Normal),
+    bodyStrong = TextStyle(fontFamily = FaxiFont, lineBreak = KoreanLineBreak, localeList = Korean, fontSize = 24.sp, lineHeight = 32.sp, fontWeight = FontWeight.SemiBold),
+    label = TextStyle(fontFamily = FaxiFont, lineBreak = KoreanLineBreak, localeList = Korean, fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.SemiBold),
+    caption = TextStyle(fontFamily = FaxiFont, lineBreak = KoreanLineBreak, localeList = Korean, fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.Normal),
     amount = TextStyle(
-        fontFamily = FaxiFont, fontSize = 24.sp, lineHeight = 32.sp,
+        fontFamily = FaxiFont, lineBreak = KoreanLineBreak, localeList = Korean, fontSize = 24.sp, lineHeight = 32.sp,
         fontWeight = FontWeight.Medium, fontFeatureSettings = TabularNumbers,
     ),
     amountLarge = TextStyle(
-        fontFamily = FaxiFont, fontSize = 64.sp, lineHeight = 72.sp,
+        fontFamily = FaxiFont, lineBreak = KoreanLineBreak, localeList = Korean, fontSize = 64.sp, lineHeight = 72.sp,
         fontWeight = FontWeight.Bold, fontFeatureSettings = TabularNumbers,
     ),
 )

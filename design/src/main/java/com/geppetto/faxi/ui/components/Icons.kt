@@ -228,3 +228,70 @@ fun WindowIcon(color: Color, size: Dp) = Icon28(size) {
     path(color, 4f to 24f, 4f to 10f, 12f to 4f, 24f to 4f, 24f to 24f, close = true)
     line(color, 8f, 15f, 20f, 15f)
 }
+
+/** 손님 한마디 "조금 더워요": 해 */
+@Composable
+fun SunIcon(color: Color, size: Dp) = Icon28(size) {
+    val s = u()
+    drawCircle(color, radius = 5.5f * s, center = Offset(14f * s, 14f * s), style = stroke())
+    line(color, 14f, 2.5f, 14f, 4.5f)
+    line(color, 14f, 23.5f, 14f, 25.5f)
+    line(color, 2.5f, 14f, 4.5f, 14f)
+    line(color, 23.5f, 14f, 25.5f, 14f)
+    line(color, 5.9f, 5.9f, 7.3f, 7.3f)
+    line(color, 20.7f, 20.7f, 22.1f, 22.1f)
+    line(color, 5.9f, 22.1f, 7.3f, 20.7f)
+    line(color, 20.7f, 7.3f, 22.1f, 5.9f)
+}
+
+/** 손님 한마디 "잠깐 세워 주세요": 지도 핀 */
+@Composable
+fun PinIcon(color: Color, size: Dp) = Icon28(size) {
+    val s = u()
+    val p = Path().apply {
+        moveTo(14f * s, 25f * s)
+        cubicTo(6f * s, 17f * s, 5f * s, 13f * s, 5f * s, 11f * s)
+        cubicTo(5f * s, 6f * s, 9f * s, 2.5f * s, 14f * s, 2.5f * s)
+        cubicTo(19f * s, 2.5f * s, 23f * s, 6f * s, 23f * s, 11f * s)
+        cubicTo(23f * s, 13f * s, 22f * s, 17f * s, 14f * s, 25f * s)
+        close()
+    }
+    drawPath(p, color, style = stroke())
+    drawCircle(color, radius = 2.5f * s, center = Offset(14f * s, 11f * s), style = stroke())
+}
+
+/** 손님 한마디 "음악 바꿔 주세요": 음표 */
+@Composable
+fun MusicIcon(color: Color, size: Dp) = Icon28(size) {
+    val s = u()
+    path(color, 11f to 20f, 11f to 5f, 23f to 3f, 23f to 18f)
+    line(color, 11f, 9f, 23f, 7f)
+    drawCircle(color, radius = 3f * s, center = Offset(8f * s, 20.5f * s), style = stroke())
+    drawCircle(color, radius = 3f * s, center = Offset(20f * s, 18.5f * s), style = stroke())
+}
+
+/** 손님 한마디 "천천히 가 주세요": 아래로 누르는 화살표 두 개(속도 줄이기) */
+@Composable
+fun SlowIcon(color: Color, size: Dp) = Icon28(size) {
+    path(color, 7f to 5f, 14f to 12f, 21f to 5f)
+    path(color, 7f to 14f, 14f to 21f, 21f to 14f)
+    line(color, 6f, 25f, 22f, 25f)
+}
+
+/** 손님 한마디 말풍선(빈 칸 표시) */
+@Composable
+fun ChatIcon(color: Color, size: Dp) = Icon28(size) {
+    path(color, 4f to 5f, 24f to 5f, 24f to 19f, 13f to 19f, 7f to 24f, 7f to 19f, 4f to 19f, close = true)
+}
+
+/** 손님 한마디 아이콘. code는 :core RideMessage.code(차·폰이 같은 그림을 쓰도록 여기 한 곳에 둔다). */
+@Composable
+fun MessageIcon(code: String, color: Color, size: Dp) = when (code) {
+    "SLOW" -> SlowIcon(color, size)
+    "STOP" -> PinIcon(color, size)
+    "COLD" -> SnowflakeIcon(color, size)
+    "HOT" -> SunIcon(color, size)
+    "MUSIC" -> MusicIcon(color, size)
+    "GOOD" -> StarIcon(color, size, filled = true)
+    else -> ChatIcon(color, size)
+}
