@@ -1,11 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- FAXI 앱 아이콘 바탕: 야간 테마 surface(#17191E). 모양(원·둥근 네모)은 기기가 잘라 준다. -->
+<!--
+  FAXI 앱 아이콘 바탕: 산호색 = 거대한 F. 모양(원·둥근 네모)은 기기가 잘라 준다.
+  아이콘 전체(바탕색)가 거대한 F다. 남색 두 칸은 F에 파낸 빈 곳(카운터)이고, 오른쪽 끝에서 잘린다:
+  - 위 칸 = 택시 지붕 표시등. 그 안에 A·X·I. 첫 글자 자리는 비어 있다 → 빠진 첫 글자 F는 아이콘 자체.
+  - 아래 칸 = 차 지붕. 위 칸보다 왼쪽으로 한 계단 나와 F의 기둥이 계단처럼 보인다.
+  108dp 격자 그대로 그린다. 보이는 영역은 가운데 72dp 안팎(18~90), F의 기둥·윗막대·가운데 막대가 그 안에서 읽히게 놓았다.
+  모서리는 둥글게, 글자는 둥근 끝 선으로(딱딱하지 않게). 글자는 시스템 글꼴이 아니라 선이다.
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
     <path
-        android:fillColor="#17191E"
+        android:fillColor="#F2845F"
         android:pathData="M0,0h108v108h-108z" />
 </vector>

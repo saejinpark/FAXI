@@ -1,51 +1,44 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  FAXI 앱 아이콘 앞면(택시 노랑).
-  F 모양 택시 지붕 표시등(오른쪽이 열린 테두리) + 네 칸. 첫 칸은 비우고 나머지에 A·X·I.
-  디자인은 100×100 격자로 그리고, 108dp 적응형 아이콘의 안전 영역(지름 66dp 원) 안에 들어오게 0.78배로 줄여 가운데에 놓는다.
-  글자는 시스템 글꼴이 아니라 선으로 그린다(어느 기기에서나 같은 모양).
+  FAXI 앱 아이콘 앞면: 남색 카운터 두 칸 + 산호색 A·X·I.
+  아이콘 전체(바탕색)가 거대한 F다. 남색 두 칸은 F에 파낸 빈 곳(카운터)이고, 오른쪽 끝에서 잘린다:
+  - 위 칸 = 택시 지붕 표시등. 그 안에 A·X·I. 첫 글자 자리는 비어 있다 → 빠진 첫 글자 F는 아이콘 자체.
+  - 아래 칸 = 차 지붕. 위 칸보다 왼쪽으로 한 계단 나와 F의 기둥이 계단처럼 보인다.
+  108dp 격자 그대로 그린다. 보이는 영역은 가운데 72dp 안팎(18~90), F의 기둥·윗막대·가운데 막대가 그 안에서 읽히게 놓았다.
+  모서리는 둥글게, 글자는 둥근 끝 선으로(딱딱하지 않게). 글자는 시스템 글꼴이 아니라 선이다.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <group
-        android:scaleX="0.78"
-        android:scaleY="0.78"
-        android:translateX="11.68"
-        android:translateY="14.03">
-        <!-- F: 세로 기둥 + 위 가로 막대(오른쪽 끝이 열려 있다) -->
-        <path
-            android:pathData="M30,82 V24 H82"
-            android:strokeColor="#FFC83D"
-            android:strokeWidth="7"
-            android:strokeLineJoin="round" />
-        <!-- F 가운데 막대 = 표시등 아래 테두리 -->
-        <path
-            android:pathData="M30,55 H66"
-            android:strokeColor="#FFC83D"
-            android:strokeWidth="7" />
-        <!-- 첫 칸: 비워 둔다("첫 글자가 왜 비었지?") -->
-        <path
-            android:pathData="M38,31 H43.5 A2,2 0 0 1 45.5,33 V46 A2,2 0 0 1 43.5,48 H38 A2,2 0 0 1 36,46 V33 A2,2 0 0 1 38,31 Z"
-            android:strokeColor="#FFC83D"
-            android:strokeAlpha="0.45"
-            android:strokeWidth="1.5" />
-        <!-- A -->
-        <path
-            android:pathData="M48.6,44.5 L52.25,34.3 L55.9,44.5 M49.9,41.2 H54.6"
-            android:strokeColor="#FFC83D"
-            android:strokeWidth="2.4" />
-        <!-- X -->
-        <path
-            android:pathData="M60.2,34.3 L67.3,44.5 M67.3,34.3 L60.2,44.5"
-            android:strokeColor="#FFC83D"
-            android:strokeWidth="2.4" />
-        <!-- I -->
-        <path
-            android:pathData="M75.25,34.3 V44.5"
-            android:strokeColor="#FFC83D"
-            android:strokeWidth="2.6" />
-    </group>
+    <!-- 위 칸: 택시 표시등 -->
+    <path
+        android:fillColor="#1F2B42"
+        android:pathData="M53,36 H108 V54 H53 A5,5 0 0 1 48,49 V41 A5,5 0 0 1 53,36 Z" />
+    <!-- 아래 칸: 차 지붕 -->
+    <path
+        android:fillColor="#1F2B42"
+        android:pathData="M40,63 H108 V108 H33 V70 A7,7 0 0 1 40,63 Z" />
+    <!-- A -->
+    <path
+        android:pathData="M60.4,49.5 L64,40.5 L67.6,49.5 M61.7,46.3 H66.3"
+        android:strokeColor="#F2845F"
+        android:strokeWidth="2.3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <!-- X -->
+    <path
+        android:pathData="M71,40.5 L78,49.5 M78,40.5 L71,49.5"
+        android:strokeColor="#F2845F"
+        android:strokeWidth="2.3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <!-- I -->
+    <path
+        android:pathData="M84,40.5 V49.5"
+        android:strokeColor="#F2845F"
+        android:strokeWidth="2.3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
 </vector>

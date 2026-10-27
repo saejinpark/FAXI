@@ -93,9 +93,13 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
 - 하차: 시연용 버튼. 차량에서는 기어 P를 감지해야 한다.
 
 ## 앱 아이콘
-- F 모양 택시 지붕 표시등(오른쪽이 열린 테두리) + 네 칸: 첫 칸은 비우고("첫 글자가 왜 비었지?") 나머지에 대문자 A·X·I. 택시 노랑 #FFC83D, 바탕 #17191E.
-- `res/drawable/ic_launcher_foreground.xml`(앞면), `ic_launcher_monochrome.xml`(테마 아이콘용 단색판), `ic_launcher_background.xml`(바탕), `mipmap-anydpi/ic_launcher*.xml`(적응형). 차 앱과 폰 앱에 **같은 파일**을 둔다(하나를 고치면 둘 다).
-- 100×100 격자로 그린 디자인을 0.78배로 줄여 108dp 안전 영역(지름 66dp 원)에 넣었다. 테두리 모서리까지 원 안에 들어온다. 글자는 선으로 그린다(시스템 글꼴 아님).
+- 아이콘 전체(산호색 #F2845F)가 거대한 F다. 남색(#1F2B42) 두 칸은 F에 파낸 빈 곳이고 오른쪽 끝에서 잘린다.
+  - 위 칸 = 택시 지붕 표시등, 안에 A·X·I. 첫 글자 자리는 비어 있다(빠진 F는 아이콘 자체).
+  - 아래 칸 = 차 지붕. 위 칸보다 왼쪽으로 한 계단 나와 F 기둥이 계단처럼 보인다.
+  - 모서리는 둥글게, 글자는 둥근 끝 선으로(시스템 글꼴 아님). 산호 글자/남색 대비 5.56:1.
+- `res/drawable/ic_launcher_foreground.xml`(남색 칸 + 글자), `ic_launcher_background.xml`(산호 = F), `ic_launcher_monochrome.xml`(테마 아이콘: F만 남기고 칸은 뚫음), `mipmap-anydpi/ic_launcher*.xml`. 차 앱과 폰 앱에 **같은 파일**(하나를 고치면 둘 다).
+- 108dp 격자 그대로 그린다. 보이는 영역(가운데 72dp, 18~90) 안에서 F 기둥·윗막대·가운데 막대가 읽히게 놓았다. 위치를 바꾸면 원 모양 마스크(차 런처)로 꼭 확인한다.
+- 아이콘을 바꾼 뒤 차 런처에 옛 아이콘이 보이면 캐시다: `adb shell am force-stop com.android.car.carlauncher`.
 - minSdk 28이라 적응형 아이콘만 쓴다. 예전 비트맵 아이콘은 없다.
 
 ## Pleos 디자인 가이드 (반드시 지킨다)
