@@ -1,0 +1,81 @@
+package com.geppetto.faxi.ui.receipt
+
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import com.geppetto.faxi.data.FaxiStore
+import com.geppetto.faxi.data.Receipt
+import com.geppetto.faxi.ui.components.FaxiCard
+import com.geppetto.faxi.ui.components.FaxiPage
+import com.geppetto.faxi.ui.components.FaxiPreviews
+import com.geppetto.faxi.ui.components.FaxiPrimaryButton
+import com.geppetto.faxi.ui.components.FaxiSecondaryButton
+import com.geppetto.faxi.ui.components.PreviewFrame
+import com.geppetto.faxi.ui.components.SectionTitle
+import com.geppetto.faxi.ui.theme.Faxi
+
+/**
+ * 도착 (하차 직후, 주차 상태). 운행 중 감춰 둔 금액을 여기서 한 번에 공개한다.
+ * 사이드바 없이 화면 전체를 쓰고, 닫으면 탑승 화면으로 돌아간다. 지난 영수증은 장부에서 다시 본다.
+ */
+@Composable
+fun ArrivalScreen(store: FaxiStore, receipt: Receipt, onClose: () -> Unit) {
+    val reviewed = store.reviews[receipt.id]
+    // 닫기는 제목 줄에 둔다. 카드 안 맨 아래에 두면 영수증·후기가 길 때 화면 밖으로 밀린다.
+    // 후기 남기기가 이 화면의 주 버튼이라, 후기 전에는 닫기를 보조 버튼으로 둔다.
+    FaxiPage(
+        title = "도착했습니다",
+        trailing = {
+            if (reviewed == null) {
+                FaxiSecondaryButton("후기 없이 닫기", onClick = onClose)
+            } else {
+                FaxiPrimaryButton("확인", onClick = onClose)
+            }
+        },
+    ) {
+        row(
+            { m -> ReceiptCard(store, receipt, m) },
+            { m ->
+                FaxiCard(m) {
+                    // 그래프 바로 아래에 "급정거 1번, 괜찮으셨나요?"가 오도록 후기 앞에 둔다
+                    RideComfortChart(receipt)
+                    SectionTitle("${store.name(receipt.driverId)} 기사 후기")
+                    if (reviewed == null) {
+                        ReviewForm(receipt, onSubmit = { store.submitReview(receipt.id, it) })
+                    } else {
+                        ReviewSummary(reviewed)
+                    }
+                }
+            },
+        )
+    }
+}
+
+/** 장부에서 연 지난 영수증 */
+@Composable
+fun ReceiptDetailScreen(store: FaxiStore, receipt: Receipt, onBack: () -> Unit) {
+    val reviewed = store.reviews[receipt.id]
+    FaxiPage(title = "영수증 · ${receipt.endedAt.format(ReceiptTimeFormat)}", onBack = onBack) {
+        row(
+            { m -> ReceiptCard(store, receipt, m, past = true) },
+            { m ->
+                FaxiCard(m) {
+                    RideComfortChart(receipt)
+                    SectionTitle("${store.name(receipt.driverId)} 기사 후기")
+                    if (reviewed == null) {
+                        Text("후기를 남기지 않은 운행이에요.", style = Faxi.type.body, color = Faxi.colors.inkMuted)
+                    } else {
+                        ReviewSummary(reviewed)
+                    }
+                }
+            },
+        )
+    }
+}
+
+@FaxiPreviews
+@Composable
+private fun ArrivalPreview() = PreviewFrame {
+    val store = FaxiStore.sample().apply { startRide("mom") }
+    val receipt = store.endRide()
+    ArrivalScreen(store, receipt, onClose = {})
+}
