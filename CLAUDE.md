@@ -47,7 +47,7 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
   - 장부 탭 → 빚 한 줄 누르기 → 두 사람 사이 빚 상세(정산 요청·확인, 둘 사이 운행, 기록, 탕감) → 운행 누르기 → 지난 영수증.
   - "지금 보이는 영수증이 어느 운행 것인지" 늘 분명해야 한다. 영수증만 따로 보여 주는 탭을 다시 만들지 않는다.
 - `ui/shell/AppShell.kt` 운행 중(`store.rideActive`)이면 운행 중 화면만, 운행 중이 아닌데 기어가 Driving이면 "주차하면 열려요"만, `store.arrival`이 있으면 도착 화면만, 그 외에는 왼쪽 사이드바 + 탭 화면. 기사가 확인할 정산 요청이 있으면 장부 탭에 "확인 N건". 탭은 `rememberSaveable`, 내비게이션 라이브러리 없음, 전환 즉시.
-- `ui/boarding/BoardingScreen.kt` 1 기사 → 2 손님 → 3 탑승 코드 숫자판. 손님을 고르면 밀린 돈 독촉(화면 + 음성), 기사가 그 손님에게 진 빚이 있으면 "먼저 퉁쳐요" 안내.
+- `ui/boarding/BoardingScreen.kt` 1 기사 → 2 손님 → 3 탑승 코드 숫자판. 기사를 고르면 그 기사가 아직 듣지 못한 가장 최근 후기를 차가 읽어 준다(`store.takeUnreadReview` → `reviewLine`: "지난 손님 후기입니다. 엄마 손님, 별 세 개. 선곡 최악."). 한 후기는 한 번만(`reviewsReadAloud`, 저장됨). 손님을 고르면 밀린 돈 독촉(화면 + 음성), 기사가 그 손님에게 진 빚이 있으면 "먼저 퉁쳐요" 안내.
 - `ui/driving/DrivingScreen.kt` 2×2로 화면을 꽉 채운다: 자격증 | 손님 한마디 / 오늘의 손님(캐릭터, 출발 시각, "미터기 작동 중 · 요금은 내릴 때", "아빠 택시 N번째 탑승") | 요금 붙는 옵션(냉방·엉따·와이퍼·창문 켜짐/꺼짐).
   - 금액은 운행 중 화면에 아예 없다(감춘 요금 칸도 뺐다). 하차 때 도착 화면에서 한 번에 공개한다.
   - 실시간 미터기 숫자, 흐르는 진동 파형, 경과 시간은 넣지 않는다(주행 중 움직임 금지). 볼거리는 하차 뒤 도착 화면의 정지 그래프로 보여 준다.
@@ -167,7 +167,7 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
 
 ## 사용할 Pleos SDK (모두 읽기 전용)
 - Vehicle SDK: Odometer(거리요금)·Gear(하차·주행 판별)·HVAC(냉난방)·Seat(엉따)·Wiper(우천 할증)·Window(환기) 연결됨. 속도는 SDK에 없어 Android Car API. Brake 페달은 아직(급정거는 속도 변화로 센다)
-- TextToSpeech SDK: 연결됨(ON_DEVICE). 탑승 인사("손님, 어디로 모실까요?"), 하차 요금 안내, 독촉. 후기 낭독은 아직
+- TextToSpeech SDK: 연결됨(ON_DEVICE). 탑승 인사("손님, 어디로 모실까요?"), 하차 요금 안내, 독촉, 후기 낭독(기사 고를 때)
 - NaviHelper SDK: 연결됨. 출발지·도착지 이름, 경유지 추가 요금
 - SDK 문서: https://document.pleos.ai/docs/pleos-only/getting-started
 - 저장소: maven("https://nexus-playground.pleos.ai/repository/maven-releases/") (공식 문서 "Vehicle SDK 가져오기", settings.gradle.kts에 등록됨). SDK 실제 API는 문서보다 AAR(javap)이 정확하다.

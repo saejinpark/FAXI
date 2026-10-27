@@ -30,6 +30,8 @@ data class FaxiSnapshot(
     val lifetime: List<LifetimeLedger>,
     val requests: List<SettlementRequest> = emptyList(),
     val reviews: Map<String, Review> = emptyMap(),
+    /** 이미 소리 내어 읽은 후기(영수증 id). 한 후기는 한 번만 읽는다 */
+    val reviewsReadAloud: Set<String> = emptySet(),
     /** 운행 중에 앱이 꺼졌다 켜져도 이어 가도록 */
     val ridePassengerId: String? = null,
     val rideStartedAt: LocalDateTime? = null,

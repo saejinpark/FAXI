@@ -26,6 +26,7 @@ import com.geppetto.faxi.data.Grade
 import com.geppetto.faxi.data.Member
 import com.geppetto.faxi.data.dunningLine
 import com.geppetto.faxi.data.owesPhrase
+import com.geppetto.faxi.data.reviewLine
 import com.geppetto.faxi.data.won
 import com.geppetto.faxi.ui.components.Avatar
 import com.geppetto.faxi.ui.components.BackspaceIcon
@@ -67,6 +68,10 @@ fun BoardingScreen(
                         MemberTile(member, selected = member.id == driver.id) {
                             store.selectDriver(member.id)
                             if (passengerId == member.id) passengerId = null
+                            // 후기 낭독: 이 기사가 아직 듣지 못한 가장 최근 후기를 한 번 읽어 준다(주차 중, 차 안 가족 모두가 듣는다)
+                            store.takeUnreadReview(member.id)?.let { (receipt, review) ->
+                                speak(reviewLine(store.member(receipt.passengerId).name, review.stars, review.tags))
+                            }
                         }
                     }
                     SectionTitle("2  손님 누구세요?")
