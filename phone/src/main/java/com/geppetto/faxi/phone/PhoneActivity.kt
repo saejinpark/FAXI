@@ -49,6 +49,7 @@ import com.geppetto.faxi.ui.components.AvatarCircle
 import com.geppetto.faxi.ui.components.ChevronIcon
 import com.geppetto.faxi.ui.components.Divider
 import com.geppetto.faxi.ui.components.FaxiCard
+import com.geppetto.faxi.ui.components.FaxiMark
 import com.geppetto.faxi.ui.components.FaxiPrimaryButton
 import com.geppetto.faxi.ui.components.FaxiSecondaryButton
 import com.geppetto.faxi.ui.components.MoneyRow
@@ -177,7 +178,10 @@ private fun RegisterScreen(store: PhoneStore, onScan: () -> Unit, onBadLink: () 
     val c = Faxi.colors
     var link by remember { mutableStateOf("") }
     PhonePage {
-        Text("FAXI 가족 등록", style = Faxi.type.headline, color = c.ink)
+        Row(horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space4), verticalAlignment = Alignment.CenterVertically) {
+            FaxiMark(FaxiDimens.targetMin)
+            Text("가족 등록", style = Faxi.type.headline, color = c.ink)
+        }
         FaxiCard {
             Text("차가 주차(P)된 상태에서 차 화면 기사 상세의 \"초대 QR 보이기\"를 누르고 찍어 주세요.", style = Faxi.type.body, color = c.ink)
             FaxiPrimaryButton("초대 QR 찍기", onClick = onScan, modifier = Modifier.fillMaxWidth())

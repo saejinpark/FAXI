@@ -40,7 +40,7 @@ private val DateFormat = DateTimeFormatter.ofPattern("yyyy.MM.dd")
 /**
  * FAXI 기사 자격증. 택시 조수석 앞 자격증처럼 운행이 시작되면 차 화면에 뜬다.
  * 신분증 모양: 왼쪽 가장자리 가족 색 띠, 3:4 사진 칸, 오른쪽에 이름표처럼 칸(성명·등록·운행).
- * 실제 면허증을 흉내 내지 않는다: 면허번호 칸 없음, FAXI 로고 글자와 호출명만.
+ * 실제 면허증을 흉내 내지 않는다: 면허번호 칸 없음, FAXI 로고와 호출명만.
  *
  * large = true(운행 중 화면)면 주행 중에 읽히도록 칸 글자를 24sp 이상으로 키운다.
  */
@@ -78,7 +78,11 @@ fun DriverLicenseCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("FAXI 기사 자격증", style = if (large) t.bodyStrong else t.label, color = c.accentInk)
+                // 발급처 표시는 글자 "FAXI" 대신 앱 아이콘과 같은 로고(사이드바와 같은 모양)
+                Row(horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space3), verticalAlignment = Alignment.CenterVertically) {
+                    FaxiMark(if (large) FaxiDimens.iconLg else FaxiDimens.iconMd)
+                    Text("기사 자격증", style = if (large) t.bodyStrong else t.label, color = c.accentInk)
+                }
                 Text(member.callsign, style = if (large) t.title else t.label, color = c.ink)
             }
             Row(

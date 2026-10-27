@@ -83,10 +83,12 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
   - 가족 색 `familyPaxi/Maxi/Kixi/Naxi`(`Faxi.colors.family(호출명)`): 그 사람을 가리키는 표시(자격증 왼쪽 띠, 아바타 테두리)에만. 버튼·배경에는 쓰지 않는다.
   - QR은 `qrPaper` 위 `qrInk`(테마와 상관없이 밝게).
   - 금액은 `Faxi.type.amount` / `amountLarge`(숫자 폭 고정 tnum).
+  - 모든 글자 스타일은 `localeList = ko-KR` + 어절 단위 줄바꿈(`WordBreak.Phrase`). 기기 언어가 영어인 에뮬레이터에서도 "차 화/면"처럼 글자 중간에서 끊지 않는다. 새 스타일을 만들 때도 `Faxi.type`에서 copy한다.
 - `ui/components/Layout.kt` `FaxiPage`(제목 줄 + 본문). 본문은 `row(a, b)` / `full(a)`로 줄 단위로 쌓는다. 칸(Cell)은 받은 Modifier를 카드 맨 바깥에 붙이고, 카드 안 버튼 앞에는 `Spacer(Modifier.weight(1f))`를 둬서 짝꿍 카드와 버튼 줄을 맞춘다.
 - `ui/components/Buttons.kt` `FaxiPrimaryButton`(화면당 하나), `FaxiSecondaryButton`, `FaxiIconButton`, `SelectTile`(고르면 accent 굵은 테두리 + 체크).
 - `ui/components/Cards.kt` `FaxiCard`, `SectionTitle`, `StatusTag`(단어로 상태 표시), `Avatar`/`AvatarCircle`(캐릭터 또는 호출명 첫 글자), `MoneyRow`, `BigWon`.
-- `ui/components/LicenseCard.kt` `DriverLicenseCard`: 신분증 모양(왼쪽 가족 색 띠, 3:4 사진 칸, 성명·등록·운행 칸). 위에 가득 찬 띠나 아래 통계 줄을 두면 티켓처럼 보이니 피한다. `large`(운행 중 화면)는 칸 글자 24sp 이상.
+- `ui/components/Logo.kt`(`:design`) `FaxiMark`: 화면 안 로고. 앱 아이콘 파일을 그대로 둥근 네모로 잘라 쓴다(사이드바 맨 위, 자격증·영수증 머리, 폰 등록 화면). 화면에 글자 "FAXI"를 로고로 쓰지 않는다(아이콘의 빈 첫 칸 + AXI가 대신한다). 야간 surface가 로고 남색과 같아 `line-strong` 테두리를 둔다.
+- `ui/components/LicenseCard.kt` `DriverLicenseCard`: 신분증 모양(맨 위 로고 + "기사 자격증", 왼쪽 가족 색 띠, 3:4 사진 칸, 성명·등록·운행 칸). 위에 가득 찬 띠나 아래 통계 줄을 두면 티켓처럼 보이니 피한다. `large`(운행 중 화면)는 칸 글자 24sp 이상.
 - `ui/components/Icons.kt` 아이콘 라이브러리 없이 Canvas로 28×28 격자, 선 3단위. 모두 정지 그림.
 - `ui/components/Previews.kt` `@FaxiPreviews`(차량 1920dp + 폴드 900dp)와 `PreviewFrame`. 화면 파일마다 아래에 둔다.
 - 화면에 나중에 생기는 줄(안내 문구 등)이 버튼을 밀어내지 않게 자리를 미리 잡아 둔다. 버튼이 손가락 밑에서 움직이면 안 된다.
