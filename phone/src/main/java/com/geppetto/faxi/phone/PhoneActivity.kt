@@ -1,11 +1,16 @@
 package com.geppetto.faxi.phone
 
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,22 +41,26 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
+import androidx.core.content.ContextCompat
 import com.geppetto.faxi.auth.Base32
 import com.geppetto.faxi.auth.DemoFamily
 import com.geppetto.faxi.auth.FaxiInvite
 import com.geppetto.faxi.auth.Totp
+import com.geppetto.faxi.message.MessageReply
+import com.geppetto.faxi.message.RideMessage
 import com.geppetto.faxi.qr.ReceiptTicket
 import com.geppetto.faxi.ui.components.AvatarCircle
 import com.geppetto.faxi.ui.components.ChevronIcon
 import com.geppetto.faxi.ui.components.Divider
 import com.geppetto.faxi.ui.components.FaxiCard
-import com.geppetto.faxi.ui.components.FaxiMark
 import com.geppetto.faxi.ui.components.FaxiPrimaryButton
 import com.geppetto.faxi.ui.components.FaxiSecondaryButton
+import com.geppetto.faxi.ui.components.MessageIcon
 import com.geppetto.faxi.ui.components.MoneyRow
 import com.geppetto.faxi.ui.components.SectionTitle
 import com.geppetto.faxi.ui.components.StatusTag
@@ -60,10 +69,10 @@ import com.geppetto.faxi.ui.components.WarningIcon
 import com.geppetto.faxi.ui.theme.Faxi
 import com.geppetto.faxi.ui.theme.FaxiDimens
 import com.geppetto.faxi.ui.theme.FaxiTheme
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /**
  * FAXI 폰 앱.
@@ -91,6 +100,8 @@ class PhoneActivity : ComponentActivity() {
     }
 }
 
+/** API 37의 Manifest.permission.ACCESS_LOCAL_NETWORK. compileSdk 37이지만 글자로 둬서 옛 기기에서도 읽기 쉽게 */
+private const val LocalNetworkPermission = "android.permission.ACCESS_LOCAL_NETWORK"
 private val TimeFormat = DateTimeFormatter.ofPattern("M.d HH:mm")
 
 @Composable
@@ -178,10 +189,7 @@ private fun RegisterScreen(store: PhoneStore, onScan: () -> Unit, onBadLink: () 
     val c = Faxi.colors
     var link by remember { mutableStateOf("") }
     PhonePage {
-        Row(horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space4), verticalAlignment = Alignment.CenterVertically) {
-            FaxiMark(FaxiDimens.targetMin)
-            Text("가족 등록", style = Faxi.type.headline, color = c.ink)
-        }
+        Text("FAXI 가족 등록", style = Faxi.type.headline, color = c.ink)
         FaxiCard {
             Text("차가 주차(P)된 상태에서 차 화면 기사 상세의 \"초대 QR 보이기\"를 누르고 찍어 주세요.", style = Faxi.type.body, color = c.ink)
             FaxiPrimaryButton("초대 QR 찍기", onClick = onScan, modifier = Modifier.fillMaxWidth())
@@ -270,6 +278,8 @@ private fun HomeScreen(
             Text("${left}초 뒤에 바뀌어요. 차 화면에 이 숫자를 눌러 주세요.", style = Faxi.type.caption, color = c.inkMuted)
         }
 
+        MessageCard(me)
+
         FaxiPrimaryButton("영수증 QR 찍기", onClick = onScanReceipt, modifier = Modifier.fillMaxWidth())
 
         Balances(receipts.firstOrNull())
@@ -286,6 +296,101 @@ private fun HomeScreen(
             Text("가족 ${me.familyId}", style = Faxi.type.caption, color = c.inkMuted, modifier = Modifier.weight(1f))
             FaxiSecondaryButton("등록 해제", onClick = onUnregister)
         }
+    }
+}
+
+/**
+ * 기사님께 한마디: 정해진 문장 중 하나를 눌러 운행 중인 차 화면에 띄운다(같은 Wi-Fi).
+ * 결과 줄은 미리 자리를 잡아 둬서 답이 와도 버튼이 밀리지 않는다.
+ */
+@Composable
+private fun MessageCard(me: FaxiInvite) {
+    val c = Faxi.colors
+    val context = LocalContext.current
+    val sender = remember { MessageSender(context.applicationContext) }
+    val scope = rememberCoroutineScope()
+    var sending by remember { mutableStateOf(false) }
+    var status by remember { mutableStateOf("운행 중에 누르면 기사님 화면에 떠요.") }
+    var failed by remember { mutableStateOf(false) }
+
+    fun send(msg: RideMessage) {
+        sending = true
+        status = "보내는 중이에요."
+        failed = false
+        scope.launch {
+            val reply = sender.send(me, msg)
+            failed = reply != MessageReply.Shown
+            status = when (reply) {
+                MessageReply.Shown -> "\"${msg.text}\" 기사님 화면에 떴어요."
+                MessageReply.NotRiding -> "지금 이 차에 타고 있지 않아요. 탑승 코드부터 눌러 주세요."
+                MessageReply.TooSoon -> "방금 보냈어요. 10초 뒤에 다시 보내 주세요."
+                MessageReply.Rejected -> "차가 받지 않았어요. 폰 시각이 맞는지 확인해 주세요."
+                null -> "차를 찾지 못했어요. 차와 같은 Wi-Fi인지 확인해 주세요."
+            }
+            sending = false
+        }
+    }
+
+    // Android 17부터 같은 Wi-Fi의 차와 이야기하려면 "근처 기기" 권한이 필요하다. 처음 보낼 때 한 번 묻는다.
+    var waiting by remember { mutableStateOf<RideMessage?>(null) }
+    val askLocal = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        val msg = waiting
+        waiting = null
+        if (granted && msg != null) {
+            send(msg)
+        } else {
+            failed = true
+            status = "차에 보내려면 근처 기기 권한을 허용해 주세요."
+        }
+    }
+    fun tap(msg: RideMessage) {
+        val needsAsk = Build.VERSION.SDK_INT >= 37 &&
+            ContextCompat.checkSelfPermission(context, LocalNetworkPermission) != PackageManager.PERMISSION_GRANTED
+        if (needsAsk) {
+            waiting = msg
+            askLocal.launch(LocalNetworkPermission)
+        } else {
+            send(msg)
+        }
+    }
+
+    FaxiCard {
+        SectionTitle("기사님께 한마디")
+        RideMessage.entries.chunked(2).forEach { pair ->
+            Row(horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space4)) {
+                pair.forEach { msg ->
+                    MessageTile(msg, enabled = !sending, modifier = Modifier.weight(1f)) { tap(msg) }
+                }
+            }
+        }
+        Row(
+            Modifier.heightIn(min = FaxiDimens.iconLg),
+            horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space2),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (failed) WarningIcon(c.danger, FaxiDimens.iconMd)
+            Text(status, style = Faxi.type.caption, color = if (failed) c.ink else c.inkMuted)
+        }
+    }
+}
+
+/** 한마디 버튼: 아이콘 위, 문장 아래(폰은 좁아서 두 줄까지) */
+@Composable
+private fun MessageTile(msg: RideMessage, enabled: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    val c = Faxi.colors
+    val shape = RoundedCornerShape(FaxiDimens.radiusMd)
+    Column(
+        modifier
+            .heightIn(min = FaxiDimens.controlHeight + FaxiDimens.space6)
+            .background(c.surface, shape)
+            .border(FaxiDimens.borderWidth, c.lineStrong, shape)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .padding(FaxiDimens.space3),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(FaxiDimens.space2, Alignment.CenterVertically),
+    ) {
+        MessageIcon(msg.code, if (enabled) c.accentInk else c.inkDisabled, FaxiDimens.iconMd)
+        Text(msg.text, style = Faxi.type.label, color = if (enabled) c.ink else c.inkDisabled, textAlign = TextAlign.Center)
     }
 }
 

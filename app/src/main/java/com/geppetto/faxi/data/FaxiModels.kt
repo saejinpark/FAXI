@@ -2,12 +2,13 @@
 
 package com.geppetto.faxi.data
 
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.UseSerializers
 import com.geppetto.faxi.fare.FareLine
+import com.geppetto.faxi.message.RideMessage
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.UseSerializers
 
 /** 기사 등급. 실제 면허증은 받지 않고 "면허가 있습니다" 자기 선언으로 정식 기사가 된다. */
 @Serializable
@@ -130,6 +131,9 @@ data class CabinState(
     val wiper: Boolean,
     val windowOpen: Boolean,
 )
+
+/** 운행 중 손님이 보낸 한마디와 받은 시각 */
+data class PassengerMessage(val message: RideMessage, val at: LocalDateTime)
 
 @Serializable
 data class Review(val stars: Int, val tags: Set<String>)

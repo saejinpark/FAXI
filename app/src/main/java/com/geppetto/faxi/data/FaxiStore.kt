@@ -8,6 +8,9 @@ import androidx.compose.runtime.setValue
 import com.geppetto.faxi.auth.Base32
 import com.geppetto.faxi.auth.DemoFamily
 import com.geppetto.faxi.auth.FaxiInvite
+import com.geppetto.faxi.message.MessageEnvelope
+import com.geppetto.faxi.message.MessageReply
+import com.geppetto.faxi.message.MessageWire
 import com.geppetto.faxi.qr.Balance
 import com.geppetto.faxi.qr.ReceiptTicket
 import com.geppetto.faxi.auth.Totp
@@ -56,6 +59,12 @@ class FaxiStore(
     /** 차량 옵션 상태. 저장하지 않는다(차가 늘 지금 값을 알려 준다). */
     var cabin by mutableStateOf(CabinState(ac = true, seatHeat = true, wiper = false, windowOpen = false))
         private set
+
+    /** 운행 중 손님이 폰으로 보낸 마지막 한마디. 운행이 바뀌면 지운다. 저장하지 않는다(그 운행 동안만 의미가 있다). */
+    var passengerMessage by mutableStateOf<PassengerMessage?>(null)
+        private set
+    /** 사람별 마지막으로 받은 한마디의 보낸 시각(초). 같은 통을 다시 보내거나 연타하는 것을 막는다. */
+    private val lastMessageAt = mutableMapOf<String, Long>()
 
     /** 방금 끝난 운행. null이 아니면 도착 화면(영수증 공개)을 띄운다. */
     var arrival by mutableStateOf(snapshot.arrivalReceiptId?.let { id -> snapshot.receipts.firstOrNull { it.id == id } })
@@ -168,9 +177,31 @@ class FaxiStore(
         return Totp.verify(secret, code, now)
     }
 
+    /**
+     * 손님 폰에서 온 한마디(같은 Wi-Fi, MessageServer가 넘겨준다). 기사 화면에 띄울지 정한다.
+     * - 우리 가족, 그 사람 열쇠로 서명, 1분 안에 보낸 것만
+     * - 지금 이 차에 탄 손님만(운행 중이 아니거나 다른 사람이면 NotRiding)
+     * - 한 사람이 10초에 한 번까지, 같은 통을 두 번 받지 않는다
+     */
+    fun receiveMessage(envelope: MessageEnvelope): MessageReply {
+        if (envelope.familyId != familyId) return MessageReply.Rejected
+        val m = members.firstOrNull { it.id == envelope.memberId } ?: return MessageReply.Rejected
+        val secret = Base32.decode(m.secret) ?: return MessageReply.Rejected
+        val now = clock().atZone(ZoneId.systemDefault()).toEpochSecond()
+        if (!envelope.verify(secret, now)) return MessageReply.Rejected
+        if (passengerId != m.id) return MessageReply.NotRiding
+        val last = lastMessageAt[m.id]
+        if (last != null && envelope.sentAt <= last) return MessageReply.Rejected
+        if (last != null && envelope.sentAt - last < MessageWire.MIN_INTERVAL_SECONDS) return MessageReply.TooSoon
+        lastMessageAt[m.id] = envelope.sentAt
+        passengerMessage = PassengerMessage(envelope.message, clock().withNano(0))
+        return MessageReply.Shown
+    }
+
     fun startRide(passengerId: String) {
         require(passengerId != driverId)
         this.passengerId = passengerId
+        passengerMessage = null
         rideStartedAt = clock().withSecond(0).withNano(0)
         changed()
     }
@@ -204,6 +235,7 @@ class FaxiStore(
         receipts.add(0, receipt)
         arrival = receipt
         passengerId = null
+        passengerMessage = null
         rideStartedAt = null
         changed()
         return receipt

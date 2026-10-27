@@ -32,7 +32,6 @@ import com.geppetto.faxi.data.FaxiStore
 import com.geppetto.faxi.data.Gear
 import com.geppetto.faxi.data.won
 import com.geppetto.faxi.ui.boarding.BoardingScreen
-import com.geppetto.faxi.ui.components.FaxiMark
 import com.geppetto.faxi.ui.components.BadgeIcon
 import com.geppetto.faxi.ui.components.FaxiPreviews
 import com.geppetto.faxi.ui.components.LedgerIcon
@@ -124,8 +123,12 @@ private fun Sidebar(current: Tab, ledgerBadge: Int, onSelect: (Tab) -> Unit) {
         verticalArrangement = Arrangement.spacedBy(FaxiDimens.space2),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        // 앱 아이콘과 같은 로고. 글자 "FAXI"는 로고 안 표시등(빈 첫 칸 + AXI)이 대신한다
-        FaxiMark(FaxiDimens.controlHeight, Modifier.padding(vertical = FaxiDimens.space4))
+        Text(
+            "FAXI",
+            style = Faxi.type.headline,
+            color = c.accentInk,
+            modifier = Modifier.padding(vertical = FaxiDimens.space4),
+        )
         Tab.entries.forEach { t ->
             val on = t == current
             val ink = if (on) c.onAccent else c.ink

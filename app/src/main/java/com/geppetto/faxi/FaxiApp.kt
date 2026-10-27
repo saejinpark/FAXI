@@ -3,6 +3,7 @@ package com.geppetto.faxi
 import android.app.Application
 import com.geppetto.faxi.data.FaxiStorage
 import com.geppetto.faxi.data.FaxiStore
+import com.geppetto.faxi.data.MessageServer
 
 /**
  * 앱 프로세스 하나에 장부 하나. Activity는 주간/야간 테마가 바뀔 때 다시 만들어지지만
@@ -20,5 +21,7 @@ class FaxiApp : Application() {
         store = if (snapshot != null) FaxiStore(snapshot) else FaxiStore.sample()
         store.onChanged = { storage.save(store.snapshot()) }
         if (snapshot == null) storage.save(store.snapshot())
+        // 손님 폰의 한마디를 받는 창구(같은 Wi-Fi). 앱 프로세스가 사는 동안 연다.
+        MessageServer(this, store).start()
     }
 }

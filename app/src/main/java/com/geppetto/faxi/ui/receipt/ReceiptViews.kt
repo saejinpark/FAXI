@@ -52,7 +52,6 @@ import com.geppetto.faxi.ui.components.MoneyRow
 import com.geppetto.faxi.ui.components.QrImage
 import com.geppetto.faxi.ui.components.SectionTitle
 import com.geppetto.faxi.ui.components.SelectTile
-import com.geppetto.faxi.ui.components.FaxiMark
 import com.geppetto.faxi.ui.components.StarIcon
 import com.geppetto.faxi.ui.theme.Faxi
 import com.geppetto.faxi.ui.theme.FaxiDimens
@@ -80,10 +79,7 @@ fun ReceiptCard(
         // 영수증 머리: 왼쪽 누가·어디서, 오른쪽 위 QR(손님 폰으로 찍어 저장)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space4)) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(FaxiDimens.space2)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space3), verticalAlignment = Alignment.CenterVertically) {
-                    FaxiMark(FaxiDimens.iconLg)
-                    Text("영수증", style = t.title, color = c.ink)
-                }
+                Text("FAXI 영수증", style = t.title, color = c.ink)
                 Text(
                     "${driver.name} 택시(${driver.callsign}) · 손님 ${passenger.name}",
                     style = t.bodyStrong,
