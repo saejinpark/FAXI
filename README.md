@@ -3,6 +3,12 @@
 FAXI(Family + Taxi)는 운전하는 가족은 기사, 옆에 탄 가족은 손님이 되는 역할놀이 앱이다. 요금은 차량 데이터로 1원 단위까지 매기고, 앱은 가족 장부와 확인만 맡는다(실제 결제 없음).
 현대자동차그룹 차량용 앱 개발 공모전(Pleos Connect) 출품작. 차 앱(Pleos Connect)과 가족 폰 앱 두 개로 이루어진다.
 
+## 시연 영상
+
+[![FAXI 시연 영상: 운행 중 손님 폰에서 보낸 한마디가 차 화면에 뜬 장면](docs/screenshots/00-video.png)](https://github.com/saejinpark/FAXI/releases/download/v1.0/FAXI-demo.mp4)
+
+[시연 영상 받기(2분 30초, 1920×1080, 소리 없음, 18MB)](https://github.com/saejinpark/FAXI/releases/download/v1.0/FAXI-demo.mp4). Pleos Connect 에뮬레이터(왼쪽, 차)와 엄마 폰(오른쪽)을 같이 녹화했다. 탑승 인증부터 주행, 한마디, P 자동 하차, 영수증, 장부, 주행 중 잠금까지 차량 값은 Virtual Console로 넣었고 요금은 녹화 중 실제로 계산된 값이다. 차가 읽어 주는 음성은 자막으로 대신했다.
+
 | 탑승 | 운행 중 | 도착 |
 | --- | --- | --- |
 | ![탑승](docs/screenshots/01-boarding.png) | ![운행 중](docs/screenshots/03-driving.png) | ![도착](docs/screenshots/04-arrival.png) |
