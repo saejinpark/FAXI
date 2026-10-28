@@ -63,7 +63,7 @@ fun BoardingScreen(
         row(
             { m ->
                 FaxiCard(m) {
-                    SectionTitle("1  오늘의 기사")
+                    SectionTitle("1  기사")
                     store.members.filter { it.canDrive }.forEach { member ->
                         MemberTile(member, selected = member.id == driver.id) {
                             store.selectDriver(member.id)
@@ -74,7 +74,7 @@ fun BoardingScreen(
                             }
                         }
                     }
-                    SectionTitle("2  손님 누구세요?")
+                    SectionTitle("2  손님")
                     store.members.filter { it.id != driver.id }.forEach { member ->
                         MemberTile(member, selected = member.id == passengerId) {
                             passengerId = member.id
@@ -100,7 +100,7 @@ fun BoardingScreen(
             },
             { m ->
                 FaxiCard(m) {
-                    SectionTitle("3  손님 폰의 탑승 코드")
+                    SectionTitle("3  탑승 코드")
                     Text(
                         if (passenger == null) "손님을 먼저 골라 주세요." else "${passenger.name} 폰에 뜬 4자리를 눌러 주세요.",
                         style = Faxi.type.body,

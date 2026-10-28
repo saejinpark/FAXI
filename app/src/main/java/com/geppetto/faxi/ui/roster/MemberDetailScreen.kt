@@ -94,7 +94,7 @@ fun MemberDetailScreen(
                     val reviews = store.reviewsOf(memberId)
                     val rating = store.driverRating(memberId)
                     SectionTitle(
-                        if (rating != null) "받은 후기 · 별 %.1f · %d개".format(rating, reviews.size) else "받은 후기",
+                        if (rating != null) "받은 후기 %d개, 평균 별 %.1f".format(reviews.size, rating) else "받은 후기",
                     )
                     when {
                         reviews.isNotEmpty() -> reviews.take(4).forEachIndexed { i, (r, review) ->
@@ -104,6 +104,10 @@ fun MemberDetailScreen(
                         member.grade == Grade.Full -> Text("아직 받은 후기가 없어요.", style = t.body, color = c.inkMuted)
                         member.grade == Grade.Learner -> Text("면허를 따고 기사로 운행하면 후기가 쌓여요.", style = t.body, color = c.inkMuted)
                         else -> Text("명예 기사는 손님으로만 타요.", style = t.body, color = c.inkMuted)
+                    }
+                    store.passengerRating(memberId)?.let {
+                        Divider()
+                        Text("손님으로 받은 평가 · 별 %.1f".format(it), style = t.bodyStrong, color = c.ink)
                     }
                 }
             },

@@ -117,7 +117,7 @@ fun DebtDetailScreen(
                     }
                     Spacer(Modifier.weight(1f))
                     FaxiPrimaryButton(
-                        "보냈어요 · ${creditor}에게 확인 요청",
+                        "${creditor}에게 보냈다고 알리기",
                         enabled = amount > 0,
                         modifier = Modifier.fillMaxWidth(),
                         onClick = { store.requestSettlement(debt, amount) },

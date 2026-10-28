@@ -6,9 +6,11 @@ import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
 import com.geppetto.faxi.auth.Base32
 import com.geppetto.faxi.auth.FaxiInvite
+import com.geppetto.faxi.message.DriverTag
 import com.geppetto.faxi.message.MessageEnvelope
 import com.geppetto.faxi.message.MessageReply
 import com.geppetto.faxi.message.MessageWire
+import com.geppetto.faxi.message.ReviewEnvelope
 import com.geppetto.faxi.message.RideMessage
 import java.net.InetAddress
 import java.net.InetSocketAddress
@@ -20,7 +22,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.resume
 
 /**
- * 손님 한마디를 차로 보낸다. 같은 Wi-Fi(차 핫스팟 등)에서 NSD로 "FAXI-우리 가족" 차를 찾아 TCP 한 줄을 보내고 답 한 줄을 받는다.
+ * 손님 한마디와 기사 후기를 차로 보낸다. 같은 Wi-Fi(차 핫스팟 등)에서 NSD로 "FAXI-우리 가족" 차를 찾아 TCP 한 줄을 보내고 답 한 줄을 받는다.
  * 서명은 탑승 코드와 같은 내 비밀 열쇠로 한다(core MessageEnvelope).
  * 디버그 빌드는 차를 못 찾으면 10.0.2.2(에뮬레이터에서 본 내 컴퓨터)로 보낸다: 차 에뮬레이터에 `adb forward tcp:47800 tcp:47800`.
  */
@@ -28,13 +30,24 @@ class MessageSender(private val context: Context) {
     /** 한 번 찾은 차 주소는 앱이 사는 동안 기억한다 */
     private var car: InetSocketAddress? = null
 
-    /** 차의 답. 차를 못 찾거나 연결이 끊기면 null */
-    suspend fun send(me: FaxiInvite, message: RideMessage): MessageReply? = withContext(Dispatchers.IO) {
-        val secret = Base32.decode(me.secret) ?: return@withContext MessageReply.Rejected
-        val envelope = MessageEnvelope.create(me.familyId, me.memberId, message, secret, System.currentTimeMillis() / 1000)
-        val targets = listOfNotNull(car) + listOfNotNull(discover(me.familyId)) + listOfNotNull(emulatorHost())
+    /** 한마디를 보내고 차의 답을 받는다. 차를 못 찾거나 연결이 끊기면 null */
+    suspend fun send(me: FaxiInvite, message: RideMessage): MessageReply? {
+        val secret = Base32.decode(me.secret) ?: return MessageReply.Rejected
+        return deliver(me.familyId, MessageEnvelope.create(me.familyId, me.memberId, message, secret, now()).toLine())
+    }
+
+    /** 운행이 끝난 뒤 기사 후기를 보낸다. 같은 통로, 같은 열쇠 */
+    suspend fun sendReview(me: FaxiInvite, receiptId: String, stars: Int, tags: List<DriverTag>): MessageReply? {
+        val secret = Base32.decode(me.secret) ?: return MessageReply.Rejected
+        return deliver(me.familyId, ReviewEnvelope.create(me.familyId, me.memberId, receiptId, stars, tags, secret, now()).toLine())
+    }
+
+    private fun now() = System.currentTimeMillis() / 1000
+
+    private suspend fun deliver(familyId: String, line: String): MessageReply? = withContext(Dispatchers.IO) {
+        val targets = listOfNotNull(car) + listOfNotNull(discover(familyId)) + listOfNotNull(emulatorHost())
         for (target in targets.distinct()) {
-            val reply = runCatching { exchange(target, envelope.toLine()) }.getOrNull() ?: continue
+            val reply = runCatching { exchange(target, line) }.getOrNull() ?: continue
             car = target
             return@withContext reply
         }

@@ -63,13 +63,14 @@ data class MessageEnvelope(
 
         private fun body(familyId: String, memberId: String, message: RideMessage, sentAt: Long) =
             "$VERSION|$familyId|$memberId|${message.code}|$sentAt"
-
-        private fun sign(secret: ByteArray, body: String): String {
-            val mac = Mac.getInstance("HmacSHA256").apply { init(SecretKeySpec(secret, "HmacSHA256")) }
-            val full = mac.doFinal(body.toByteArray(Charsets.UTF_8))
-            return Base64.getUrlEncoder().withoutPadding().encodeToString(full.copyOf(16))
-        }
     }
+}
+
+/** 그 사람 비밀 열쇠로 만든 HMAC-SHA256 앞 16바이트(Base64). 한마디와 후기가 같이 쓴다. */
+internal fun sign(secret: ByteArray, body: String): String {
+    val mac = Mac.getInstance("HmacSHA256").apply { init(SecretKeySpec(secret, "HmacSHA256")) }
+    val full = mac.doFinal(body.toByteArray(Charsets.UTF_8))
+    return Base64.getUrlEncoder().withoutPadding().encodeToString(full.copyOf(16))
 }
 
 /** 차가 돌려주는 답 한 줄. 폰은 이걸 보고 손님에게 알려 준다. */
@@ -81,7 +82,11 @@ enum class MessageReply(val wire: String) {
     /** 이 사람은 지금 이 차의 손님이 아니다(운행 중이 아니거나 다른 손님) */
     NotRiding("NOTRIDING"),
     /** 방금 보냈다. 조금 뒤에 */
-    TooSoon("WAIT");
+    TooSoon("WAIT"),
+    /** 후기: 이 운행은 이미 후기를 받았다 */
+    AlreadyReviewed("DONE"),
+    /** 후기: 차에 없는 운행이거나 이 사람이 손님이 아닌 운행 */
+    UnknownRide("NORIDE");
 
     companion object {
         fun of(wire: String): MessageReply? = entries.firstOrNull { it.wire == wire.trim() }

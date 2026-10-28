@@ -56,4 +56,4 @@ fi
 echo
 echo "준비됐어요."
 echo "- 차량 값: 브라우저에서 http://127.0.0.1:8088/ (Gear Selection, ACCEL/BRAKE, 공조·시트·와이퍼·창문)"
-echo "- 시연 순서: tools/DEMO.md"
+echo "- 폰 앱이 등록 화면이면 \"엄마 · MAXI로 등록\"을 누르세요."

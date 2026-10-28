@@ -36,6 +36,11 @@ class FareMeter(
         private set
     private var braking = false
 
+    /** 승차감 그래프용: (탑승 뒤 초, 가감속 크기 m/s²)와 급정거한 순간(탑승 뒤 초) */
+    private val motion = mutableListOf<Pair<Double, Double>>()
+    private val brakeTimes = mutableListOf<Double>()
+    private val boardedAt = start.at
+
     private var coolSec = 0.0
     private var heatSec = 0.0
     private var seatHeatSec = 0.0
@@ -65,9 +70,12 @@ class FareMeter(
         // (차량 값은 속도·주행거리가 따로따로 들어와서, 속도가 그대로인 짧은 구간이 감속 중간에 끼어도 새로 세지 않는다)
         if (dt > 0) {
             val decel = (prev.speedKmh - s.speedKmh) / 3.6 / dt
+            val at = Duration.between(boardedAt, s.at).toMillis() / 1000.0
+            motion += at to kotlin.math.abs(decel)
             if (decel >= tariff.hardBrakeMps2 && !braking) {
                 hardBrakes++
                 braking = true
+                brakeTimes += at
             }
             if (s.speedKmh > prev.speedKmh || s.speedKmh < tariff.stopSpeedKmh) braking = false
         }
@@ -112,12 +120,31 @@ class FareMeter(
 
     val total: Int get() = lines().sumOf { it.amount }
 
+    /**
+     * 승차감: 운행 시간을 [bins]칸으로 나눠 칸마다 가장 큰 가감속을 0~100으로(4m/s²면 100).
+     * 속도 값에서 나온 진짜 값이다. 급정거는 그 순간이 들어간 칸 번호.
+     */
+    fun comfort(bins: Int = 60): Comfort {
+        val end = motion.lastOrNull()?.first ?: return Comfort(emptyList(), emptyList())
+        if (end <= 0) return Comfort(emptyList(), emptyList())
+        fun bin(at: Double) = (at / end * bins).toInt().coerceIn(0, bins - 1)
+        val peak = DoubleArray(bins)
+        motion.forEach { (at, a) -> val i = bin(at); if (a > peak[i]) peak[i] = a }
+        return Comfort(
+            shake = peak.map { (it / FULL_SHAKE_MPS2 * 100).toInt().coerceIn(0, 100) },
+            brakes = brakeTimes.map(::bin).distinct(),
+        )
+    }
+
     private fun MutableList<FareLine>.option(label: String, seconds: Double, perMin: Int) {
         val minutes = units(seconds, 60.0)
         if (minutes > 0) add(FareLine(label, "${minutes}분", minutes * perMin))
     }
 
     private companion object {
+        /** 승차감 그래프 맨 위(이 이상은 같게 그린다) */
+        const val FULL_SHAKE_MPS2 = 4.0
+
         /** 실수 오차(12399.9999m 같은)로 한 단위를 잃지 않게 아주 작은 여유를 둔다 */
         const val EPS = 1e-6
 
@@ -132,3 +159,6 @@ class FareMeter(
         }
     }
 }
+
+/** 승차감 그래프 값: 칸마다 흔들림(0~100)과 급정거가 있던 칸 */
+data class Comfort(val shake: List<Int>, val brakes: List<Int>)

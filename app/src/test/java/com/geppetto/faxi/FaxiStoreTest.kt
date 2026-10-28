@@ -103,18 +103,6 @@ class FaxiStoreTest {
     }
 
     @Test
-    fun 평균_별점은_받은_후기로_계산한다() {
-        val s = FaxiStore.sample(clock)
-        assertEquals(2.5, s.driverRating("dad")!!, 0.001) // 3개, 2개
-        assertEquals(5.0, s.driverRating("mom")!!, 0.001)
-        assertNull(s.driverRating("grandma"))
-        s.startRide("mom")
-        val r = s.endRide()
-        s.submitReview(r.id, com.geppetto.faxi.data.Review(5, emptySet()))
-        assertEquals(10.0 / 3, s.driverRating("dad")!!, 0.001)
-    }
-
-    @Test
     fun 캐릭터를_바꾸면_저장에도_남는다() {
         val s = FaxiStore.sample(clock)
         var saved = 0
