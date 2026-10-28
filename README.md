@@ -8,7 +8,7 @@
 
 [![시연 영상](docs/screenshots/00-video.png)](https://github.com/saejinpark/FAXI/releases/download/v1.0/FAXI-demo.mp4)
 
-Pleos Connect 에뮬레이터(왼쪽)와 폰 에뮬레이터(오른쪽)를 같이 녹화했습니다. 차량 값은 에뮬레이터의 Virtual Console로 넣었고, 화면에 나오는 요금은 녹화하면서 실제로 계산된 값입니다. 소리는 없습니다.
+Pleos Connect 에뮬레이터(왼쪽)와 폰 에뮬레이터(오른쪽)를 같이 녹화했습니다. 차량 값은 에뮬레이터의 Virtual Console로 넣었고, 화면에 나오는 요금은 녹화하면서 실제로 계산된 값입니다. 에뮬레이터 화면 녹화에는 소리가 담기지 않아서, 차가 말한 문장(후기 낭독, 독촉, 인사, 요금 안내)은 녹화 때 차 로그에 남은 문장과 시각 그대로 맥 음성으로 다시 입혔습니다. 실제 차에서는 Pleos TTS 목소리로 나옵니다.
 
 ## 어떻게 쓰나
 
