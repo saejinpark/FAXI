@@ -242,9 +242,12 @@ internal fun MessageTile(msg: RideMessage, enabled: Boolean, modifier: Modifier,
         verticalArrangement = Arrangement.spacedBy(FaxiDimens.space2, Alignment.CenterVertically),
     ) {
         MessageIcon(msg.code, if (enabled) c.accentInk else c.inkDisabled, FaxiDimens.iconMd)
-        Text(msg.text, style = Faxi.type.label, color = if (enabled) c.ink else c.inkDisabled, textAlign = TextAlign.Center)
+        Text(msg.tileText(), style = Faxi.type.label, color = if (enabled) c.ink else c.inkDisabled, textAlign = TextAlign.Center)
     }
 }
+
+/** 좁은 타일에서 "주세요"가 혼자 끊기지 않게 앞 낱말에 붙인다: "천천히 / 가 주세요" */
+private fun RideMessage.tileText() = text.replace(" 주세요", "\u00A0주세요")
 
 /** 영수증 한 장. 누르면 항목별 요금이 펼쳐진다. */
 @Composable

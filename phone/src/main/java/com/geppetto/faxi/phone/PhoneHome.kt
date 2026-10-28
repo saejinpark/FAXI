@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.geppetto.faxi.auth.Base32
+import com.geppetto.faxi.auth.DemoFamily
 import com.geppetto.faxi.auth.FaxiInvite
 import com.geppetto.faxi.auth.Totp
 import com.geppetto.faxi.ui.components.AvatarCircle
@@ -282,7 +283,7 @@ private fun SettingsTab(me: FaxiInvite, store: PhoneStore) {
                 Column {
                     Text(me.name, style = t.headline, color = c.ink)
                     Text(me.callsign, style = t.bodyStrong, color = c.family(me.callsign))
-                    Text("가족 ${me.familyId}", style = t.caption, color = c.inkMuted)
+                    Text(if (me.familyId == DemoFamily.FAMILY_ID) "시연 가족으로 등록됨" else "가족 차에 등록됨", style = t.caption, color = c.inkMuted)
                 }
             }
         }
