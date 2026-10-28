@@ -7,8 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
@@ -40,11 +39,9 @@ import androidx.compose.ui.unit.dp
 import com.geppetto.faxi.data.FaxiStore
 import com.geppetto.faxi.data.Receipt
 import com.geppetto.faxi.data.Review
-import com.geppetto.faxi.data.ReviewTags
 import com.geppetto.faxi.data.ga
 import com.geppetto.faxi.data.owesPhrase
 import com.geppetto.faxi.ui.components.BigWon
-import com.geppetto.faxi.ui.components.CheckIcon
 import com.geppetto.faxi.ui.components.Divider
 import com.geppetto.faxi.ui.components.FaxiCard
 import com.geppetto.faxi.ui.components.FaxiPrimaryButton
@@ -122,31 +119,34 @@ fun ReceiptCard(
     }
 }
 
-/** 이미 남긴 후기 한 줄 요약 */
+/** 남긴 평가 한 줄: "엄마 손님 평가 · 별 4개" + 태그. 없으면 [empty]를 흐리게. */
 @Composable
-fun ReviewSummary(review: Review) {
-    val c = Faxi.colors
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space3),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        CheckIcon(c.ok, FaxiDimens.iconMd)
-        Text("후기를 남겼어요 · 별 ${review.stars}개", style = Faxi.type.bodyStrong, color = c.ink)
-    }
-    if (review.tags.isNotEmpty()) Text(review.tags.joinToString(" · "), style = Faxi.type.body, color = c.inkMuted)
-}
-
-/** 운행 데이터로 묻는 질문 + 별점 + 태그. 타이핑 없이 누르기만 한다. */
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-fun ReviewForm(r: Receipt, onSubmit: (Review) -> Unit) {
+fun ReviewSummary(title: String, review: Review?, empty: String) {
     val c = Faxi.colors
     val t = Faxi.type
-    var stars by remember(r.id) { mutableIntStateOf(0) }
-    var tags by remember(r.id) { mutableStateOf(emptySet<String>()) }
+    Column(verticalArrangement = Arrangement.spacedBy(FaxiDimens.space1)) {
+        Text(title, style = t.bodyStrong, color = c.ink)
+        if (review == null) {
+            Text(empty, style = t.body, color = c.inkMuted)
+        } else {
+            Row(horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space1), verticalAlignment = Alignment.CenterVertically) {
+                (1..5).forEach { n -> StarIcon(if (n <= review.stars) c.accentInk else c.lineStrong, FaxiDimens.iconMd, filled = n <= review.stars) }
+            }
+            if (review.tags.isNotEmpty()) Text(review.tags.joinToString(", "), style = t.body, color = c.inkMuted)
+        }
+    }
+}
+
+/** 별점 + 태그. 타이핑 없이 누르기만 한다. 차에서는 기사가 손님을 평가할 때 쓴다(기사 후기는 손님 폰에서). */
+@Composable
+fun RatingForm(key: String, question: String, tags: List<String>, onSubmit: (Review) -> Unit) {
+    val c = Faxi.colors
+    val t = Faxi.type
+    var stars by remember(key) { mutableIntStateOf(0) }
+    var picked by remember(key) { mutableStateOf(emptySet<String>()) }
 
     Column(verticalArrangement = Arrangement.spacedBy(FaxiDimens.space4)) {
-        Text(r.reviewQuestion, style = t.title, color = c.ink)
+        Text(question, style = t.title, color = c.ink)
         Row(horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space2)) {
             (1..5).forEach { n ->
                 Box(
@@ -163,28 +163,29 @@ fun ReviewForm(r: Receipt, onSubmit: (Review) -> Unit) {
                 }
             }
         }
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(FaxiDimens.targetGap),
-            verticalArrangement = Arrangement.spacedBy(FaxiDimens.targetGap),
-        ) {
-            ReviewTags.forEach { tag ->
-                val on = tag in tags
-                SelectTile(selected = on, onClick = { tags = if (on) tags - tag else tags + tag }) {
-                    Text(tag, style = t.label, color = c.ink)
+        // FlowRow는 짝꿍 카드 높이 맞추기(IntrinsicSize.Min)에서 키를 작게 재서 버튼이 잘린다. 한 줄에 셋씩 고정한다.
+        tags.chunked(3).forEach { line ->
+            Row(horizontalArrangement = Arrangement.spacedBy(FaxiDimens.targetGap)) {
+                line.forEach { tag ->
+                    val on = tag in picked
+                    SelectTile(selected = on, onClick = { picked = if (on) picked - tag else picked + tag }, modifier = Modifier.weight(1f)) {
+                        Text(tag, style = t.label, color = c.ink)
+                    }
                 }
+                repeat(3 - line.size) { Spacer(Modifier.weight(1f)) }
             }
         }
         FaxiPrimaryButton(
-            "후기 남기기",
+            "평가 남기기",
             enabled = stars > 0,
             modifier = Modifier.fillMaxWidth(),
-            onClick = { onSubmit(Review(stars, tags)) },
+            onClick = { onSubmit(Review(stars, picked)) },
         )
     }
 }
 
 /**
- * 오늘의 승차감: 운행 동안의 흔들림을 한 줄로(심전도처럼). 급정거 자리는 위험색 점 + 글자로 표시한다.
+ * 승차감: 운행 동안 가감속을 한 줄로(속도 값에서 계산). 급정거 자리는 위험색 점 + 글자로 표시한다.
  * 하차 뒤(주차 상태)에만 보이는 정지 그림이다. 운행 중에 흐르게 그리지 않는다.
  */
 @Composable
@@ -195,7 +196,7 @@ fun RideComfortChart(r: Receipt, modifier: Modifier = Modifier) {
     val brakes = r.hardBrakes.size
     Column(
         modifier.semantics(mergeDescendants = true) {
-            contentDescription = "오늘의 승차감 그래프. 급정거 ${brakes}번"
+            contentDescription = "승차감 그래프. 급정거 ${brakes}번"
         },
         verticalArrangement = Arrangement.spacedBy(FaxiDimens.space2),
     ) {
@@ -204,7 +205,7 @@ fun RideComfortChart(r: Receipt, modifier: Modifier = Modifier) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            SectionTitle("오늘의 승차감")
+            SectionTitle("승차감")
             Text(
                 if (brakes > 0) "급정거 ${brakes}번" else "급정거 없음",
                 style = t.bodyStrong,
@@ -234,7 +235,7 @@ fun RideComfortChart(r: Receipt, modifier: Modifier = Modifier) {
                 drawCircle(c.danger, radius = 7.dp.toPx(), center = Offset(pad + i * step, y(r.shake[i])))
             }
         }
-        Text("선이 높을수록 많이 흔들렸어요.", style = t.caption, color = c.inkMuted)
+        Text("선이 높은 곳은 세게 서거나 출발한 때예요.", style = t.caption, color = c.inkMuted)
     }
 }
 

@@ -16,6 +16,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.semantics.selected
+import com.geppetto.faxi.message.DriverTag
+import com.geppetto.faxi.ui.components.SelectTile
+import com.geppetto.faxi.ui.components.StarIcon
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -77,7 +85,7 @@ import kotlinx.coroutines.launch
 /**
  * FAXI 폰 앱.
  * - 등록 전: 차 화면 초대 QR 찍기 / 초대 링크 붙여넣기 / 시연 가족으로 등록
- * - 등록 뒤: 탑승 코드(30초마다) + 내 정산 현황(마지막 영수증 기준) + 내 영수증(차 영수증 QR 찍기)
+ * - 등록 뒤: 기사 후기(방금 찍은 영수증) + 탑승 코드(30초마다) + 기사님께 한마디 + 내 정산 현황(마지막 영수증 기준) + 내 영수증
  * QR을 찍거나 faxi:// 링크를 열면(딥 링크) 같은 곳(handleLink)으로 온다.
  * 폰은 손님이 보는 화면이라 차 앱의 주행 중 규칙(움직임 금지)은 적용하지 않는다.
  * 색·글자·버튼은 차 앱과 같은 :design(FaxiTheme)을 쓴다. 폰이라고 따로 만들지 않는다.
@@ -147,7 +155,11 @@ private fun PhoneApp(store: PhoneStore, incoming: androidx.compose.runtime.Mutab
                     onCancel = { scanning = null },
                 )
                 me == null -> RegisterScreen(store, onScan = { scanning = "초대 QR 찍기" }, onBadLink = { notice("FAXI 초대 링크가 아니에요.") })
-                else -> HomeScreen(me, store.receipts, onScanReceipt = { scanning = "영수증 QR 찍기" }, onUnregister = store::unregister)
+                else -> HomeScreen(
+                    me, store,
+                    onScanReceipt = { scanning = "영수증 QR 찍기" },
+                    onNotice = { notice(it) },
+                )
             }
         }
     }
@@ -233,11 +245,15 @@ private fun RegisterScreen(store: PhoneStore, onScan: () -> Unit, onBadLink: () 
 @Composable
 private fun HomeScreen(
     me: FaxiInvite,
-    receipts: List<ReceiptTicket>,
+    store: PhoneStore,
     onScanReceipt: () -> Unit,
-    onUnregister: () -> Unit,
+    onNotice: (String) -> Unit,
 ) {
     val c = Faxi.colors
+    val receipts = store.receipts
+    val context = LocalContext.current
+    val sender = remember { MessageSender(context.applicationContext) }
+    val pending = store.pendingReview
     val secret = remember(me) { Base32.decode(me.secret) }
     var now by remember { mutableLongStateOf(System.currentTimeMillis() / 1000) }
     LaunchedEffect(Unit) {
@@ -256,6 +272,14 @@ private fun HomeScreen(
                 Text(me.name, style = Faxi.type.headline, color = c.ink)
                 Text(me.callsign, style = Faxi.type.bodyStrong, color = c.family(me.callsign))
             }
+        }
+
+        // 방금 찍은 영수증의 기사 후기. 차 화면이 아니라 손님 폰에서 쓴다(기사가 보는 앞에서 평가하지 않게).
+        if (pending != null) {
+            ReviewCard(me, pending, sender, onDone = { text ->
+                store.markReviewed(pending.id)
+                onNotice(text)
+            })
         }
 
         FaxiCard {
@@ -278,9 +302,14 @@ private fun HomeScreen(
             Text("${left}초 뒤에 바뀌어요. 차 화면에 이 숫자를 눌러 주세요.", style = Faxi.type.caption, color = c.inkMuted)
         }
 
-        MessageCard(me)
+        MessageCard(me, sender)
 
-        FaxiPrimaryButton("영수증 QR 찍기", onClick = onScanReceipt, modifier = Modifier.fillMaxWidth())
+        // 주 버튼은 화면에 하나: 후기를 쓰는 동안은 후기 보내기가 주 버튼
+        if (pending == null) {
+            FaxiPrimaryButton("영수증 QR 찍기", onClick = onScanReceipt, modifier = Modifier.fillMaxWidth())
+        } else {
+            FaxiSecondaryButton("영수증 QR 찍기", onClick = onScanReceipt, modifier = Modifier.fillMaxWidth())
+        }
 
         Balances(receipts.firstOrNull())
 
@@ -294,24 +323,64 @@ private fun HomeScreen(
 
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space4)) {
             Text("가족 ${me.familyId}", style = Faxi.type.caption, color = c.inkMuted, modifier = Modifier.weight(1f))
-            FaxiSecondaryButton("등록 해제", onClick = onUnregister)
+            FaxiSecondaryButton("등록 해제", onClick = store::unregister)
         }
     }
 }
 
 /**
- * 기사님께 한마디: 정해진 문장 중 하나를 눌러 운행 중인 차 화면에 띄운다(같은 Wi-Fi).
- * 결과 줄은 미리 자리를 잡아 둬서 답이 와도 버튼이 밀리지 않는다.
+ * Android 17부터 같은 Wi-Fi의 차와 이야기하려면 "근처 기기" 권한이 필요하다. 처음 보낼 때 한 번 묻고, 허용하면 하려던 일을 한다.
+ * 돌려주는 함수에 보낼 일을 넘긴다.
  */
 @Composable
-private fun MessageCard(me: FaxiInvite) {
-    val c = Faxi.colors
+private fun rememberNearbyGate(onDenied: () -> Unit): (() -> Unit) -> Unit {
     val context = LocalContext.current
-    val sender = remember { MessageSender(context.applicationContext) }
+    var waiting by remember { mutableStateOf<(() -> Unit)?>(null) }
+    val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        val action = waiting
+        waiting = null
+        if (granted && action != null) action() else onDenied()
+    }
+    return { action ->
+        val needsAsk = Build.VERSION.SDK_INT >= 37 &&
+            ContextCompat.checkSelfPermission(context, LocalNetworkPermission) != PackageManager.PERMISSION_GRANTED
+        if (needsAsk) {
+            waiting = action
+            ask.launch(LocalNetworkPermission)
+        } else {
+            action()
+        }
+    }
+}
+
+/** 보내기 결과 한 줄. 자리를 미리 잡아 둬서 답이 와도 위 버튼이 밀리지 않는다. */
+@Composable
+private fun StatusLine(text: String, failed: Boolean) {
+    val c = Faxi.colors
+    Row(
+        Modifier.heightIn(min = FaxiDimens.iconLg),
+        horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space2),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (failed) WarningIcon(c.danger, FaxiDimens.iconMd)
+        Text(text, style = Faxi.type.caption, color = if (failed) c.ink else c.inkMuted)
+    }
+}
+
+private fun MessageReply?.problem(): String? = when (this) {
+    MessageReply.Rejected -> "차가 받지 않았어요. 폰 시각이 맞는지 확인해 주세요."
+    null -> "차를 찾지 못했어요. 차와 같은 Wi-Fi인지 확인해 주세요."
+    else -> null
+}
+
+/** 기사님께 한마디: 정해진 문장 중 하나를 눌러 운행 중인 차 화면에 띄운다(같은 Wi-Fi). */
+@Composable
+private fun MessageCard(me: FaxiInvite, sender: MessageSender) {
     val scope = rememberCoroutineScope()
     var sending by remember { mutableStateOf(false) }
-    var status by remember { mutableStateOf("운행 중에 누르면 기사님 화면에 떠요.") }
+    var status by remember { mutableStateOf("타고 가는 동안 누르면 기사님 화면에 떠요.") }
     var failed by remember { mutableStateOf(false) }
+    val gate = rememberNearbyGate { failed = true; status = "차에 보내려면 근처 기기 권한을 허용해 주세요." }
 
     fun send(msg: RideMessage) {
         sending = true
@@ -320,37 +389,12 @@ private fun MessageCard(me: FaxiInvite) {
         scope.launch {
             val reply = sender.send(me, msg)
             failed = reply != MessageReply.Shown
-            status = when (reply) {
-                MessageReply.Shown -> "\"${msg.text}\" 기사님 화면에 떴어요."
+            status = reply.problem() ?: when (reply) {
                 MessageReply.NotRiding -> "지금 이 차에 타고 있지 않아요. 탑승 코드부터 눌러 주세요."
                 MessageReply.TooSoon -> "방금 보냈어요. 10초 뒤에 다시 보내 주세요."
-                MessageReply.Rejected -> "차가 받지 않았어요. 폰 시각이 맞는지 확인해 주세요."
-                null -> "차를 찾지 못했어요. 차와 같은 Wi-Fi인지 확인해 주세요."
+                else -> "\"${msg.text}\" 기사님 화면에 떴어요."
             }
             sending = false
-        }
-    }
-
-    // Android 17부터 같은 Wi-Fi의 차와 이야기하려면 "근처 기기" 권한이 필요하다. 처음 보낼 때 한 번 묻는다.
-    var waiting by remember { mutableStateOf<RideMessage?>(null) }
-    val askLocal = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        val msg = waiting
-        waiting = null
-        if (granted && msg != null) {
-            send(msg)
-        } else {
-            failed = true
-            status = "차에 보내려면 근처 기기 권한을 허용해 주세요."
-        }
-    }
-    fun tap(msg: RideMessage) {
-        val needsAsk = Build.VERSION.SDK_INT >= 37 &&
-            ContextCompat.checkSelfPermission(context, LocalNetworkPermission) != PackageManager.PERMISSION_GRANTED
-        if (needsAsk) {
-            waiting = msg
-            askLocal.launch(LocalNetworkPermission)
-        } else {
-            send(msg)
         }
     }
 
@@ -359,18 +403,91 @@ private fun MessageCard(me: FaxiInvite) {
         RideMessage.entries.chunked(2).forEach { pair ->
             Row(horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space4)) {
                 pair.forEach { msg ->
-                    MessageTile(msg, enabled = !sending, modifier = Modifier.weight(1f)) { tap(msg) }
+                    MessageTile(msg, enabled = !sending, modifier = Modifier.weight(1f)) { gate { send(msg) } }
                 }
             }
         }
-        Row(
-            Modifier.heightIn(min = FaxiDimens.iconLg),
-            horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space2),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            if (failed) WarningIcon(c.danger, FaxiDimens.iconMd)
-            Text(status, style = Faxi.type.caption, color = if (failed) c.ink else c.inkMuted)
+        StatusLine(status, failed)
+    }
+}
+
+/**
+ * 기사 후기: 가장 최근에 찍은 영수증의 기사에게 별점과 태그를 보낸다(같은 Wi-Fi로 차에, 서명해서).
+ * 차는 다음에 그 기사를 고를 때 소리 내어 읽어 준다. 보내거나 건너뛰면 카드가 사라진다.
+ */
+@Composable
+private fun ReviewCard(me: FaxiInvite, ticket: ReceiptTicket, sender: MessageSender, onDone: (String) -> Unit) {
+    val c = Faxi.colors
+    val t = Faxi.type
+    val scope = rememberCoroutineScope()
+    var stars by remember(ticket.id) { mutableIntStateOf(0) }
+    var tags by remember(ticket.id) { mutableStateOf(emptyList<DriverTag>()) }
+    var sending by remember { mutableStateOf(false) }
+    var status by remember(ticket.id) { mutableStateOf("기사님은 다음 운행 때 차가 읽어 주는 후기로 들어요.") }
+    var failed by remember { mutableStateOf(false) }
+    val gate = rememberNearbyGate { failed = true; status = "차에 보내려면 근처 기기 권한을 허용해 주세요." }
+    val driverName = ticket.driver.substringBefore(" · ")
+    val brakes = ticket.lines.firstOrNull { it.label == "기사 귀책 환급" }?.detail?.filter(Char::isDigit)?.toIntOrNull() ?: 0
+
+    fun send() {
+        sending = true
+        failed = false
+        status = "보내는 중이에요."
+        scope.launch {
+            val reply = sender.sendReview(me, ticket.id, stars, tags)
+            sending = false
+            when (reply) {
+                MessageReply.Shown -> onDone("$driverName 기사님께 후기를 보냈어요.")
+                MessageReply.AlreadyReviewed -> onDone("이 운행은 이미 후기가 있어요.")
+                else -> {
+                    failed = true
+                    status = reply.problem() ?: "차 장부에 없는 운행이에요."
+                }
+            }
         }
+    }
+
+    FaxiCard {
+        SectionTitle("$driverName 기사 후기")
+        Text(
+            if (brakes > 0) "급정거가 ${brakes}번 있었어요. 괜찮으셨어요?" else "이번 운행 어떠셨어요?",
+            style = t.title, color = c.ink,
+        )
+        // 폰은 좁아서 별 다섯 개가 폭을 나눠 쓴다
+        Row(Modifier.fillMaxWidth()) {
+            (1..5).forEach { n ->
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .heightIn(min = FaxiDimens.targetMin)
+                        .clickable(role = Role.Button) { stars = n }
+                        .semantics {
+                            contentDescription = "별 ${n}개"
+                            selected = n == stars
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    StarIcon(if (n <= stars) c.accentInk else c.lineStrong, FaxiDimens.iconLg, filled = n <= stars)
+                }
+            }
+        }
+        DriverTag.entries.chunked(2).forEach { pair ->
+            Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space3)) {
+                pair.forEach { tag ->
+                    val on = tag in tags
+                    SelectTile(
+                        selected = on,
+                        onClick = { tags = if (on) tags - tag else tags + tag },
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                    ) {
+                        Text(tag.text, style = t.label, color = c.ink)
+                    }
+                }
+            }
+        }
+        FaxiPrimaryButton("후기 보내기", enabled = stars > 0 && !sending, onClick = { gate { send() } }, modifier = Modifier.fillMaxWidth())
+        FaxiSecondaryButton("안 남길래요", enabled = !sending, onClick = { onDone("후기는 건너뛰었어요.") }, modifier = Modifier.fillMaxWidth())
+        StatusLine(status, failed)
     }
 }
 

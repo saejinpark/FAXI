@@ -120,4 +120,15 @@ class FareMeterTest {
         }
         assertEquals(1, meter.hardBrakes)
     }
+
+    @Test
+    fun 승차감은_속도_변화로_그리고_급정거_칸을_표시한다() {
+        val meter = FakeTrip.run(TripBuilder(day).cruise(600.0, 36.0).stop(10, hard = true).cruise(600.0, 36.0).samples)
+        val comfort = meter.comfort(bins = 30)
+        assertEquals(30, comfort.shake.size)
+        assertEquals(1, comfort.brakes.size)
+        // 급정거(6m/s²) 칸은 맨 위, 일정하게 달리는 칸은 흔들림 없음
+        assertEquals(100, comfort.shake[comfort.brakes.single()])
+        assertEquals(0, comfort.shake[5])
+    }
 }

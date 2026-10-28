@@ -68,9 +68,7 @@ data class Receipt(
     val offset: Int = 0,
     /** 예비 기사가 손님이면 청구하지 않고 평생 장부에 쌓는다 */
     val toLifetime: Boolean = false,
-    /** 운행 데이터에서 뽑은 후기 질문. 예: "오늘 급정거 1번, 괜찮으셨나요?" */
-    val reviewQuestion: String = "오늘 운행 어떠셨나요?",
-    /** 승차감: 운행 동안의 흔들림을 고르게 나눈 값(0~100). 하차 뒤 한 장짜리 그래프로만 보여 준다. */
+    /** 승차감: 운행 시간을 고르게 나눈 칸마다 가장 큰 가감속(0~100, 속도 값에서). 하차 뒤 정지 그래프로만 보여 준다. */
     val shake: List<Int> = emptyList(),
     /** shake 안에서 급정거가 있었던 위치(인덱스) */
     val hardBrakes: List<Int> = emptyList(),
@@ -165,4 +163,5 @@ val Avatars = listOf(
 
 fun avatarOf(key: String?): AvatarChoice? = Avatars.firstOrNull { it.key == key }
 
-val ReviewTags = listOf("길 잘 앎", "선곡 최악", "말이 너무 많음", "잔소리 없음", "다음에 또 탈게요")
+/** 기사가 손님을 평가할 때 고르는 태그(기사 후기 태그는 core의 DriverTag, 폰에서 쓴다) */
+val PassengerTags = listOf("인사 잘함", "벨트 먼저 맴", "과자 부스러기", "길 훈수", "또 태워 줄게요")

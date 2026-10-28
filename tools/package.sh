@@ -21,6 +21,5 @@ FAXI 설치 방법
    앱에서 "엄마 · MAXI로 등록"(시연 가족) → 차에서 손님 "엄마"를 고르고 폰의 4자리를 누른다.
 3. 차량 값: adb forward tcp:8088 tcp:8088 → 브라우저 http://127.0.0.1:8088/ (Virtual Console)
    손님 한마디(폰 → 차): adb forward tcp:47800 tcp:47800 (폰 에뮬레이터가 10.0.2.2로 보낸다)
-시연 순서는 저장소의 tools/DEMO.md.
 TXT
 ls -la dist

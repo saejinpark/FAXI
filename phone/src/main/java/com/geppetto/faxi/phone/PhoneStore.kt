@@ -28,6 +28,18 @@ class PhoneStore(context: Context) {
         if (saved != null) addAll(Json.decodeFromString(LinkList, saved).mapNotNull(ReceiptTicket::parse))
     }
 
+    /** 기사 후기를 보냈거나 건너뛴 영수증 id. 후기 카드는 이 안에 없는 가장 최근 영수증에만 뜬다. */
+    var reviewed by mutableStateOf(prefs.getStringSet(KEY_REVIEWED, emptySet())!!.toSet())
+        private set
+
+    /** 후기를 물어볼 영수증: 가장 최근 것이 아직 후기 전이면 */
+    val pendingReview: ReceiptTicket? get() = receipts.firstOrNull()?.takeIf { it.id !in reviewed }
+
+    fun markReviewed(receiptId: String) {
+        reviewed = reviewed + receiptId
+        prefs.edit().putStringSet(KEY_REVIEWED, reviewed).apply()
+    }
+
     /** 초대 링크로 등록. FAXI 초대가 아니면 false */
     fun register(link: String): Boolean {
         val invite = FaxiInvite.parse(link.trim()) ?: return false
@@ -46,8 +58,9 @@ class PhoneStore(context: Context) {
     }
 
     fun unregister() {
-        prefs.edit().remove(KEY_INVITE).remove(KEY_RECEIPTS).apply()
+        prefs.edit().remove(KEY_INVITE).remove(KEY_RECEIPTS).remove(KEY_REVIEWED).apply()
         receipts.clear()
+        reviewed = emptySet()
         me = null
     }
 
@@ -71,6 +84,7 @@ class PhoneStore(context: Context) {
     private companion object {
         const val KEY_INVITE = "invite"
         const val KEY_RECEIPTS = "receipts"
+        const val KEY_REVIEWED = "reviewed"
         val LinkList = ListSerializer(String.serializer())
     }
 }

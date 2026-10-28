@@ -11,6 +11,7 @@ import com.geppetto.faxi.auth.FaxiInvite
 import com.geppetto.faxi.message.MessageEnvelope
 import com.geppetto.faxi.message.MessageReply
 import com.geppetto.faxi.message.MessageWire
+import com.geppetto.faxi.message.ReviewEnvelope
 import com.geppetto.faxi.qr.Balance
 import com.geppetto.faxi.qr.ReceiptTicket
 import com.geppetto.faxi.auth.Totp
@@ -26,8 +27,6 @@ import kotlin.math.roundToInt
 
 /**
  * 화면이 보는 상태 창구이자 차 안 장부의 주인.
- * 운행 요금은 아직 기획서 영수증 예시를 그대로 쓴다. 차량 데이터로 계산하는 요금 엔진과
- * TOTP 탑승 인증은 다음 단계에서 붙인다.
  *
  * SwiftUI의 @Observable 클래스처럼, mutableStateOf로 만든 값이 바뀌면 그 값을 읽은 화면이 다시 그려진다.
  * 값이 바뀔 때마다 onChanged를 불러서 FaxiApp이 파일에 저장한다.
@@ -104,7 +103,10 @@ class FaxiStore(
     val receipts = mutableStateListOf<Receipt>().apply { addAll(snapshot.receipts) }
     val lifetime = mutableStateListOf<LifetimeLedger>().apply { addAll(snapshot.lifetime) }
     val requests = mutableStateListOf<SettlementRequest>().apply { addAll(snapshot.requests) }
+    /** 손님이 폰에서 보낸 기사 후기(영수증 id별) */
     val reviews = mutableStateMapOf<String, Review>().apply { putAll(snapshot.reviews) }
+    /** 기사가 하차 뒤 차 화면에서 남긴 손님 평가(영수증 id별) */
+    val passengerReviews = mutableStateMapOf<String, Review>().apply { putAll(snapshot.passengerReviews) }
     private val reviewsReadAloud = snapshot.reviewsReadAloud.toMutableSet()
 
     /** 차량 옵션 상태. 저장하지 않는다(차가 늘 지금 값을 알려 준다). */
@@ -140,6 +142,7 @@ class FaxiStore(
         lifetime = lifetime.toList(),
         requests = requests.toList(),
         reviews = reviews.toMap(),
+        passengerReviews = passengerReviews.toMap(),
         reviewsReadAloud = reviewsReadAloud.toSet(),
         ridePassengerId = passengerId,
         rideStartedAt = rideStartedAt,
@@ -171,6 +174,11 @@ class FaxiStore(
     /** 기사로 받은 평균 별점. 후기가 없으면 null */
     fun driverRating(driverId: String): Double? =
         reviewsOf(driverId).map { it.second.stars }.takeIf { it.isNotEmpty() }?.average()
+
+    /** 손님으로 받은 평균 별점. 평가가 없으면 null */
+    fun passengerRating(memberId: String): Double? =
+        receipts.filter { it.passengerId == memberId }.mapNotNull { passengerReviews[it.id]?.stars }
+            .takeIf { it.isNotEmpty() }?.average()
 
     /** 이 사람이 손님이나 기사로 탄 운행, 최신이 앞 */
     fun ridesOf(memberId: String): List<Receipt> =
@@ -365,15 +373,13 @@ class FaxiStore(
         val meter = live ?: FakeTrip.run(FakeTrip.planExample(rideStartedAt ?: clock()))
         repeat(rideWaypoints) { meter.addWaypoint() }
         val (from, to) = rideRoute()
-        val brakes = meter.hardBrakes
+        val comfort = meter.comfort()
         val base = Receipt(
             id = "r${nextId++}", driverId = driverId, passengerId = passenger,
             from = from, to = to, km = (meter.distanceM / 1000).roundToInt(),
             endedAt = clock().withSecond(0).withNano(0), lines = meter.lines(),
-            reviewQuestion = if (brakes > 0) "오늘 급정거 ${brakes}번, 괜찮으셨나요?" else "오늘 운행 어떠셨나요?",
-            // 승차감 그래프는 아직 가짜 모양. 급정거 점의 개수만 엔진이 센 횟수에 맞춰 고르게 찍는다.
-            shake = sampleShake(nextId, brakeAt = 82),
-            hardBrakes = List(brakes) { i -> (i + 1) * 120 / (brakes + 1) },
+            shake = comfort.shake,
+            hardBrakes = comfort.brakes,
         )
         val receipt = if (member(passenger).grade == Grade.Learner) {
             addToLifetime(passenger, base.fareTotal, base.km)
@@ -447,8 +453,28 @@ class FaxiStore(
         return next
     }
 
-    fun submitReview(receiptId: String, review: Review) {
-        reviews[receiptId] = review
+    /**
+     * 손님 폰에서 온 기사 후기(MessageServer가 넘겨준다). 운행 하나에 한 번만 받는다.
+     * 우리 가족·그 사람 서명·1분 안, 그리고 그 사람이 손님이었던 운행이어야 한다.
+     */
+    fun receiveReview(envelope: ReviewEnvelope): MessageReply {
+        if (envelope.familyId != familyId) return MessageReply.Rejected
+        val m = members.firstOrNull { it.id == envelope.memberId } ?: return MessageReply.Rejected
+        val secret = Base32.decode(m.secret) ?: return MessageReply.Rejected
+        val now = clock().atZone(ZoneId.systemDefault()).toEpochSecond()
+        if (!envelope.verify(secret, now)) return MessageReply.Rejected
+        val receipt = receipt(envelope.receiptId)
+        if (receipt == null || receipt.passengerId != m.id) return MessageReply.UnknownRide
+        if (receipt.id in reviews) return MessageReply.AlreadyReviewed
+        reviews[receipt.id] = Review(envelope.stars, envelope.tags.map { it.text }.toSet())
+        changed()
+        return MessageReply.Shown
+    }
+
+    /** 기사가 하차 뒤 손님을 평가한다(도착 화면). 운행 하나에 한 번. */
+    fun ratePassenger(receiptId: String, review: Review) {
+        if (receiptId in passengerReviews) return
+        passengerReviews[receiptId] = review
         changed()
     }
 
@@ -510,23 +536,6 @@ class FaxiStore(
             else -> m.copy(secret = Base32.encode(Totp.newSecret()))
         }
 
-        /**
-         * 가짜 승차감 데이터: 잔잔한 흔들림 + 과속방지턱 몇 번 + 급정거 한 번.
-         * 차량에서는 운행 중 가속도·브레이크 값을 고르게 모아 만든다.
-         */
-        fun sampleShake(seed: Int, brakeAt: Int, size: Int = 120): List<Int> {
-            val rnd = java.util.Random(seed.toLong())
-            val bumps = setOf(24, 25, 57, 58, 59, 101)
-            return List(size) { i ->
-                val base = 8 + rnd.nextInt(10)
-                when {
-                    i == brakeAt -> 96
-                    i == brakeAt - 1 || i == brakeAt + 1 -> 60
-                    i in bumps -> 38 + rnd.nextInt(15)
-                    else -> base
-                }
-            }
-        }
 
         fun sample(clock: () -> LocalDateTime = LocalDateTime::now): FaxiStore = FaxiStore(sampleSnapshot(clock().toLocalDate()), clock)
 
@@ -594,8 +603,8 @@ class FaxiStore(
                 lifetime = listOf(LifetimeLedger("kid", sinceYear = 2017, rides = 2_140, km = 18_204, amount = 14_502_310)),
                 reviews = mapOf(
                     "r1" to Review(3, setOf("선곡 최악")),
-                    "r2" to Review(5, setOf("길 잘 앎", "다음에 또 탈게요")),
-                    "r3" to Review(2, setOf("말이 너무 많음")),
+                    "r2" to Review(5, setOf("길 잘 앎", "또 탈게요")),
+                    "r3" to Review(2, setOf("말 많음")),
                 ),
             )
         }

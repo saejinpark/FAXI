@@ -9,6 +9,7 @@ import android.util.Log
 import com.geppetto.faxi.message.MessageEnvelope
 import com.geppetto.faxi.message.MessageReply
 import com.geppetto.faxi.message.MessageWire
+import com.geppetto.faxi.message.ReviewEnvelope
 import java.net.ServerSocket
 import java.net.Socket
 import java.util.concurrent.CompletableFuture
@@ -16,7 +17,7 @@ import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 
 /**
- * 손님 폰의 한마디를 받는 창구. 같은 Wi-Fi(차 핫스팟 등)에서 폰이 TCP로 한 줄을 보내면 한 줄로 답한다.
+ * 손님 폰의 한마디와 기사 후기를 받는 창구. 같은 Wi-Fi(차 핫스팟 등)에서 폰이 TCP로 한 줄을 보내면 한 줄로 답한다.
  * - 서버·인터넷 없이 차 안에서 끝난다. 받은 줄은 FaxiStore.receiveMessage가 서명·손님·간격을 확인한다.
  * - 폰이 차를 찾도록 NSD(mDNS)에 "_faxi._tcp" 서비스로 알린다.
  * - 장부(FaxiStore)는 화면 상태라 메인 스레드에서만 바꾼다. 소켓 스레드는 줄을 넘기고 답을 기다린다.
@@ -53,8 +54,14 @@ class MessageServer(private val context: Context, private val store: FaxiStore) 
     private fun handle(client: Socket) = client.use {
         it.soTimeout = 3_000
         val line = runCatching { it.getInputStream().bufferedReader().readLine() }.getOrNull()
-        val envelope = line?.let(MessageEnvelope::parse)
-        val reply = if (envelope == null) MessageReply.Rejected else onMain { store.receiveMessage(envelope) }
+        // 한 줄은 한마디(운행 중) 아니면 기사 후기(하차 뒤). 앞머리로 가른다.
+        val message = line?.let(MessageEnvelope::parse)
+        val review = line?.let(ReviewEnvelope::parse)
+        val reply = when {
+            message != null -> onMain { store.receiveMessage(message) }
+            review != null -> onMain { store.receiveReview(review) }
+            else -> MessageReply.Rejected
+        }
         runCatching { it.getOutputStream().write((reply.wire + "\n").toByteArray()) }
     }
 
