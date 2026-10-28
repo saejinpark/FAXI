@@ -46,10 +46,15 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
   - 주행 중 화면 노출(DO): MainActivity에 `<meta-data android:name="distractionOptimized" android:value="true"/>`. 없으면 Pleos가 D에서 "주행 중에는 사용할 수 없습니다"로 앱 전체를 가린다. Pleos 문서에는 DO 선언 방법이 없어 Android 표준을 썼고, 에뮬레이터 홈은 받아들였지만 CarPackageManagerService가 "not installed from permitted sources"(스토어 설치 아님) 경고를 남긴다. 실제 차·심사에서 확인 필요.
   - 테스트: `app VehicleRideTest`(적분 거리요금, 계기판 우선, 대기·급정거, 움직이기 전 P, 운행 아닐 때 D, 옵션 분 단위 요금, 옵션 값 없을 때 기본값, 공조 판정).
   - Virtual Console 카드: Gear Selection, ACCEL/BRAKE, HVAC Power, Air Conditioning, Target Temperature, Seat Temperature(Driver/Passenger 고르고 H1~H3), Windshield Wiper Switch, Window Position(창 고르고 %).
-- 화면 흐름 (탭은 운행·장부·기사 셋뿐. 화면 글자는 "운행", "주행 중"은 차가 움직이는 상태를 말할 때만 쓴다):
+- 화면 흐름 (탭은 운행·장부·기사·설정 넷. 화면 글자는 "운행", "주행 중"은 차가 움직이는 상태를 말할 때만 쓴다):
   - 운행 탭(제목 "운행 시작") → 미터기 켜기 → 운행 중(전체 화면) → 하차 → 도착 화면(전체 화면, 영수증 공개 + 후기) → 닫으면 탑승 탭.
   - 장부 탭 → 빚 한 줄 누르기 → 두 사람 사이 빚 상세(정산 요청·확인, 둘 사이 운행, 기록, 탕감) → 운행 누르기 → 지난 영수증.
   - "지금 보이는 영수증이 어느 운행 것인지" 늘 분명해야 한다. 영수증만 따로 보여 주는 탭을 다시 만들지 않는다.
+- `ui/settings/SettingsScreen.kt` 설정 탭(주차 중에만). `data/FaxiSettings.kt`(장부와 같이 저장, 바꾸면 바로 저장):
+  - 밀린 돈 알림 `Dunning`: 단호하게(택시 말투) / 부드럽게("엄마, 지난번 요금 3,120원이 남아 있어요.") / 화면에만(소리 없음). `dunningLine(amount, days, 이름, tone)`.
+  - 후기 읽어 주기 `ReviewsAloud`: 모두 / 별 4개 이상만 / 읽지 않기. 건너뛴 낮은 후기는 읽은 것으로 둬서 나중에 몰아 읽지 않는다(기사 상세에는 남음). "읽지 않기"는 아무것도 읽음 처리하지 않는다.
+  - 안내 음성: 탑승 인사, 하차 요금 안내 켜기/끄기. 장부: 연체 이자 켜기/끄기(다음 하차부터).
+  - 독촉·후기 낭독은 가족에 따라 공격적으로 들릴 수 있어서 둔 설정이다. "들어 보기"로 미리 듣는다. 테스트 `app SettingsTest`.
 - `ui/shell/AppShell.kt` 운행 중(`store.rideActive`)이면 운행 중 화면만, 운행 중이 아닌데 기어가 Driving이면 "주차하면 열려요"만, `store.arrival`이 있으면 도착 화면만, 그 외에는 왼쪽 사이드바 + 탭 화면. 기사가 확인할 정산 요청이 있으면 장부 탭에 "확인 N건". 탭은 `rememberSaveable`, 내비게이션 라이브러리 없음, 전환 즉시.
 - `ui/boarding/BoardingScreen.kt` 1 기사 → 2 손님 → 3 탑승 코드 숫자판. 기사를 고르면 그 기사가 아직 듣지 못한 가장 최근 후기(손님 폰에서 온 것)를 차가 읽어 준다(`store.takeUnreadReview` → `reviewLine`: "지난 손님 후기입니다. 엄마 손님, 별 세 개. 선곡 최악."). 한 후기는 한 번만(`reviewsReadAloud`, 저장됨). 손님을 고르면 밀린 돈 독촉(화면 + 음성), 기사가 그 손님에게 진 빚이 있으면 "먼저 퉁쳐요" 안내.
 - `ui/driving/DrivingScreen.kt` 다른 화면과 같은 `FaxiPage`에 카드를 내용 크기대로 쌓는다(화면을 채우려고 카드를 늘리지 않는다): 제목 줄 "운행 중" + 미터기 한 줄 / 자격증 | 손님(캐릭터, 출발 시각, 목적지, "아빠 택시 N번째 탑승이에요.") / 손님 한마디(한 줄, 높이 고정) / 요금이 붙는 옵션(넓으면 한 줄에 넷).
@@ -104,7 +109,12 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
   - Android 17(API 37)은 같은 Wi-Fi 기기와 통신에 `ACCESS_LOCAL_NETWORK`(근처 기기) 런타임 권한이 필요하다. 폰은 처음 보낼 때 묻는다. 차 앱도 선언만 해 두었다(지금 차 에뮬레이터는 API 35라 필요 없음, 차가 37이 되면 요청 흐름을 넣는다).
   - Pleos 문서(시작하기·개발 가이드·FAQ)에는 앱의 Wi-Fi/소켓 제한이 적혀 있지 않다. 실제 차에서 핫스팟으로 되는지는 아직 확인 못 했다.
   - 에뮬레이터 두 대로 시험: `adb -s emulator-5554 forward tcp:47800 tcp:47800`(차) → 폰 디버그 빌드가 10.0.2.2:47800으로 보낸다. (에뮬레이터 둘 사이에서 NSD 검색도 되는 것을 확인했다.) 테스트: `core RideMessageTest`, `app RideMessageStoreTest`.
-- `phone/` 폰 앱: 등록(초대 QR 찍기, 링크 붙여넣기, 시연 가족) → (후기 전 영수증이 있으면) 기사 후기 + 탑승 코드(30초마다, 남은 시간 막대) + 기사님께 한마디 + 영수증 QR 찍기 + 내 정산 현황(마지막 영수증 기준 사본) + 내 영수증(눌러서 항목 펼치기). 주 버튼은 하나: 후기 카드가 있으면 "후기 보내기", 없으면 "영수증 QR 찍기".
+- `phone/` 폰 앱: 등록(초대 QR 찍기, 링크 붙여넣기, 시연 가족) → 아래 탭 넷(`PhoneHome.kt` `PhoneMain`, 탭 상태는 `PhoneActivity`의 PhoneApp이 들고 영수증을 찍으면 영수증 탭으로 옮긴다).
+  - 탑승: 탑승 코드(30초마다, 남은 시간 막대) + 기사님께 한마디. 후기를 기다리는 영수증이 있으면 맨 위에 "후기 쓰기".
+  - 영수증: 영수증 QR 찍기 + (후기 전이면) 기사 후기 카드 + 내 영수증(눌러서 항목 펼치기). 주 버튼은 하나: 후기 카드가 있으면 "후기 보내기". 영수증 탭에는 후기를 기다리면 점.
+  - 정산: 마지막 영수증 기준 갚을 돈·받을 돈 합계 + 사람별(분쟁 꼬리표). 보냈다고 알리기는 차 장부에서.
+  - 설정: 내 정보, 기사 후기 묻기/묻지 않기(`PhoneStore.askReview`), 차와 연결(근처 기기 권한 상태), 등록 해제(한 번 더 확인), 버전.
+  - 카드·보내기 부품은 `PhoneCards.kt`(한마디, 후기, 영수증 줄, 근처 기기 권한 `rememberNearbyGate`).
   - QR 찍기: `QrScanner.kt`(CameraX 미리보기 + :core QrCodec). `faxi://` 링크는 딥 링크로도 열린다(같은 `handleLink`). 초대는 확인 창을 거쳐 등록, 영수증은 내 가족·내 것만 저장.
   - 등록 정보와 영수증은 SharedPreferences(백업 끔). 폰은 차 장부를 바꾸지 못한다.
   - 에뮬레이터 카메라로는 차 화면을 못 찍는다. 시험은 딥 링크로: `adb shell "am start -a android.intent.action.VIEW -d '<링크>' com.geppetto.faxi.phone"`

@@ -125,6 +125,15 @@ class FaxiStore(
 
     private var nextId = snapshot.nextId
 
+    /** 가족이 고른 설정(음성, 후기 낭독, 연체 이자) */
+    var settings by mutableStateOf(snapshot.settings)
+        private set
+
+    fun updateSettings(next: FaxiSettings) {
+        settings = next
+        changed()
+    }
+
     /** 값이 바뀔 때마다 불린다. FaxiApp이 저장에 쓴다. */
     var onChanged: (() -> Unit)? = null
 
@@ -150,6 +159,7 @@ class FaxiStore(
         rideWaypoints = rideWaypoints,
         arrivalReceiptId = arrival?.id,
         nextId = nextId,
+        settings = settings,
     )
 
     fun member(id: String): Member = members.first { it.id == id }
@@ -409,7 +419,7 @@ class FaxiStore(
         val old = debt(p, d)
         val carried = old?.amount ?: 0
         val days = old?.let(::daysOf) ?: 0
-        val interest = minOf(carried * days / 1000, carried)
+        val interest = if (settings.lateInterest) minOf(carried * days / 1000, carried) else 0
         val owedBack = debt(d, p)
         val gross = base.fareTotal + carried + interest
         val offset = minOf(owedBack?.amount ?: 0, gross)
@@ -445,10 +455,21 @@ class FaxiStore(
     /**
      * 후기 낭독: 이 기사가 받은 후기 중 아직 소리 내어 읽지 않은 가장 최근 것을 꺼내고 읽음으로 표시한다.
      * 기사를 고를 때(탑승 화면, 주차 중) 차가 읽어 준다. 운전자는 주행 중에 후기를 보거나 듣지 않는다.
+     * 설정이 "별 4개 이상만"이면 낮은 후기는 건너뛰고, "읽지 않기"면 null.
      */
     fun takeUnreadReview(driverId: String): Pair<Receipt, Review>? {
-        val next = reviewsOf(driverId).firstOrNull { (r, _) -> r.id !in reviewsReadAloud } ?: return null
-        reviewsReadAloud += next.first.id
+        val minStars = when (settings.reviewsAloud) {
+            ReviewsAloud.Off -> return null
+            ReviewsAloud.GoodOnly -> 4
+            ReviewsAloud.All -> 1
+        }
+        val unread = reviewsOf(driverId).filter { (r, _) -> r.id !in reviewsReadAloud }
+        val next = unread.firstOrNull { (_, review) -> review.stars >= minStars }
+        // 건너뛴 낮은 후기는 나중에 설정을 바꿔도 몰아서 읽지 않게 읽은 것으로 둔다(기사 상세에서는 그대로 보인다)
+        val skipped = unread.takeWhile { it != next }.map { it.first.id }
+        if (next == null && skipped.isEmpty()) return null
+        reviewsReadAloud += skipped
+        next?.let { reviewsReadAloud += it.first.id }
         changed()
         return next
     }

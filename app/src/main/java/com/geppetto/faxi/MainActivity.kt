@@ -26,7 +26,7 @@ class MainActivity : ComponentActivity() {
         val app = application as FaxiApp
         val store = app.store
         store.onArrival = { r ->
-            speaker.speak(
+            if (store.settings.fareAloud) speaker.speak(
                 if (r.toLifetime) {
                     "도착했습니다. 오늘 요금 ${won(r.fareTotal)}원은 평생 장부에 쌓아 둘게요."
                 } else {

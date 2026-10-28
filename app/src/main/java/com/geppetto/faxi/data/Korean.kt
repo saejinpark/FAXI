@@ -15,9 +15,14 @@ fun String.ga(): String = this + if (hasBatchim()) "이" else "가"
 /** "엄마가 아빠에게" — 빚의 방향을 화살표 대신 말로 */
 fun owesPhrase(debtor: String, creditor: String): String = "${debtor.ga()} ${creditor}에게"
 
-/** 독촉 한 줄(화면·음성 공용): "손님, 미결제 3,120원이 3일째입니다." */
-fun dunningLine(amount: Int, days: Int): String =
-    if (days > 0) "손님, 미결제 ${won(amount)}원이 ${days}일째입니다." else "손님, 미결제 ${won(amount)}원이 있습니다."
+/**
+ * 밀린 돈 알림 한 줄(화면·음성 공용). 말투는 설정에서 고른다.
+ * 단호하게: "손님, 미결제 3,120원이 3일째입니다." / 부드럽게·화면에만: "엄마, 지난번 요금 3,120원이 남아 있어요."
+ */
+fun dunningLine(amount: Int, days: Int, passenger: String = "손님", tone: Dunning = Dunning.Firm): String = when (tone) {
+    Dunning.Firm -> if (days > 0) "손님, 미결제 ${won(amount)}원이 ${days}일째입니다." else "손님, 미결제 ${won(amount)}원이 있습니다."
+    Dunning.Gentle, Dunning.ScreenOnly -> "$passenger, 지난번 요금 ${won(amount)}원이 남아 있어요."
+}
 
 private val StarWords = listOf("한", "두", "세", "네", "다섯")
 
