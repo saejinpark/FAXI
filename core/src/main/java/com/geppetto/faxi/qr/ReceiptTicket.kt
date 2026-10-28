@@ -45,7 +45,6 @@ data class ReceiptTicket(
     /** 이번 하차로 갚을 돈(밀린 돈 포함). 평생 장부 운행은 0 */
     @SerialName("b") val billed: Int,
     @SerialName("c") val carriedOver: Int = 0,
-    @SerialName("x") val lateInterest: Int = 0,
     @SerialName("o") val offset: Int = 0,
     @SerialName("lt") val toLifetime: Boolean = false,
     /** 하차 순간 이 손님의 받을 돈·갚을 돈 */
@@ -56,13 +55,13 @@ data class ReceiptTicket(
 
     /**
      * QR용 압축 형식: 이름표 없는 JSON 배열(자리로 뜻을 정한다) + 영수증 줄은 기호.
-     * [가족, 영수증, 손님ID, 손님, 기사, 경로, 하차시각, 이번요금, 갚을돈, 이월, 이자, 상계, 평생장부(0/1),
+     * [가족, 영수증, 손님ID, 손님, 기사, 경로, 하차시각, 이번요금, 갚을돈, 이월, (빈 자리: 예전 연체 이자, 늘 0), 상계, 평생장부(0/1),
      *  [[기호, 설명, 금액], ...], [[상대, 받을돈(0/1), 금액, 분쟁(0/1)], ...]]
      * 자리를 바꾸면 예전 영수증 QR을 못 읽으니 새 값은 끝에만 붙인다.
      */
     private fun toWire(): JsonArray = buildJsonArray {
         add(familyId); add(id); add(passengerId); add(passenger); add(driver); add(route); add(endedAt)
-        add(fareTotal); add(billed); add(carriedOver); add(lateInterest); add(offset); add(if (toLifetime) 1 else 0)
+        add(fareTotal); add(billed); add(carriedOver); add(0); add(offset); add(if (toLifetime) 1 else 0)
         addJsonArray {
             lines.map(FareCodes::shorten).forEach { l -> addJsonArray { add(l.label); add(l.detail); add(l.amount) } }
         }
@@ -80,7 +79,7 @@ data class ReceiptTicket(
             return ReceiptTicket(
                 familyId = str(0), id = str(1), passengerId = str(2), passenger = str(3), driver = str(4),
                 route = str(5), endedAt = str(6), fareTotal = int(7), billed = int(8), carriedOver = int(9),
-                lateInterest = int(10), offset = int(11), toLifetime = int(12) == 1,
+                offset = int(11), toLifetime = int(12) == 1,
                 lines = a[13].jsonArray.map { e ->
                     val l = e.jsonArray
                     FareCodes.expand(FareLine(l[0].jsonPrimitive.content, l[1].jsonPrimitive.contentOrNull, l[2].jsonPrimitive.int))

@@ -73,26 +73,14 @@ fun SettingsScreen(store: FaxiStore, speak: (String) -> Unit) {
                 }
             },
         )
-        row(
-            { m ->
-                FaxiCard(m) {
-                    SectionTitle("안내 음성")
-                    OnOff("탑승 인사", "미터기를 켤 때 \"손님, 어디로 모실까요?\"", s.greet) { store.updateSettings(s.copy(greet = it)) }
-                    OnOff("요금 안내", "내릴 때 요금을 읽어요.", s.fareAloud) { store.updateSettings(s.copy(fareAloud = it)) }
-                }
-            },
-            { m ->
-                FaxiCard(m) {
-                    SectionTitle("장부")
-                    OnOff(
-                        "연체 이자", "밀린 돈에 하루 0.1%, 원금을 넘지 않게. 끄면 다음 하차부터 붙지 않아요.",
-                        s.lateInterest,
-                    ) { store.updateSettings(s.copy(lateInterest = it)) }
-                    Spacer(Modifier.weight(1f))
-                    Text("가족 장부는 이 차 안에만 저장돼요. 버전 ${appVersion()}", style = t.caption, color = c.inkMuted)
-                }
-            },
-        )
+        full { m ->
+            FaxiCard(m) {
+                SectionTitle("안내 음성")
+                OnOff("탑승 인사", "미터기를 켤 때 \"손님, 어디로 모실까요?\"", s.greet) { store.updateSettings(s.copy(greet = it)) }
+                OnOff("요금 안내", "내릴 때 요금을 읽어요.", s.fareAloud) { store.updateSettings(s.copy(fareAloud = it)) }
+                Text("가족 장부는 이 차 안에만 저장돼요. 버전 ${appVersion()}", style = t.caption, color = c.inkMuted)
+            }
+        }
     }
 }
 

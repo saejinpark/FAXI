@@ -125,7 +125,7 @@ class FaxiStore(
 
     private var nextId = snapshot.nextId
 
-    /** 가족이 고른 설정(음성, 후기 낭독, 연체 이자) */
+    /** 가족이 고른 설정(음성, 독촉 말투, 후기 낭독) */
     var settings by mutableStateOf(snapshot.settings)
         private set
 
@@ -228,7 +228,7 @@ class FaxiStore(
             familyId = familyId, id = r.id, passengerId = p, passenger = name(p),
             driver = "${driver.name} · ${driver.callsign}", route = "${r.from} → ${r.to}",
             endedAt = r.endedAt.toString(), lines = r.lines, fareTotal = r.fareTotal, billed = r.billed,
-            carriedOver = r.carriedOver, lateInterest = r.lateInterest, offset = r.offset, toLifetime = r.toLifetime,
+            carriedOver = r.carriedOver, offset = r.offset, toLifetime = r.toLifetime,
             balances = balances,
         )
     }
@@ -372,7 +372,7 @@ class FaxiStore(
      * - 차량 값이 들어온 운행이면 그 엔진(진짜 주행거리·속도·정차). 마지막 값을 한 번 더 넣어 하차 순간까지 센다.
      * - 차량 값이 없으면(폰·폴드 시연, 운행 중 앱이 다시 켜짐) 기획서 예시 운행(FakeTrip.planExample).
      * 밤 10시~새벽 4시에 타면 심야 할증이 붙는다.
-     * - 손님이 기사에게 밀린 돈은 이월하고 연체 이자(하루 0.1%, 1원 미만 버림, 원금 이하)를 붙인다.
+     * - 손님이 기사에게 밀린 돈은 이번 요금에 이월한다(이자는 없다. 며칠째인지만 적는다).
      * - 상계: 기사가 이 손님에게 진 빚이 있으면 먼저 퉁친다.
      * - 예비 기사 손님은 청구하지 않고 평생 장부에 쌓는다.
      */
@@ -419,11 +419,10 @@ class FaxiStore(
         val old = debt(p, d)
         val carried = old?.amount ?: 0
         val days = old?.let(::daysOf) ?: 0
-        val interest = if (settings.lateInterest) minOf(carried * days / 1000, carried) else 0
         val owedBack = debt(d, p)
-        val gross = base.fareTotal + carried + interest
+        val gross = base.fareTotal + carried
         val offset = minOf(owedBack?.amount ?: 0, gross)
-        val receipt = base.copy(carriedOver = carried, lateDays = days, lateInterest = interest, offset = offset)
+        val receipt = base.copy(carriedOver = carried, lateDays = days, offset = offset)
 
         if (old != null) debts.remove(old)
         if (owedBack != null && offset > 0) {
@@ -431,7 +430,7 @@ class FaxiStore(
             if (left <= 0) debts.remove(owedBack) else debts[debts.indexOf(owedBack)] = owedBack.copy(amount = left)
             events.add(0, LedgerEvent(today, "상계 ${won(offset)}원 · ${owesPhrase(name(d), name(p))} 진 빚과 퉁침", d, p))
         }
-        // 이자는 이번 영수증에서 받았으니, 남은 빚은 오늘부터 다시 센다
+        // 밀린 돈은 이번 영수증에 합쳤으니, 남은 빚은 오늘부터 다시 센다
         if (receipt.billed > 0) debts.add(0, Debt(p, d, receipt.billed, since = today, disputed = old?.disputed ?: false))
         return receipt
     }
@@ -563,7 +562,7 @@ class FaxiStore(
         /**
          * 처음 설치했을 때(저장 파일이 없을 때) 쓰는 시연 데이터.
          * 엄마는 8,120원 중 5,000원만 보내서 3,120원이 사흘째 밀려 있다.
-         * 그래서 데모 운행(아빠가 엄마를 태움)이 기획서 예시 18,379원이 된다.
+         * 그래서 데모 운행(아빠가 엄마를 태움)이 기획서 예시 18,370원이 된다.
          */
         fun sampleSnapshot(today: LocalDate): FaxiSnapshot {
             val d3 = today.minusDays(3)
@@ -618,7 +617,7 @@ class FaxiStore(
                 events = listOf(
                     LedgerEvent(today.minusDays(2), "엄마: \"9,300원 못 받았는데요\" · 분쟁 중", "grandma", "mom"),
                     LedgerEvent(d3, "엄마가 아빠에게 5,000원 정산 확인 · 3,120원 남음", "mom", "dad"),
-                    LedgerEvent(today.minusDays(7), "엄마가 아빠 빚 18,379원 탕감 · 생일 기념", "dad", "mom"),
+                    LedgerEvent(today.minusDays(7), "엄마가 아빠 빚 18,370원 탕감 · 생일 기념", "dad", "mom"),
                 ),
                 receipts = receipts,
                 lifetime = listOf(LifetimeLedger("kid", sinceYear = 2017, rides = 2_140, km = 18_204, amount = 14_502_310)),

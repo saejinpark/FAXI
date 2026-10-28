@@ -283,7 +283,6 @@ internal fun ReceiptItem(t: ReceiptTicket) {
             Divider()
             MoneyRow("이번 요금", t.fareTotal, strong = true)
             if (t.carriedOver > 0) MoneyRow("지난 미수금", t.carriedOver)
-            if (t.lateInterest > 0) MoneyRow("연체 이자", t.lateInterest)
             if (t.offset > 0) MoneyRow("상계", -t.offset, amountColor = c.ok)
         }
     }

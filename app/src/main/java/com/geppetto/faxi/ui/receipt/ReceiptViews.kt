@@ -58,7 +58,7 @@ val ReceiptTimeFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("M.d HH:m
 
 /**
  * 영수증 한 장. 도착 화면과 장부의 지난 영수증이 같이 쓴다.
- * 맨 위에 이번 하차로 갚을 돈(청구액)을 크게, 그 아래 항목별 요금과 이월·이자·상계.
+ * 맨 위에 이번 하차로 갚을 돈(청구액)을 크게, 그 아래 항목별 요금과 이월·상계.
  */
 @Composable
 fun ReceiptCard(
@@ -107,8 +107,7 @@ fun ReceiptCard(
         }
         Divider()
         MoneyRow("이번 요금", r.fareTotal, strong = true)
-        if (r.carriedOver > 0) MoneyRow("지난 미수금", r.carriedOver)
-        if (r.lateInterest > 0) MoneyRow("연체 이자", r.lateInterest, detail = "${r.lateDays}일 · 하루 0.1%")
+        if (r.carriedOver > 0) MoneyRow("지난 미수금", r.carriedOver, detail = if (r.lateDays > 0) "${r.lateDays}일째" else null)
         if (r.offset > 0) {
             MoneyRow(
                 "상계", -r.offset,

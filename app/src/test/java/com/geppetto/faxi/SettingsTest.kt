@@ -11,7 +11,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/** 설정: 독촉 말투, 후기 낭독 범위, 연체 이자 */
+/** 설정: 독촉 말투, 후기 낭독 범위 */
 class SettingsTest {
     private val clock = { LocalDateTime.of(2026, 10, 27, 9, 0) }
 
@@ -20,17 +20,6 @@ class SettingsTest {
         assertEquals("손님, 미결제 3,120원이 3일째입니다.", dunningLine(3_120, 3, "엄마", Dunning.Firm))
         assertEquals("엄마, 지난번 요금 3,120원이 남아 있어요.", dunningLine(3_120, 3, "엄마", Dunning.Gentle))
         assertEquals("엄마, 지난번 요금 3,120원이 남아 있어요.", dunningLine(3_120, 3, "엄마", Dunning.ScreenOnly))
-    }
-
-    @Test
-    fun 연체_이자를_끄면_다음_하차부터_붙지_않는다() {
-        val s = FaxiStore.sample(clock)
-        s.updateSettings(s.settings.copy(lateInterest = false))
-        s.selectDriver("dad")
-        s.startRide("mom")
-        val r = s.endRide()
-        assertEquals(3_120, r.carriedOver)
-        assertEquals(0, r.lateInterest)
     }
 
     @Test

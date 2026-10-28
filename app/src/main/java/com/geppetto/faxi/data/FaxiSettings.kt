@@ -16,8 +16,6 @@ data class FaxiSettings(
     val dunning: Dunning = Dunning.Firm,
     /** 기사를 고를 때 지난 후기 읽기 */
     val reviewsAloud: ReviewsAloud = ReviewsAloud.All,
-    /** 밀린 돈에 하루 0.1% 연체 이자 붙이기 */
-    val lateInterest: Boolean = true,
 )
 
 enum class Dunning(val label: String) {
