@@ -525,7 +525,7 @@ class FaxiStore(
             events.add(0, LedgerEvent(today, "${owesPhrase(name(p), name(q))} ${won(request.amount)}원 정산 확인$note", p, q))
         } else {
             if (index >= 0) debts[index] = debts[index].copy(disputed = true)
-            events.add(0, LedgerEvent(today, "${name(q)}: \"${won(request.amount)}원 못 받았는데요\" · 분쟁 중", p, q))
+            events.add(0, LedgerEvent(today, "${name(q)}: \"${won(request.amount)}원 못 받았어요\" · 다시 확인", p, q))
         }
         changed()
     }
@@ -567,11 +567,11 @@ class FaxiStore(
         fun sampleSnapshot(today: LocalDate): FaxiSnapshot {
             val d3 = today.minusDays(3)
             val dad = Member(
-                "dad", "아빠", "PAXI", "급정거 김기사", Grade.Full,
+                "dad", "아빠", "PAXI", "새벽 픽업 김기사", Grade.Full,
                 LocalDate.of(2026, 10, 1), drivenKm = 1_284, avatar = "bear",
             )
             val mom = Member(
-                "mom", "엄마", "MAXI", "칼치기 금지 박기사", Grade.Full,
+                "mom", "엄마", "MAXI", "주차 장인 박기사", Grade.Full,
                 LocalDate.of(2026, 10, 1), drivenKm = 962, avatar = "fox",
             )
             val kid = Member(
@@ -615,7 +615,7 @@ class FaxiStore(
                     Debt("grandma", "mom", 9_300, since = d3, disputed = true),
                 ),
                 events = listOf(
-                    LedgerEvent(today.minusDays(2), "엄마: \"9,300원 못 받았는데요\" · 분쟁 중", "grandma", "mom"),
+                    LedgerEvent(today.minusDays(2), "엄마: \"9,300원 못 받았어요\" · 다시 확인", "grandma", "mom"),
                     LedgerEvent(d3, "엄마가 아빠에게 5,000원 정산 확인 · 3,120원 남음", "mom", "dad"),
                     LedgerEvent(today.minusDays(7), "엄마가 아빠 빚 18,370원 탕감 · 생일 기념", "dad", "mom"),
                 ),

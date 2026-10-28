@@ -247,10 +247,10 @@ private fun BalanceTab(store: PhoneStore) {
             SectionTitle("사람별")
             if (latest.balances.isEmpty()) Text("주고받을 돈이 없어요.", style = Faxi.type.body, color = c.ink)
             latest.balances.forEach { b ->
-                // 분쟁 꼬리표가 어느 줄 것인지 헷갈리지 않게 그 줄과 한 묶음으로 붙인다
+                // "다시 확인" 꼬리표가 어느 줄 것인지 헷갈리지 않게 그 줄과 한 묶음으로 붙인다
                 Column(verticalArrangement = Arrangement.spacedBy(FaxiDimens.space1)) {
                     MoneyRow(if (b.owedToMe) "${b.other}에게 받을 돈" else "${b.other}에게 갚을 돈", b.amount)
-                    if (b.disputed) StatusTag("분쟁 중", Tone.Danger) { WarningIcon(it, FaxiDimens.iconMd) }
+                    if (b.disputed) StatusTag("다시 확인", Tone.Neutral)
                 }
             }
         }
@@ -303,7 +303,7 @@ private fun SettingsTab(me: FaxiInvite, store: PhoneStore) {
             Text("한마디와 후기는 차와 같은 Wi-Fi(차 핫스팟)에서 차로 바로 보내요. 인터넷이나 서버를 거치지 않아요.", style = t.body, color = c.inkMuted)
             if (Build.VERSION.SDK_INT >= 37) {
                 val granted = ContextCompat.checkSelfPermission(context, LocalNetworkPermission) == PackageManager.PERMISSION_GRANTED
-                StatusTag(if (granted) "근처 기기 권한 허용됨" else "근처 기기 권한 아직 안 받음", if (granted) Tone.Ok else Tone.Neutral)
+                StatusTag(if (granted) "근처 기기 권한 허용됨" else "보낼 때 권한을 물어요", if (granted) Tone.Ok else Tone.Neutral)
             }
         }
         FaxiCard {

@@ -104,14 +104,15 @@ private fun LedgerHome(store: FaxiStore, today: LocalDate, onOpenDebt: (Debt) ->
                     val best = store.members.filter { it.grade == Grade.Full }
                         .mapNotNull { m -> store.driverRating(m.id)?.let { m to it } }
                         .maxByOrNull { it.second }
-                    val mostOwed = store.debts.groupBy { it.creditorId }
-                        .mapValues { (_, list) -> list.sumOf { it.amount } }
+                    val mostDriven = store.receipts.filter { it.endedAt.monthValue == today.monthValue && it.endedAt.year == today.year }
+                        .groupBy { it.driverId }
+                        .mapValues { (_, list) -> list.sumOf { it.km } }
                         .maxByOrNull { it.value }
                     if (best != null) SummaryLine("이달의 기사", "${best.first.name} · 별 %.1f".format(best.second))
-                    if (mostOwed != null) {
-                        SummaryLine("가장 많이 떼인 사람", "${store.name(mostOwed.key)} · ${won(mostOwed.value)}원")
+                    if (mostDriven != null) {
+                        SummaryLine("가장 많이 태워 준 사람", "${store.name(mostDriven.key)} · ${won(mostDriven.value)}km")
                     }
-                    SummaryLine("분쟁 중", "${store.debts.count { it.disputed }}건")
+                    SummaryLine("다시 확인할 정산", "${store.debts.count { it.disputed }}건")
                     SummaryLine("이달 운행", "${store.receipts.count { it.endedAt.monthValue == today.monthValue }}번")
                 }
             },
@@ -146,7 +147,7 @@ fun DebtRow(store: FaxiStore, debt: Debt, onClick: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(owesPhrase(store.name(debt.debtorId), store.name(debt.creditorId)), style = t.bodyStrong, color = c.ink)
-                if (debt.disputed) StatusTag("분쟁 중", Tone.Danger) { WarningIcon(it, FaxiDimens.space6) }
+                if (debt.disputed) StatusTag("다시 확인", Tone.Neutral)
             }
             Text(
                 "${won(debt.amount)}원 · " + store.daysOf(debt).let { if (it > 0) "${it}일째" else "오늘" },

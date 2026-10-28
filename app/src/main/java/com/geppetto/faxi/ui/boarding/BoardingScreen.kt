@@ -39,6 +39,7 @@ import com.geppetto.faxi.ui.components.FaxiSecondaryButton
 import com.geppetto.faxi.ui.components.PreviewFrame
 import com.geppetto.faxi.ui.components.SectionTitle
 import com.geppetto.faxi.ui.components.SelectTile
+import com.geppetto.faxi.ui.components.ReceiptIcon
 import com.geppetto.faxi.ui.components.WarningIcon
 import com.geppetto.faxi.ui.theme.Faxi
 import com.geppetto.faxi.ui.theme.FaxiDimens
@@ -168,13 +169,13 @@ private fun DebtReminder(text: String) {
     Row(
         Modifier
             .fillMaxWidth()
-            .border(FaxiDimens.borderWidth, c.danger, RoundedCornerShape(FaxiDimens.radiusMd))
+            .border(FaxiDimens.borderWidth, c.lineStrong, RoundedCornerShape(FaxiDimens.radiusMd))
             .background(c.surfaceRaised, RoundedCornerShape(FaxiDimens.radiusMd))
             .padding(FaxiDimens.space4),
         horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space3),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        WarningIcon(c.danger, FaxiDimens.iconMd)
+        ReceiptIcon(c.accentInk, FaxiDimens.iconMd)
         Text(text, style = Faxi.type.bodyStrong, color = c.ink)
     }
 }
