@@ -37,7 +37,6 @@ import com.geppetto.faxi.ui.components.PreviewFrame
 import com.geppetto.faxi.ui.components.SectionTitle
 import com.geppetto.faxi.ui.components.StatusTag
 import com.geppetto.faxi.ui.components.Tone
-import com.geppetto.faxi.ui.components.WarningIcon
 import com.geppetto.faxi.ui.receipt.ReceiptDetailScreen
 import com.geppetto.faxi.ui.theme.Faxi
 import com.geppetto.faxi.ui.theme.FaxiDimens
@@ -180,7 +179,6 @@ fun RequestItem(store: FaxiStore, req: SettlementRequest) {
                 "못 받았는데요",
                 onClick = { store.confirmSettlement(req, received = false) },
                 modifier = Modifier.weight(1f),
-                leading = { WarningIcon(c.danger, FaxiDimens.iconMd) },
             )
         }
     }

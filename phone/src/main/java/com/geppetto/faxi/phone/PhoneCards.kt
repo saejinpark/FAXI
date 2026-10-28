@@ -28,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -274,7 +275,8 @@ internal fun ReceiptItem(t: ReceiptTicket) {
                     color = c.ink,
                 )
             }
-            ChevronIcon(c.inkMuted, FaxiDimens.iconMd)
+            // 다른 화면으로 가지 않고 이 자리에서 펼친다: 닫혀 있으면 아래, 펼치면 위
+            Box(Modifier.rotate(if (open) -90f else 90f)) { ChevronIcon(c.inkMuted, FaxiDimens.iconMd) }
         }
         if (t.toLifetime) StatusTag("평생 장부", Tone.Ok)
         if (open) {
