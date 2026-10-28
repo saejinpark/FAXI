@@ -88,8 +88,8 @@ fun DebtDetailScreen(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         val days = store.daysOf(debt)
-                        Text(if (days > 0) "${days}일째 · 하루 0.1% 이자" else "오늘 생긴 빚", style = t.body, color = c.inkMuted)
-                        if (debt.disputed) StatusTag("분쟁 중", Tone.Danger) { WarningIcon(it, FaxiDimens.space6) }
+                        Text(if (days > 0) "${days}일째" else "오늘 생긴 빚", style = t.body, color = c.inkMuted)
+                        if (debt.disputed) StatusTag("다시 확인", Tone.Neutral)
                     }
                     Divider()
                     if (pending != null) {

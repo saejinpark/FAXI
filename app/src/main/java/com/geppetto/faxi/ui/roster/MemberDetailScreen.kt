@@ -202,7 +202,6 @@ private fun AvatarPicker(store: FaxiStore, memberId: String, modifier: Modifier)
     val current = store.member(memberId).avatar
     FaxiCard(modifier) {
         SectionTitle("사진 대신 캐릭터")
-        Text("사진은 폰 앱에서 찍어 보내는 기능이 생기면 바꿀 수 있어요.", style = Faxi.type.caption, color = c.inkMuted)
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(FaxiDimens.targetGap),
             verticalArrangement = Arrangement.spacedBy(FaxiDimens.targetGap),

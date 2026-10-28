@@ -22,9 +22,9 @@ class FaxiStoreTest {
         val r = s.endRide()
         assertEquals(15_250, r.fareTotal)
         assertEquals(3_120, r.carriedOver)
-        assertEquals(9, r.lateInterest)
-        assertEquals(18_379, r.billed)
-        assertEquals(18_379, s.debt("mom", "dad")!!.amount)
+        assertEquals(3, r.lateDays)
+        assertEquals(18_370, r.billed)
+        assertEquals(18_370, s.debt("mom", "dad")!!.amount)
         assertEquals(r, s.arrival)
     }
 
@@ -77,7 +77,7 @@ class FaxiStoreTest {
     }
 
     @Test
-    fun 하루가_지나면_연체_이자가_늘어난다() {
+    fun 밀린_돈에는_이자가_붙지_않고_일수만_센다() {
         var now = LocalDateTime.of(2026, 10, 27, 9, 0)
         val s = FaxiStore.sample { now }
         assertEquals(3, s.daysOf(s.debt("mom", "dad")!!))
@@ -85,7 +85,7 @@ class FaxiStoreTest {
         s.startRide("mom")
         val r = s.endRide()
         assertEquals(5, r.lateDays)
-        assertEquals(15, r.lateInterest) // 3,120 × 0.1% × 5일 = 15.6 → 15
+        assertEquals(15_250 + 3_120, r.billed)
         assertEquals(0, s.daysOf(s.debt("mom", "dad")!!))
     }
 

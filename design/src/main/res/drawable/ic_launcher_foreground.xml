@@ -1,44 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  FAXI 앱 아이콘 앞면: 남색 카운터 두 칸 + 산호색 A·X·I.
-  아이콘 전체(바탕색)가 거대한 F다. 남색 두 칸은 F에 파낸 빈 곳(카운터)이고, 오른쪽 끝에서 잘린다:
-  - 위 칸 = 택시 지붕 표시등. 그 안에 A·X·I. 첫 글자 자리는 비어 있다 → 빠진 첫 글자 F는 아이콘 자체.
-  - 아래 칸 = 차 지붕. 위 칸보다 왼쪽으로 한 계단 나와 F의 기둥이 계단처럼 보인다.
-  108dp 격자 그대로 그린다. 보이는 영역은 가운데 72dp 안팎(18~90), F의 기둥·윗막대·가운데 막대가 그 안에서 읽히게 놓았다.
-  모서리는 둥글게, 글자는 둥근 끝 선으로(딱딱하지 않게). 글자는 시스템 글꼴이 아니라 선이다.
+  FAXI 앱 아이콘(B안 "집 모양 표시등"). 산호 바탕 위에 남색 집 모양 택시 표시등, 그 안에 산호 F, 아래에 차 지붕 곡선.
+  - 집 = 가족(Family), 지붕 위 표시등 = 택시(Taxi). 그림 하나에 FAXI 두 낱말이 들어 있다.
+  - 표시등 안 F가 앱 이름 첫 글자. 글자는 시스템 글꼴이 아니라 둥근 끝 선.
+  - 차 지붕 곡선은 양 끝이 마스크 밖으로 나가 원·둥근 네모 어디서든 "지붕 위에 올라앉은" 모양이 된다.
+  108dp 격자 그대로 그린다. 집과 F는 보이는 영역(가운데 72dp, 18~90) 안쪽 30~78에 둔다.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- 위 칸: 택시 표시등 -->
+    <!-- 집 모양 표시등 -->
     <path
         android:fillColor="#1F2B42"
-        android:pathData="M53,36 H108 V54 H53 A5,5 0 0 1 48,49 V41 A5,5 0 0 1 53,36 Z" />
-    <!-- 아래 칸: 차 지붕 -->
+        android:pathData="M51,30 Q54,28 57,30 L75,43 Q78,45 78,49 V64 Q78,68 74,68 H34 Q30,68 30,64 V49 Q30,45 33,43 Z" />
+    <!-- F -->
     <path
-        android:fillColor="#1F2B42"
-        android:pathData="M40,63 H108 V108 H33 V70 A7,7 0 0 1 40,63 Z" />
-    <!-- A -->
-    <path
-        android:pathData="M60.4,49.5 L64,40.5 L67.6,49.5 M61.7,46.3 H66.3"
+        android:pathData="M47,45 V61 M47,45 H61 M47,53 H58"
         android:strokeColor="#F2845F"
-        android:strokeWidth="2.3"
+        android:strokeWidth="4.5"
         android:strokeLineCap="round"
         android:strokeLineJoin="round" />
-    <!-- X -->
+    <!-- 차 지붕 -->
     <path
-        android:pathData="M71,40.5 L78,49.5 M78,40.5 L71,49.5"
-        android:strokeColor="#F2845F"
-        android:strokeWidth="2.3"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round" />
-    <!-- I -->
-    <path
-        android:pathData="M84,40.5 V49.5"
-        android:strokeColor="#F2845F"
-        android:strokeWidth="2.3"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round" />
+        android:pathData="M20,92 C30,73 78,73 88,92"
+        android:strokeColor="#1F2B42"
+        android:strokeWidth="6"
+        android:strokeLineCap="round" />
 </vector>

@@ -15,8 +15,8 @@ class QrTest {
         return ReceiptTicket(
             familyId = DemoFamily.FAMILY_ID, id = "r100", passengerId = "mom", passenger = "엄마",
             driver = "아빠 · PAXI", route = "우리집 → 이마트 성수점", endedAt = "2026-10-27T11:07",
-            lines = meter.lines(), fareTotal = meter.total, billed = 18_379, carriedOver = 3_120, lateInterest = 9,
-            balances = listOf(Balance("아빠", owedToMe = false, amount = 18_379), Balance("할머니", owedToMe = true, amount = 9_300, disputed = true)),
+            lines = meter.lines(), fareTotal = meter.total, billed = 18_370, carriedOver = 3_120,
+            balances = listOf(Balance("아빠", owedToMe = false, amount = 18_370), Balance("할머니", owedToMe = true, amount = 9_300, disputed = true)),
         )
     }
 

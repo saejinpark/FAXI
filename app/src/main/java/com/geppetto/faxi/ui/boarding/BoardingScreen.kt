@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import com.geppetto.faxi.data.Dunning
 import com.geppetto.faxi.data.FaxiStore
 import com.geppetto.faxi.data.Grade
 import com.geppetto.faxi.data.Member
@@ -38,6 +39,7 @@ import com.geppetto.faxi.ui.components.FaxiSecondaryButton
 import com.geppetto.faxi.ui.components.PreviewFrame
 import com.geppetto.faxi.ui.components.SectionTitle
 import com.geppetto.faxi.ui.components.SelectTile
+import com.geppetto.faxi.ui.components.ReceiptIcon
 import com.geppetto.faxi.ui.components.WarningIcon
 import com.geppetto.faxi.ui.theme.Faxi
 import com.geppetto.faxi.ui.theme.FaxiDimens
@@ -78,8 +80,12 @@ fun BoardingScreen(
                     store.members.filter { it.id != driver.id }.forEach { member ->
                         MemberTile(member, selected = member.id == passengerId) {
                             passengerId = member.id
-                            store.debt(member.id, driver.id)?.let { debt ->
-                                speak(dunningLine(debt.amount, store.daysOf(debt)))
+                            // 밀린 돈 알림: 말투는 설정(단호하게/부드럽게/화면에만)
+                            val tone = store.settings.dunning
+                            if (tone != Dunning.ScreenOnly) {
+                                store.debt(member.id, driver.id)?.let { debt ->
+                                    speak(dunningLine(debt.amount, store.daysOf(debt), member.name, tone))
+                                }
                             }
                         }
                     }
@@ -87,7 +93,7 @@ fun BoardingScreen(
                         val debt = store.debt(passenger.id, driver.id)
                         val owedBack = store.debt(driver.id, passenger.id)
                         when {
-                            debt != null -> DebtReminder(dunningLine(debt.amount, store.daysOf(debt)))
+                            debt != null -> DebtReminder(dunningLine(debt.amount, store.daysOf(debt), passenger.name, store.settings.dunning))
                             passenger.grade == Grade.Learner ->
                                 Text("예비 기사 요금은 평생 장부에 쌓여요.", style = Faxi.type.body, color = Faxi.colors.inkMuted)
                             owedBack != null -> Text(
@@ -129,7 +135,7 @@ fun BoardingScreen(
                         onClick = {
                             val p = passengerId ?: return@FaxiPrimaryButton
                             if (store.verifyBoardingCode(p, code)) {
-                                speak("손님, 어디로 모실까요?")
+                                if (store.settings.greet) speak("손님, 어디로 모실까요?")
                                 store.startRide(p)
                                 code = ""
                                 passengerId = null
@@ -163,13 +169,13 @@ private fun DebtReminder(text: String) {
     Row(
         Modifier
             .fillMaxWidth()
-            .border(FaxiDimens.borderWidth, c.danger, RoundedCornerShape(FaxiDimens.radiusMd))
+            .border(FaxiDimens.borderWidth, c.lineStrong, RoundedCornerShape(FaxiDimens.radiusMd))
             .background(c.surfaceRaised, RoundedCornerShape(FaxiDimens.radiusMd))
             .padding(FaxiDimens.space4),
         horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space3),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        WarningIcon(c.danger, FaxiDimens.iconMd)
+        ReceiptIcon(c.accentInk, FaxiDimens.iconMd)
         Text(text, style = Faxi.type.bodyStrong, color = c.ink)
     }
 }

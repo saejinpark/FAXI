@@ -32,8 +32,17 @@ class PhoneStore(context: Context) {
     var reviewed by mutableStateOf(prefs.getStringSet(KEY_REVIEWED, emptySet())!!.toSet())
         private set
 
-    /** 후기를 물어볼 영수증: 가장 최근 것이 아직 후기 전이면 */
-    val pendingReview: ReceiptTicket? get() = receipts.firstOrNull()?.takeIf { it.id !in reviewed }
+    /** 설정: 영수증을 찍으면 기사 후기를 물을지 */
+    var askReview by mutableStateOf(prefs.getBoolean(KEY_ASK_REVIEW, true))
+        private set
+
+    fun updateAskReview(on: Boolean) {
+        askReview = on
+        prefs.edit().putBoolean(KEY_ASK_REVIEW, on).apply()
+    }
+
+    /** 후기를 물어볼 영수증: 묻기가 켜져 있고 가장 최근 것이 아직 후기 전이면 */
+    val pendingReview: ReceiptTicket? get() = if (!askReview) null else receipts.firstOrNull()?.takeIf { it.id !in reviewed }
 
     fun markReviewed(receiptId: String) {
         reviewed = reviewed + receiptId
@@ -85,6 +94,7 @@ class PhoneStore(context: Context) {
         const val KEY_INVITE = "invite"
         const val KEY_RECEIPTS = "receipts"
         const val KEY_REVIEWED = "reviewed"
+        const val KEY_ASK_REVIEW = "ask-review"
         val LinkList = ListSerializer(String.serializer())
     }
 }

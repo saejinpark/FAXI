@@ -33,6 +33,8 @@ import com.geppetto.faxi.data.Gear
 import com.geppetto.faxi.data.won
 import com.geppetto.faxi.ui.boarding.BoardingScreen
 import com.geppetto.faxi.ui.components.BadgeIcon
+import com.geppetto.faxi.ui.components.GearIcon
+import com.geppetto.faxi.ui.settings.SettingsScreen
 import com.geppetto.faxi.ui.components.FaxiPreviews
 import com.geppetto.faxi.ui.components.LedgerIcon
 import com.geppetto.faxi.ui.components.PersonIcon
@@ -47,12 +49,13 @@ import com.geppetto.faxi.ui.theme.Faxi
 import com.geppetto.faxi.ui.theme.FaxiDimens
 
 /**
- * 탭은 셋. 영수증은 하차 때 도착 화면으로 뜨고, 지난 영수증·정산은 장부 안에서 연다.
+ * 탭은 넷: 운행·장부·기사·설정. 영수증은 하차 때 도착 화면으로 뜨고, 지난 영수증·정산은 장부 안에서 연다.
  */
 enum class Tab(val label: String, val icon: @Composable (Color, Dp) -> Unit) {
     Board("운행", { c, s -> PersonIcon(c, s) }),
     Ledger("장부", { c, s -> LedgerIcon(c, s) }),
     Roster("기사", { c, s -> BadgeIcon(c, s) }),
+    Settings("설정", { c, s -> GearIcon(c, s) }),
 }
 
 /**
@@ -100,6 +103,7 @@ fun AppShell(store: FaxiStore, speak: (String) -> Unit, demo: Boolean) {
                     Tab.Board -> BoardingScreen(store, speak, onStarted = {})
                     Tab.Ledger -> LedgerScreen(store)
                     Tab.Roster -> RosterScreen(store)
+                    Tab.Settings -> SettingsScreen(store, speak)
                 }
             }
         }

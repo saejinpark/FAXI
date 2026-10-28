@@ -62,8 +62,8 @@ data class Receipt(
     val lines: List<FareLine>,
     /** 이번 운행 전부터 이 손님이 이 기사에게 밀린 돈 */
     val carriedOver: Int = 0,
+    /** 밀린 돈이 며칠째였는지(이자는 없다. 영수증에 일수만 보인다) */
     val lateDays: Int = 0,
-    val lateInterest: Int = 0,
     /** 상계: 기사가 이 손님에게 진 빚에서 퉁친 금액 */
     val offset: Int = 0,
     /** 예비 기사가 손님이면 청구하지 않고 평생 장부에 쌓는다 */
@@ -75,7 +75,7 @@ data class Receipt(
 ) {
     val fareTotal: Int get() = lines.sumOf { it.amount }
     /** 이번 하차로 손님이 기사에게 갚을 돈(밀린 돈 포함). 평생 장부 운행은 0 */
-    val billed: Int get() = if (toLifetime) 0 else fareTotal + carriedOver + lateInterest - offset
+    val billed: Int get() = if (toLifetime) 0 else fareTotal + carriedOver - offset
 }
 
 /** debtor가 creditor에게 갚을 돈. 실제 송금은 가족끼리 하고 앱은 기록만 한다. 두 사람 사이에 하나만 있다. */
@@ -84,7 +84,7 @@ data class Debt(
     val debtorId: String,
     val creditorId: String,
     val amount: Int,
-    /** 이 빚이 지금 금액으로 시작된 날. 연체 일수와 이자는 이 날짜로 계산한다. */
+    /** 이 빚이 지금 금액으로 시작된 날. 연체 일수는 이 날짜로 계산한다. */
     val since: LocalDate,
     val disputed: Boolean = false,
 ) {

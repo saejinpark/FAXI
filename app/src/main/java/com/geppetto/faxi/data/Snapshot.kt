@@ -43,6 +43,7 @@ data class FaxiSnapshot(
     /** 도착 화면을 닫기 전에 앱이 꺼졌다 켜져도 다시 띄우도록 */
     val arrivalReceiptId: String? = null,
     val nextId: Int = 100,
+    val settings: FaxiSettings = FaxiSettings(),
 )
 
 val FaxiJson = Json {

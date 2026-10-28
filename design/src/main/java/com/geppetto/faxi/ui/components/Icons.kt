@@ -172,6 +172,20 @@ fun SpeakerIcon(color: Color, size: Dp) = Icon28(size) {
     drawPath(wave, color, style = stroke())
 }
 
+/** 설정: 톱니바퀴(가운데 원 + 바깥 원 + 톱니 여덟 개) */
+@Composable
+fun GearIcon(color: Color, size: Dp) = Icon28(size) {
+    val s = u()
+    drawCircle(color, radius = 3.5f * s, center = Offset(14f * s, 14f * s), style = stroke())
+    drawCircle(color, radius = 8f * s, center = Offset(14f * s, 14f * s), style = stroke())
+    for (i in 0 until 8) {
+        val a = Math.toRadians(i * 45.0)
+        val cos = kotlin.math.cos(a).toFloat()
+        val sin = kotlin.math.sin(a).toFloat()
+        line(color, 14f + 8f * cos, 14f + 8f * sin, 14f + 11.5f * cos, 14f + 11.5f * sin)
+    }
+}
+
 /** 뒤로가기 */
 @Composable
 fun BackIcon(color: Color, size: Dp) = Icon28(size) {
