@@ -153,14 +153,14 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
 - 손님 한마디: 에뮬레이터 두 대(adb forward)로만 주고받아 봤다. 실제 차 핫스팟·실기기 폰에서는 아직이다.
 
 ## 앱 아이콘
-- 아이콘 전체(산호색 #F2845F)가 거대한 F다. 남색(#1F2B42) 두 칸은 F에 파낸 빈 곳이고 오른쪽 끝에서 잘린다.
-  - 위 칸 = 택시 지붕 표시등, 안에 A·X·I. 첫 글자 자리는 비어 있다(빠진 F는 아이콘 자체).
-  - 아래 칸 = 차 지붕. 위 칸보다 왼쪽으로 한 계단 나와 F 기둥이 계단처럼 보인다.
-  - 모서리는 둥글게, 글자는 둥근 끝 선으로(시스템 글꼴 아님). 산호 글자/남색 대비 5.56:1.
-- `design/src/main/res/drawable/ic_launcher_foreground.xml`(남색 칸 + 글자), `ic_launcher_background.xml`(산호 = F), `ic_launcher_monochrome.xml`(테마 아이콘: F만 남기고 칸은 뚫음), `mipmap-anydpi/ic_launcher*.xml`. `:design`에 한 벌만 있고 차 앱·폰 앱이 같이 쓴다.
-- 108dp 격자 그대로 그린다. 보이는 영역(가운데 72dp, 18~90) 안에서 F 기둥·윗막대·가운데 막대가 읽히게 놓았다. 위치를 바꾸면 원 모양 마스크(차 런처)로 꼭 확인한다.
+- "집 모양 표시등": 산호(#F2845F) 바탕 위에 남색(#1F2B42) 집 모양 택시 표시등, 그 안에 산호 F(둥근 끝 선, 시스템 글꼴 아님), 아래에 남색 차 지붕 곡선.
+  - 집 = 가족(Family), 표시등 = 택시(Taxi). 그림 하나에 FAXI가 들어 있다.
+  - 예전 "아이콘 전체가 거대한 F" 안은 원형 마스크에서 F가 읽히지 않고 AXI가 가장자리에서 잘려서 바꿨다.
+  - 차 지붕 곡선은 양 끝이 마스크 밖으로 나가게 둔다(어떤 모양으로 잘려도 지붕 위에 앉은 모양).
+- `design/src/main/res/drawable/ic_launcher_foreground.xml`(표시등 + F + 지붕), `ic_launcher_background.xml`(산호), `ic_launcher_monochrome.xml`(테마 아이콘: 표시등에서 F를 면으로 뚫음 + 지붕), `mipmap-anydpi/ic_launcher*.xml`. `:design`에 한 벌만 있고 차 앱·폰 앱이 같이 쓴다.
+- 108dp 격자 그대로 그린다. 집과 F는 보이는 영역(가운데 72dp, 18~90) 안쪽 30~78에 둔다. 위치를 바꾸면 원 모양 마스크(폰)와 둥근 네모(차 앱 목록)로 꼭 확인한다.
 - 앱 안(사이드바 맨 위, 자격증·영수증 머리)에서는 아이콘 그림이 아니라 글자 "FAXI"(`accentInk`)를 쓴다. 아이콘은 런처용이다.
-- 아이콘을 바꾼 뒤 차 런처에 옛 아이콘이 보이면 캐시다: `adb shell am force-stop com.android.car.carlauncher`.
+- 아이콘을 바꾼 뒤 차 런처에 옛 아이콘이 보이면 캐시다: `adb shell am force-stop com.android.car.carlauncher`. 아래 독(최근 앱)은 시스템 UI가 들고 있어서 에뮬레이터를 다시 켜야 바뀐다.
 - minSdk 28이라 적응형 아이콘만 쓴다. 예전 비트맵 아이콘은 없다.
 
 ## Pleos 디자인 가이드 (반드시 지킨다)
