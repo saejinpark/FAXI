@@ -101,7 +101,6 @@ fun DriverLicenseCard(
                             val dday = member.licenseEligible?.let { ChronoUnit.DAYS.between(today, it).toInt() }
                             if (dday != null) Field("면허까지", "D-${won(dday)}", large) else Field("운행", "손님으로만 타요", large)
                         }
-                        Grade.Honorary -> Field("태운 거리", "${won(member.drivenKm)}km", large)
                     }
                 }
             }

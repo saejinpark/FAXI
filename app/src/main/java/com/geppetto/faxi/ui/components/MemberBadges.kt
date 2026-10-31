@@ -23,5 +23,4 @@ fun Avatar(member: Member, size: Dp, style: TextStyle = Faxi.type.title) {
 fun gradeTone(grade: Grade): Tone = when (grade) {
     Grade.Full -> Tone.Accent
     Grade.Learner -> Tone.Neutral
-    Grade.Honorary -> Tone.Ok
 }

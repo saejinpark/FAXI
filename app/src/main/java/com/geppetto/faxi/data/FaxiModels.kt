@@ -8,15 +8,20 @@ import com.geppetto.faxi.message.RideMessage
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonNames
 import kotlinx.serialization.UseSerializers
 
-/** 기사 등급. 실제 면허증은 받지 않고 "면허가 있습니다" 자기 선언으로 정식 기사가 된다. */
+/**
+ * 기사 등급 둘. 실제 면허증은 받지 않고 "운전해요" 자기 선언으로 정식 기사가 된다.
+ * 예전 장부의 "명예 기사"(Honorary)는 정식 기사로 읽는다(운전 안 하는 어른도 손님으로는 똑같이 탄다).
+ */
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 enum class Grade(val label: String) {
-    Full("정식 기사"),
+    @JsonNames("Honorary") Full("정식 기사"),
     Learner("예비 기사"),
-    Honorary("명예 기사"),
 }
 
 /** 기어 상태. 탑승·영수증·후기·정산은 Parked에서만 연다. */
@@ -32,7 +37,7 @@ data class Member(
     val nickname: String = "",
     val grade: Grade,
     val registered: LocalDate,
-    /** 기사로 운행한 누적 거리. 명예 기사는 지난 운전 기록. */
+    /** 기사로 운행한 누적 거리 */
     val drivenKm: Int = 0,
     /** 예비 기사만: 면허를 딸 수 있게 되는 날 */
     val licenseEligible: LocalDate? = null,

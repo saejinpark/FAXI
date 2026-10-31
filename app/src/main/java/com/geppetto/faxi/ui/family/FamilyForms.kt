@@ -29,11 +29,10 @@ import com.geppetto.faxi.ui.components.SelectTile
 import com.geppetto.faxi.ui.theme.Faxi
 import com.geppetto.faxi.ui.theme.FaxiDimens
 
-/** 등록할 때 고르는 운전 여부. 등급(정식·예비·명예 기사)으로 바뀐다. */
+/** 등록할 때 고르는 운전 여부. 등급(정식·예비 기사)으로 바뀐다. */
 private enum class Driving(val label: String, val grade: Grade) {
     Yes("운전해요", Grade.Full),
     NotYet("아직 면허 없어요", Grade.Learner),
-    NoLonger("이제 운전 안 해요", Grade.Honorary),
 }
 
 /**
@@ -155,9 +154,8 @@ private fun DrivingChoice(driving: Driving, onPick: (Driving) -> Unit) {
             }
             Text(
                 when (driving) {
-                    Driving.Yes -> "기사로 운행하고 요금을 받아요. 다른 가족 차에서는 손님도 돼요."
+                    Driving.Yes -> "기사로 운행하고, 다른 사람이 운전할 때는 손님이 돼요. 운전하지 않는 어른도 이걸 골라요."
                     Driving.NotYet -> "손님으로만 타요. 탄 요금은 청구하지 않고 평생 장부에 쌓여요."
-                    Driving.NoLonger -> "손님으로 타요. 지난 운전 기록은 명예 기사로 남아요."
                 },
                 style = t.body, color = c.inkMuted,
             )

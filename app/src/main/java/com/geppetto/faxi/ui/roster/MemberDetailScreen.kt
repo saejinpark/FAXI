@@ -102,8 +102,7 @@ fun MemberDetailScreen(
                             ReviewItem(store, r, review)
                         }
                         member.grade == Grade.Full -> Text("아직 받은 후기가 없어요.", style = t.body, color = c.inkMuted)
-                        member.grade == Grade.Learner -> Text("면허를 따고 기사로 운행하면 후기가 쌓여요.", style = t.body, color = c.inkMuted)
-                        else -> Text("명예 기사는 손님으로만 타요.", style = t.body, color = c.inkMuted)
+                        else -> Text("면허를 따고 기사로 운행하면 후기가 쌓여요.", style = t.body, color = c.inkMuted)
                     }
                     store.passengerRating(memberId)?.let {
                         Divider()

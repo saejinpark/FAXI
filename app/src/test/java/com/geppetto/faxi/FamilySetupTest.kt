@@ -76,4 +76,13 @@ class FamilySetupTest {
         assertEquals("엄마", parsed.name)
         assertEquals(0, parsed.color)
     }
+
+    @Test
+    fun 예전_장부의_명예_기사는_정식_기사로_읽는다() {
+        val json = FaxiStore.sample(clock).snapshot().toJson()
+        val old = json.replace(Regex(""""grade":"Full""""), "\"grade\":\"Honorary\"")
+        assertTrue(old.contains("Honorary")) // 정말 예전 값으로 바꿔 넣었는지
+        assertTrue(faxiSnapshotFromJson(old).members.all { it.grade == Grade.Full || it.grade == Grade.Learner })
+        assertEquals(Grade.Full, faxiSnapshotFromJson(old).members.first { it.id == "grandma" }.grade)
+    }
 }

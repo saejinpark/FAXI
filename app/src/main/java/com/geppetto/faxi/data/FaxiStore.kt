@@ -679,7 +679,7 @@ class FaxiStore(
                 licenseEligible = LocalDate.of(2029, 3, 14), color = 2,
             )
             val grandma = Member(
-                "grandma", "할머니", "40년 무사고", Grade.Honorary,
+                "grandma", "할머니", "40년 무사고", Grade.Full,
                 LocalDate.of(2026, 10, 3), drivenKm = 412_000, avatar = "turtle", color = 3,
             )
             val receipts = listOf(
