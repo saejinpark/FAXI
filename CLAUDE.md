@@ -17,7 +17,10 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
   - `:design` 두 앱이 같이 쓰는 디자인 시스템 코드: `ui/theme`(색·글자·간격 토큰, `FaxiTheme`), `ui/components`의 `Buttons.kt`·`Icons.kt`·`Cards.kt`, 앱 아이콘, 창 바탕 테마(`Theme.Faxi.Base`). 가족 모델(`Member` 등)에 기대지 않는다. 모델이 필요한 표시(`Avatar(member)`, `gradeTone`)는 `:app`의 `MemberBadges.kt`.
 - 빌드 확인: `./gradlew assembleDebug` (네 모듈 모두), 테스트: `./gradlew testDebugUnitTest`. 셸에 Java가 없으면 Android Studio JDK를 쓴다:
   `export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"`
-- 제출: `README.md`(심사위원용 소개, 스크린샷 `docs/screenshots/`), `tools/package.sh`(테스트 후 차·폰 APK와 설치 방법 INSTALL.txt를 `dist/`에, git에는 안 넣음).
+- 제출: 공모전 규칙(https://appdevchallenge.auto-hmg.io/guide/submission)대로 저장소 `apk/`에 release APK를 `팀명_앱이름_release.apk`로 둔다. 개인 참가라 팀명은 "박세진": `박세진_FAXI_release.apk`(차), `박세진_FAXI-phone_release.apk`(폰). `tools/package.sh`가 테스트 → `assembleRelease` → `apk/`(git에 넣음)와 `dist/`(영문 이름 + INSTALL.txt, GitHub Releases용, git에 안 넣음)를 만든다.
+  - README에는 앱 이름·한 줄 설명, 실행 방법, 시험 환경, APK 위치가 있어야 한다(규칙).
+  - release는 디버그 키로 서명하고 R8(코드 줄이기)은 끈다: 켜면 시작하자마자 kotlin 클래스 IllegalAccessError로 죽었다.
+  - 시연 가족(`DemoFamily`)일 때는 release에서도 시험 도구를 켠다: 폰 → 차 10.0.2.2 대체 주소, 하차 때 영수증 링크 `FaxiReceipt` 로그. 실제 가족은 둘 다 없다.
 - 시연: `tools/demo.sh`(차·폰 에뮬레이터를 AVD 이름으로 찾아 빌드·설치·장부 초기화·권한·포트·실행, `--keep` `--no-build`). 시연 순서 문서는 두지 않는다(README와 영상으로 충분).
 - README·영상 자막은 사람이 쓴 말투로 짧게: 가운뎃점·화살표·괄호 설명·굵은 글씨 목록을 남발하지 않는다.
 - 실행: Pleos Connect Emulator(AVD는 Cold boot), UI 확인은 갤럭시 폴드 실기기. 폰·폴드에는 Pleos 차량 서비스가 없어서 차량 값이 오지 않고 시연 운행(`FakeTrip`)으로 대신한다.
@@ -100,12 +103,12 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
   - `ReceiptTicket` 영수증 QR 내용: 영수증 + 그 순간 손님의 받을 돈·갚을 돈. `faxi://receipt?d=`(이름표 없는 배열 JSON → Deflate → Base64). 영수증 줄은 `FareCodes` 기호로 줄여 싣는다(대기요금/신호 7회 → W/7).
   - **QR 크기 규칙(실측)**: 77칸짜리는 차 스크린샷에서 주변에 따라 못 읽었다. 영수증 QR은 69칸(버전 13) 이하를 `QrTest`가 지킨다. 필드를 늘리면 이 테스트가 먼저 깨진다. 새 값은 배열 끝에만 붙인다(자리를 바꾸면 예전 QR을 못 읽는다).
   - 차 화면에서는 1dp ≈ 1px 안팎이라 작은 QR은 못 읽는다. 영수증 QR은 카드 안에 작게, 눌러서 화면 높이만큼 크게 띄워 찍는다. 초대 QR은 240dp.
-- 차 앱 QR: `ui/components/QrImage.kt`(밝은 종이 + 4칸 여백, 야간에도 밝게). 기사 상세 "폰 연결" 카드의 초대 QR은 눌러야 보이고(비밀 열쇠), 화면을 떠나면 숨는다. 디버그 빌드는 도착 때 영수증 링크를 `FaxiReceipt` 로그로 남긴다(에뮬레이터 폰으로 시험용, 비밀 없음).
+- 차 앱 QR: `ui/components/QrImage.kt`(밝은 종이 + 4칸 여백, 야간에도 밝게). 기사 상세 "폰 연결" 카드의 초대 QR은 눌러야 보이고(비밀 열쇠), 화면을 떠나면 숨는다. 디버그 빌드이거나 시연 가족이면 도착 때 영수증 링크를 `FaxiReceipt` 로그로 남긴다(에뮬레이터 폰으로 시험용, 비밀 없음).
 - 손님 한마디(폰 → 차, 같은 Wi-Fi). 서버 없이 차 안에서 끝난다.
   - 기사 후기도 같은 통로: `core/.../message/RideReview.kt` `DriverTag`(코드 고정, 새 태그는 끝에), `ReviewEnvelope`(`FAXIR1|가족|사람|영수증|별|태그,태그|보낸시각|서명`). 차 `store.receiveReview`: 서명·1분, 그 사람이 손님이었던 운행만(`UnknownRide`), 운행 하나에 한 번(`AlreadyReviewed`). 폰은 가장 최근 영수증이 후기 전이면 홈 맨 위에 후기 카드(보내거나 건너뛰면 `reviewed`에 넣어 사라짐). 테스트 `app ReviewTest`, `core RideReviewTest`.
   - `core/.../message/RideMessage.kt` 정해진 문장 6개(`RideMessage`, 자유 글 없음: 운전자가 힐끗 보고 끝나게), 한 줄 형식 `MessageEnvelope`(`FAXI1|가족|사람|코드|보낸시각|서명`, 서명 = 그 사람 TOTP 열쇠로 HMAC-SHA256 앞 16바이트), 답 `MessageReply`, 포트·NSD 이름 `MessageWire`. 문장은 끝에만 붙인다(코드가 차·폰 약속).
   - 차: `data/MessageServer.kt`(FaxiApp이 켠다) TCP 47800 + NSD `_faxi._tcp`("FAXI-가족"). 받은 줄은 메인 스레드에서 `store.receiveMessage`가 확인: 우리 가족·그 사람 서명·±60초, 지금 손님만(NotRiding), 같은 통 두 번 금지, 한 사람 10초에 한 번(TooSoon). `store.passengerMessage`는 저장하지 않고 운행이 바뀌면 지운다.
-  - 폰: `MessageSender.kt` NSD로 차를 찾고(3초), 디버그 빌드는 못 찾으면 10.0.2.2로. 홈의 "기사님께 한마디" 카드(2열 타일, 결과 줄은 자리를 미리 잡음).
+  - 폰: `MessageSender.kt` NSD로 차를 찾고(3초), 디버그 빌드이거나 시연 가족이면 못 찾을 때 10.0.2.2로. 홈의 "기사님께 한마디" 카드(2열 타일, 결과 줄은 자리를 미리 잡음).
   - Android 17(API 37)은 같은 Wi-Fi 기기와 통신에 `ACCESS_LOCAL_NETWORK`(근처 기기) 런타임 권한이 필요하다. 폰은 처음 보낼 때 묻는다. 차 앱도 선언만 해 두었다(지금 차 에뮬레이터는 API 35라 필요 없음, 차가 37이 되면 요청 흐름을 넣는다).
   - Pleos 문서(시작하기·개발 가이드·FAQ)에는 앱의 Wi-Fi/소켓 제한이 적혀 있지 않다. 실제 차에서 핫스팟으로 되는지는 아직 확인 못 했다.
   - 에뮬레이터 두 대로 시험: `adb -s emulator-5554 forward tcp:47800 tcp:47800`(차) → 폰 디버그 빌드가 10.0.2.2:47800으로 보낸다. (에뮬레이터 둘 사이에서 NSD 검색도 되는 것을 확인했다.) 테스트: `core RideMessageTest`, `app RideMessageStoreTest`.

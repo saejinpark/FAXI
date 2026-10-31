@@ -5,6 +5,7 @@ import android.content.pm.ApplicationInfo
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
 import com.geppetto.faxi.auth.Base32
+import com.geppetto.faxi.auth.DemoFamily
 import com.geppetto.faxi.auth.FaxiInvite
 import com.geppetto.faxi.message.DriverTag
 import com.geppetto.faxi.message.MessageEnvelope
@@ -45,7 +46,7 @@ class MessageSender(private val context: Context) {
     private fun now() = System.currentTimeMillis() / 1000
 
     private suspend fun deliver(familyId: String, line: String): MessageReply? = withContext(Dispatchers.IO) {
-        val targets = listOfNotNull(car) + listOfNotNull(discover(familyId)) + listOfNotNull(emulatorHost())
+        val targets = listOfNotNull(car) + listOfNotNull(discover(familyId)) + listOfNotNull(emulatorHost(familyId))
         for (target in targets.distinct()) {
             val reply = runCatching { exchange(target, line) }.getOrNull() ?: continue
             car = target
@@ -63,9 +64,14 @@ class MessageSender(private val context: Context) {
         s.getInputStream().bufferedReader().readLine()?.let(MessageReply::of)
     }
 
-    private fun emulatorHost(): InetSocketAddress? {
+    /**
+     * 에뮬레이터에서 차 에뮬레이터로(adb forward 47800). 디버그 빌드이거나 시연 가족일 때만 시도한다:
+     * 심사용 release 빌드도 에뮬레이터 두 대로 시험할 수 있게. 실제 폰에서는 이 주소가 그냥 실패한다.
+     */
+    private fun emulatorHost(familyId: String): InetSocketAddress? {
         val debuggable = context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
-        return if (debuggable) InetSocketAddress(InetAddress.getByName("10.0.2.2"), MessageWire.PORT) else null
+        val demo = familyId == DemoFamily.FAMILY_ID
+        return if (debuggable || demo) InetSocketAddress(InetAddress.getByName("10.0.2.2"), MessageWire.PORT) else null
     }
 
     /** 같은 Wi-Fi에서 "FAXI-가족" 서비스를 3초 동안 찾는다 */

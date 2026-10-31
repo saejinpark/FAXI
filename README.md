@@ -55,16 +55,33 @@ Pleos Connect 에뮬레이터(왼쪽)와 폰 에뮬레이터(오른쪽)를 같�
 
 장부는 차 안에만 있습니다. 가족마다 비밀 열쇠가 하나씩 있고, 처음에 차 화면의 초대 QR을 폰으로 찍어 받아 갑니다. 탑승 코드는 이 열쇠로 만드는 OTP라서 인터넷이 필요 없습니다. 손님 한마디와 기사 후기는 같은 Wi-Fi(차 핫스팟)에서 폰이 차로 직접 보내고, 같은 열쇠로 서명해서 다른 사람이 흉내 낼 수 없습니다. 영수증은 차 화면 QR로 폰에 옮깁니다.
 
+## 실행 방법
+
+APK는 [`apk/`](apk) 폴더에 있습니다. [릴리스 v1.0](https://github.com/saejinpark/FAXI/releases/tag/v1.0)에도 같은 파일이 있습니다.
+
+| 파일 | 설치할 곳 |
+| --- | --- |
+| `박세진_FAXI_release.apk` | 차: Pleos Connect 에뮬레이터 (시스템 이미지 `pleos_car_emulator`, Android 14) |
+| `박세진_FAXI-phone_release.apk` | 폰: Android 9 이상 기기나 에뮬레이터 |
+
+1. 두 에뮬레이터에 각각 APK를 설치합니다(`adb install -r <파일>`).
+2. 폰 앱에서 "엄마 · MAXI로 등록"을 누릅니다. 차 앱에 처음부터 들어 있는 시연 가족과 같은 열쇠를 씁니다.
+3. 차 앱 운행 탭에서 기사 "아빠", 손님 "엄마"를 고르고, 폰에 뜬 4자리를 누른 뒤 미터기를 켭니다.
+4. 차량 값은 Virtual Console로 바꿉니다. `adb forward tcp:8088 tcp:8088`을 한 뒤 브라우저에서 `http://127.0.0.1:8088/`을 엽니다. 기어를 D로 두고 ACCEL로 달리다가 P에 넣으면 하차합니다. 에어컨, 시트 열선, 와이퍼, 창문 카드를 켜면 요금이 붙습니다.
+5. 폰에서 차로 한마디나 기사 후기를 보내려면 차 에뮬레이터에 `adb forward tcp:47800 tcp:47800`을 해 둡니다. 폰 에뮬레이터는 `10.0.2.2`로 차를 찾습니다.
+6. 에뮬레이터 카메라로는 차 화면의 영수증 QR을 찍을 수 없습니다. 하차 뒤 `adb logcat -s FaxiReceipt`에 찍힌 `faxi://receipt…` 링크를 폰에서 열면 같은 일이 됩니다.
+   `adb shell am start -a android.intent.action.VIEW -d '<링크>' com.geppetto.faxi.phone`
+
+`tools/demo.sh`는 에뮬레이터 두 대를 찾아 위 준비를 한 번에 합니다.
+
 ## 빌드
 
 ```bash
-./gradlew assembleDebug
+./gradlew assembleRelease
 ./gradlew testDebugUnitTest
 ```
 
-- 차: Android Studio의 Pleos Connect 에뮬레이터(시스템 이미지 `pleos_car_emulator`, API 34). 차량 값은 `adb forward tcp:8088 tcp:8088` 뒤 `http://127.0.0.1:8088/`(Virtual Console)에서 바꿉니다.
-- 폰: Android 9 이상. 앱에서 "엄마 · MAXI로 등록"을 누르면 차 앱의 시연 가족과 바로 맞물립니다.
-- `tools/demo.sh`는 에뮬레이터 두 대에 두 앱을 깔고 시연 데이터로 초기화합니다.
+`tools/package.sh`는 테스트를 돌린 뒤 `apk/` 폴더의 두 파일을 새로 만듭니다. 시험한 환경은 macOS의 Android Studio, Pleos Connect 에뮬레이터(API 34), 폰 에뮬레이터(API 37)입니다.
 
 | 모듈 | 내용 |
 | --- | --- |

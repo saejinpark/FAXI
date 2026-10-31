@@ -24,10 +24,9 @@ android {
 
     buildTypes {
         release {
-            optimization {
-                enable = true
-                packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")
-            }
+            // 심사용 release 빌드는 디버그 키로 서명한다(스토어 배포 전까지). 서명 없는 release APK는 깔리지 않는다.
+            signingConfig = signingConfigs.getByName("debug")
+            // 코드 줄이기(R8)는 끈다: 켜면 kotlin 클래스를 옮기다 시작하자마자 IllegalAccessError로 죽었다(Pleos 에뮬레이터에서 확인).
         }
     }
     compileOptions {
