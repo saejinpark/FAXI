@@ -23,7 +23,6 @@ import com.geppetto.faxi.data.Debt
 import com.geppetto.faxi.data.FaxiStore
 import com.geppetto.faxi.data.Grade
 import com.geppetto.faxi.data.LedgerEvent
-import com.geppetto.faxi.data.SettlementRequest
 import com.geppetto.faxi.data.owesPhrase
 import com.geppetto.faxi.data.won
 import com.geppetto.faxi.ui.components.CheckIcon
@@ -47,7 +46,7 @@ private val DateFormat = DateTimeFormatter.ofPattern("M.d")
 
 /**
  * 가족 장부 탭. 안에서 세 단계로 들어간다(내비게이션 라이브러리 없이 상태 두 개로):
- * 장부 → 두 사람 사이 빚 상세(정산·탕감) → 그 빚을 만든 운행의 영수증.
+ * 장부 → 두 사람 사이 빚 상세(받았어요·탕감) → 그 빚을 만든 운행의 영수증.
  */
 @Composable
 fun LedgerScreen(store: FaxiStore, today: LocalDate = LocalDate.now()) {
@@ -74,18 +73,6 @@ private fun LedgerHome(store: FaxiStore, today: LocalDate, onOpenDebt: (Debt) ->
     val t = Faxi.type
 
     FaxiPage(title = "가족 장부") {
-        // 손님이 "보냈어요"를 누르면 기사가 확인할 때까지 맨 위에 둔다
-        if (store.requests.isNotEmpty()) {
-            full { m ->
-                FaxiCard(m) {
-                    SectionTitle("확인 기다리는 정산 ${store.requests.size}건")
-                    store.requests.forEachIndexed { i, req ->
-                        if (i > 0) Divider()
-                        RequestItem(store, req)
-                    }
-                }
-            }
-        }
         row(
             { m ->
                 FaxiCard(m) {
@@ -100,7 +87,7 @@ private fun LedgerHome(store: FaxiStore, today: LocalDate, onOpenDebt: (Debt) ->
             { m ->
                 FaxiCard(m) {
                     SectionTitle("${today.monthValue}월 가족 정산서")
-                    val best = store.members.filter { it.grade == Grade.Full }
+                    val best = store.family.filter { it.grade == Grade.Full }
                         .mapNotNull { m -> store.driverRating(m.id)?.let { m to it } }
                         .maxByOrNull { it.second }
                     val mostDriven = store.receipts.filter { it.endedAt.monthValue == today.monthValue && it.endedAt.year == today.year }
@@ -111,7 +98,7 @@ private fun LedgerHome(store: FaxiStore, today: LocalDate, onOpenDebt: (Debt) ->
                     if (mostDriven != null) {
                         SummaryLine("가장 많이 태워 준 사람", "${store.name(mostDriven.key)} · ${won(mostDriven.value)}km")
                     }
-                    SummaryLine("다시 확인할 정산", "${store.debts.count { it.disputed }}건")
+                    SummaryLine("밀린 돈", "${won(store.debts.sumOf { it.amount })}원")
                     SummaryLine("이달 운행", "${store.receipts.count { it.endedAt.monthValue == today.monthValue }}번")
                 }
             },
@@ -146,7 +133,6 @@ fun DebtRow(store: FaxiStore, debt: Debt, onClick: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(owesPhrase(store.name(debt.debtorId), store.name(debt.creditorId)), style = t.bodyStrong, color = c.ink)
-                if (debt.disputed) StatusTag("다시 확인", Tone.Neutral)
             }
             Text(
                 "${won(debt.amount)}원 · " + store.daysOf(debt).let { if (it > 0) "${it}일째" else "오늘" },
@@ -154,33 +140,6 @@ fun DebtRow(store: FaxiStore, debt: Debt, onClick: () -> Unit) {
             )
         }
         ChevronIcon(c.inkMuted, FaxiDimens.iconMd)
-    }
-}
-
-/** 기사가 확인하는 정산 요청 한 건 */
-@Composable
-fun RequestItem(store: FaxiStore, req: SettlementRequest) {
-    val c = Faxi.colors
-    val t = Faxi.type
-    Column(verticalArrangement = Arrangement.spacedBy(FaxiDimens.space3)) {
-        Text(
-            "${store.name(req.payerId)}: \"${store.name(req.payeeId)}에게 ${won(req.amount)}원 보냈어요\"",
-            style = t.bodyStrong, color = c.ink,
-        )
-        Text("${store.name(req.payeeId)}님, 받으셨나요?", style = t.body, color = c.inkMuted)
-        Row(horizontalArrangement = Arrangement.spacedBy(FaxiDimens.targetGap)) {
-            FaxiSecondaryButton(
-                "받았어요",
-                onClick = { store.confirmSettlement(req, received = true) },
-                modifier = Modifier.weight(1f),
-                leading = { CheckIcon(c.ok, FaxiDimens.iconMd) },
-            )
-            FaxiSecondaryButton(
-                "못 받았는데요",
-                onClick = { store.confirmSettlement(req, received = false) },
-                modifier = Modifier.weight(1f),
-            )
-        }
     }
 }
 
@@ -211,6 +170,5 @@ private fun SummaryLine(label: String, value: String) {
 @FaxiPreviews
 @Composable
 private fun LedgerPreview() = PreviewFrame {
-    val store = FaxiStore.sample().apply { requestSettlement(debts.first(), 3_000) }
-    LedgerScreen(store, today = LocalDate.of(2026, 10, 27))
+    LedgerScreen(FaxiStore.sample(), today = LocalDate.of(2026, 10, 27))
 }

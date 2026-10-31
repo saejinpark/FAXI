@@ -87,16 +87,6 @@ class ReviewTest {
     }
 
     @Test
-    fun 기사가_남긴_손님_평가는_한_번만_저장되고_다시_켜도_남는다() {
-        val (s, id) = rideMomWithDad()
-        s.ratePassenger(id, Review(5, setOf("인사 잘함")))
-        s.ratePassenger(id, Review(1, emptySet()))
-        assertEquals(5.0, s.passengerRating("mom")!!, 0.001)
-        val reopened = FaxiStore(faxiSnapshotFromJson(s.snapshot().toJson()), clock)
-        assertEquals(Review(5, setOf("인사 잘함")), reopened.passengerReviews[id])
-    }
-
-    @Test
     fun 낭독_문장() {
         assertEquals("지난 손님 후기입니다. 엄마 손님, 별 세 개. 선곡 최악.", reviewLine("엄마", 3, listOf("선곡 최악")))
         assertEquals("지난 손님 후기입니다. 지우 손님, 별 한 개.", reviewLine("지우", 1, emptyList()))

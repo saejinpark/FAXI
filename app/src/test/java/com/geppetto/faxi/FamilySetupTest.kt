@@ -85,4 +85,50 @@ class FamilySetupTest {
         assertTrue(faxiSnapshotFromJson(old).members.all { it.grade == Grade.Full || it.grade == Grade.Learner })
         assertEquals(Grade.Full, faxiSnapshotFromJson(old).members.first { it.id == "grandma" }.grade)
     }
+
+    @Test
+    fun 면허를_따면_정식_기사가_되고_평생_장부가_공개된다() {
+        val s = FaxiStore.sample(clock)
+        val before = s.lifetime.first { it.learnerId == "kid" }
+        assertFalse(before.revealed)
+        val ledger = s.graduate("kid")!!
+        assertTrue(ledger.revealed)
+        assertEquals(before.amount, ledger.amount) // 장부는 그대로 남는다
+        assertEquals(Grade.Full, s.member("kid").grade)
+        assertEquals("지우 면허 땀 · 평생 장부 공개", s.events.first().text)
+        assertEquals(
+            "지우, 면허 축하해요. 지금까지 2,140번, 18,204킬로미터를 태워 줬어요. 평생 장부는 14,502,310원이에요. 이제 지우가 기사예요.",
+            com.geppetto.faxi.data.licenseLine("지우", ledger),
+        )
+        assertEquals(null, s.graduate("kid")) // 두 번은 없다
+    }
+
+    @Test
+    fun 이름과_별명을_고친다() {
+        val s = FaxiStore.sample(clock)
+        s.updateMember("kid", " 막내 ", "")
+        assertEquals("막내", s.member("kid").name)
+        assertEquals("막내 기사", s.member("kid").cardTitle)
+    }
+
+    @Test
+    fun 주고받을_돈이_남은_사람은_뺄_수_없고_정리하면_뺀다() {
+        val s = FaxiStore.sample(clock)
+        assertEquals("할머니와 주고받을 돈이 남아 있어요. 장부에서 먼저 정리해 주세요.", s.whyCannotRemove("grandma"))
+        assertFalse(s.removeMember("grandma"))
+        s.forgive(s.debt("grandma", "mom")!!)
+        assertTrue(s.removeMember("grandma"))
+        assertTrue(s.family.none { it.id == "grandma" })
+        assertEquals("할머니", s.name("grandma")) // 지난 기록의 이름은 남는다
+        assertFalse(s.verifyCode("grandma", "0000"))
+    }
+
+    @Test
+    fun 운전석에_로그인한_기사를_빼면_로그인이_풀린다() {
+        val s = FaxiStore.sample(clock)
+        s.addMember("삼촌", Grade.Full).also { u -> s.selectDriver(u.id) }
+        val uncle = s.driverId
+        assertTrue(s.removeMember(uncle))
+        assertFalse(s.driverSignedIn)
+    }
 }

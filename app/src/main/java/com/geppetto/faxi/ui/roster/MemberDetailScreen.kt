@@ -26,6 +26,8 @@ import com.geppetto.faxi.data.Grade
 import com.geppetto.faxi.data.Receipt
 import com.geppetto.faxi.data.Review
 import com.geppetto.faxi.data.won
+import com.geppetto.faxi.data.ga
+import com.geppetto.faxi.ui.components.FaxiPrimaryButton
 import com.geppetto.faxi.ui.components.AvatarCircle
 import com.geppetto.faxi.ui.components.Divider
 import com.geppetto.faxi.ui.components.DriverLicenseCard
@@ -55,6 +57,8 @@ fun MemberDetailScreen(
     onBack: () -> Unit,
     onOpenDebt: (Debt) -> Unit,
     onOpenReceipt: (String) -> Unit,
+    onEdit: () -> Unit = {},
+    onGraduate: () -> Unit = {},
     today: LocalDate = LocalDate.now(),
 ) {
     val c = Faxi.colors
@@ -63,7 +67,24 @@ fun MemberDetailScreen(
     val owedToMe = store.debts.filter { it.creditorId == memberId }
     val iOwe = store.debts.filter { it.debtorId == memberId }
 
-    FaxiPage(title = member.name, onBack = onBack) {
+    FaxiPage(title = member.name, onBack = onBack, trailing = { FaxiSecondaryButton("고치기", onClick = onEdit) }) {
+        // 예비 기사: 면허를 따면 정식 기사가 되고 평생 장부를 공개한다(자기 선언, 면허증은 받지 않는다)
+        if (member.grade == Grade.Learner) {
+            full { m ->
+                FaxiCard(m) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space4),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(FaxiDimens.space1)) {
+                            Text("${member.name.ga()} 면허를 땄나요?", style = t.title, color = c.ink)
+                            Text("정식 기사가 되고, 그동안 쌓인 평생 장부를 공개해요. 면허증은 받지 않아요.", style = t.body, color = c.inkMuted)
+                        }
+                        FaxiPrimaryButton("면허 땄어요", onClick = onGraduate)
+                    }
+                }
+            }
+        }
         row(
             { m -> DriverLicenseCard(member, store.driverRating(memberId), m, today = today) },
             { m ->
@@ -103,10 +124,6 @@ fun MemberDetailScreen(
                         }
                         member.grade == Grade.Full -> Text("아직 받은 후기가 없어요.", style = t.body, color = c.inkMuted)
                         else -> Text("면허를 따고 기사로 운행하면 후기가 쌓여요.", style = t.body, color = c.inkMuted)
-                    }
-                    store.passengerRating(memberId)?.let {
-                        Divider()
-                        Text("손님으로 받은 평가 · 별 %.1f".format(it), style = t.bodyStrong, color = c.ink)
                     }
                 }
             },

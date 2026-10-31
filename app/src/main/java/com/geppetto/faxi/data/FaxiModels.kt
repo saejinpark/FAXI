@@ -52,6 +52,8 @@ data class Member(
     val secret: String = "",
     /** 가족 색 칸(0~3). 등록한 순서대로 정해서 자격증 띠·아바타 테두리에 쓴다. */
     val color: Int = 0,
+    /** 가족에서 뺀 사람. 지난 영수증·기록의 이름은 남기고, 명단·탑승·폰 연결에서는 사라진다. */
+    val removed: Boolean = false,
 ) {
     val canDrive: Boolean get() = grade == Grade.Full
     /** 자격증 제목: 별명, 없으면 "엄마 기사" */
@@ -94,21 +96,11 @@ data class Debt(
     val amount: Int,
     /** 이 빚이 지금 금액으로 시작된 날. 연체 일수는 이 날짜로 계산한다. */
     val since: LocalDate,
-    val disputed: Boolean = false,
 ) {
     fun daysOn(today: LocalDate): Int = ChronoUnit.DAYS.between(since, today).toInt().coerceAtLeast(0)
 }
 
-/** 손님이 "보냈어요"라고 적은 정산 요청. 기사가 받았는지 확인한다. */
-@Serializable
-data class SettlementRequest(
-    val id: String,
-    val payerId: String,
-    val payeeId: String,
-    val amount: Int,
-)
-
-/** 장부 기록 한 줄(정산, 분쟁, 탕감, 상계). 두 사람 사이 기록이면 a·b가 그 둘이다. */
+/** 장부 기록 한 줄(갚음, 탕감, 상계). 두 사람 사이 기록이면 a·b가 그 둘이다. */
 @Serializable
 data class LedgerEvent(
     val date: LocalDate,
@@ -127,6 +119,8 @@ data class LifetimeLedger(
     val rides: Int,
     val km: Int,
     val amount: Int,
+    /** 면허를 따서 공개했는지. 공개 뒤에도 장부는 남는다(이제 운전해서 갚아 나간다). */
+    val revealed: Boolean = false,
 )
 
 /**
@@ -171,5 +165,3 @@ val Avatars = listOf(
 
 fun avatarOf(key: String?): AvatarChoice? = Avatars.firstOrNull { it.key == key }
 
-/** 기사가 손님을 평가할 때 고르는 태그(기사 후기 태그는 core의 DriverTag, 폰에서 쓴다) */
-val PassengerTags = listOf("인사 잘함", "벨트 먼저 맴", "과자 부스러기", "길 훈수", "또 태워 줄게요")

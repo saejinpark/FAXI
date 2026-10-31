@@ -78,7 +78,7 @@ private fun DriverSignIn(store: FaxiStore, speak: (String) -> Unit, onCancel: ((
                 FaxiCard(m) {
                     SectionTitle("1  누가 운전하나요?")
                     Text("한 번 로그인하면 차가 기억해요. 운전하는 사람이 바뀔 때만 다시 해요.", style = Faxi.type.body, color = Faxi.colors.inkMuted)
-                    val drivers = store.members.filter { it.canDrive }
+                    val drivers = store.family.filter { it.canDrive }
                     if (drivers.isEmpty()) {
                         Text("운전하는 가족이 아직 없어요. 기사 탭에서 \"가족 추가\"로 등록해 주세요.", style = Faxi.type.body, color = Faxi.colors.ink)
                     }
@@ -135,7 +135,7 @@ private fun PassengerBoarding(store: FaxiStore, speak: (String) -> Unit, onChang
                         FaxiSecondaryButton("기사 바꾸기", onClick = onChangeDriver)
                     }
                     SectionTitle("1  손님 누구세요?")
-                    store.members.filter { it.id != driver.id }.forEach { member ->
+                    store.family.filter { it.id != driver.id }.forEach { member ->
                         MemberTile(member, selected = member.id == passengerId) {
                             passengerId = member.id
                             // 밀린 돈 알림: 말투는 설정(단호하게/부드럽게/화면에만)

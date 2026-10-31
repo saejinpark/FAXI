@@ -118,7 +118,7 @@ fun ReceiptCard(
     }
 }
 
-/** 남긴 평가 한 줄: "엄마 손님 평가 · 별 4개" + 태그. 없으면 [empty]를 흐리게. */
+/** 남긴 후기 한 줄: "아빠 기사 후기" + 별 + 태그. 없으면 [empty]를 흐리게. */
 @Composable
 fun ReviewSummary(title: String, review: Review?, empty: String) {
     val c = Faxi.colors
@@ -133,53 +133,6 @@ fun ReviewSummary(title: String, review: Review?, empty: String) {
             }
             if (review.tags.isNotEmpty()) Text(review.tags.joinToString(", "), style = t.body, color = c.inkMuted)
         }
-    }
-}
-
-/** 별점 + 태그. 타이핑 없이 누르기만 한다. 차에서는 기사가 손님을 평가할 때 쓴다(기사 후기는 손님 폰에서). */
-@Composable
-fun RatingForm(key: String, question: String, tags: List<String>, onSubmit: (Review) -> Unit) {
-    val c = Faxi.colors
-    val t = Faxi.type
-    var stars by remember(key) { mutableIntStateOf(0) }
-    var picked by remember(key) { mutableStateOf(emptySet<String>()) }
-
-    Column(verticalArrangement = Arrangement.spacedBy(FaxiDimens.space4)) {
-        Text(question, style = t.title, color = c.ink)
-        Row(horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space2)) {
-            (1..5).forEach { n ->
-                Box(
-                    Modifier
-                        .size(FaxiDimens.targetMin)
-                        .clickable(role = Role.Button) { stars = n }
-                        .semantics {
-                            contentDescription = "별 ${n}개"
-                            selected = n == stars
-                        },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    StarIcon(if (n <= stars) c.accentInk else c.lineStrong, FaxiDimens.iconLg, filled = n <= stars)
-                }
-            }
-        }
-        // FlowRow는 짝꿍 카드 높이 맞추기(IntrinsicSize.Min)에서 키를 작게 재서 버튼이 잘린다. 한 줄에 셋씩 고정한다.
-        tags.chunked(3).forEach { line ->
-            Row(horizontalArrangement = Arrangement.spacedBy(FaxiDimens.targetGap)) {
-                line.forEach { tag ->
-                    val on = tag in picked
-                    SelectTile(selected = on, onClick = { picked = if (on) picked - tag else picked + tag }, modifier = Modifier.weight(1f)) {
-                        Text(tag, style = t.label, color = c.ink)
-                    }
-                }
-                repeat(3 - line.size) { Spacer(Modifier.weight(1f)) }
-            }
-        }
-        FaxiPrimaryButton(
-            "평가 남기기",
-            enabled = stars > 0,
-            modifier = Modifier.fillMaxWidth(),
-            onClick = { onSubmit(Review(stars, picked)) },
-        )
     }
 }
 

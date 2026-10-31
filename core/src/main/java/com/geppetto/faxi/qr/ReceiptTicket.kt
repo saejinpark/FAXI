@@ -110,6 +110,7 @@ data class Balance(
     @SerialName("n") val other: String,
     @SerialName("in") val owedToMe: Boolean,
     @SerialName("a") val amount: Int,
+    /** 예전 "분쟁 중" 표시. 정산 확인 단계를 없애서 지금은 늘 false(QR 자리를 지키려고 남긴다) */
     @SerialName("dp") val disputed: Boolean = false,
 )
 

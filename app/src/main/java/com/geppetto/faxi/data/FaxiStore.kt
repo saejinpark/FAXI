@@ -106,11 +106,8 @@ class FaxiStore(
     /** 운행 기록, 최신이 앞 */
     val receipts = mutableStateListOf<Receipt>().apply { addAll(snapshot.receipts) }
     val lifetime = mutableStateListOf<LifetimeLedger>().apply { addAll(snapshot.lifetime) }
-    val requests = mutableStateListOf<SettlementRequest>().apply { addAll(snapshot.requests) }
     /** 손님이 폰에서 보낸 기사 후기(영수증 id별) */
     val reviews = mutableStateMapOf<String, Review>().apply { putAll(snapshot.reviews) }
-    /** 기사가 하차 뒤 차 화면에서 남긴 손님 평가(영수증 id별) */
-    val passengerReviews = mutableStateMapOf<String, Review>().apply { putAll(snapshot.passengerReviews) }
     private val reviewsReadAloud = snapshot.reviewsReadAloud.toMutableSet()
 
     /** 차량 옵션 상태. 저장하지 않는다(차가 늘 지금 값을 알려 준다). */
@@ -130,7 +127,10 @@ class FaxiStore(
     private var nextId = snapshot.nextId
 
     /** 처음 켰을 때(가족이 아무도 없을 때). 화면은 가장 등록부터 시작한다. */
-    val needsSetup: Boolean get() = members.isEmpty()
+    val needsSetup: Boolean get() = family.isEmpty()
+
+    /** 지금 가족(뺀 사람 제외). 명단·탑승·폰 연결은 이것만 쓴다. 이름 찾기(member, name)는 뺀 사람도 찾는다(지난 영수증). */
+    val family: List<Member> get() = members.filter { !it.removed }
 
     /** 가족이 통째로 바뀌었을 때(가장 등록, 시연 가족 불러오기). FaxiApp이 손님 한마디 창구(NSD 이름 = 가족 ID)를 다시 연다. */
     var onFamilyChanged: (() -> Unit)? = null
@@ -151,6 +151,51 @@ class FaxiStore(
         members += m
         changed()
         return m
+    }
+
+    /** 이름·별명 고치기 */
+    fun updateMember(id: String, name: String, nickname: String) {
+        val i = members.indexOfFirst { it.id == id }
+        if (i < 0 || name.isBlank()) return
+        members[i] = members[i].copy(name = name.trim(), nickname = nickname.trim())
+        changed()
+    }
+
+    /** 가족에서 뺄 수 없는 이유. null이면 뺄 수 있다. */
+    fun whyCannotRemove(id: String): String? = when {
+        rideActive && (id == driverId || id == passengerId) -> "운행 중인 사람은 뺄 수 없어요."
+        debts.any { it.debtorId == id || it.creditorId == id } -> "${name(id).wa()} 주고받을 돈이 남아 있어요. 장부에서 먼저 정리해 주세요."
+        family.size == 1 -> "가족이 한 명뿐이에요."
+        else -> null
+    }
+
+    /**
+     * 가족에서 빼기. 지난 영수증·기록에는 이름이 남는다. 그 사람 폰의 코드·한마디는 더 받지 않는다.
+     * 운전석에 로그인해 있던 사람이면 로그인을 푼다.
+     */
+    fun removeMember(id: String): Boolean {
+        if (whyCannotRemove(id) != null) return false
+        val i = members.indexOfFirst { it.id == id }
+        members[i] = members[i].copy(removed = true)
+        if (driverId == id) driverSignedIn = false
+        events.add(0, LedgerEvent(today, "${name(id)} 가족에서 빠짐", id, id))
+        changed()
+        return true
+    }
+
+    /**
+     * 면허 땄어요: 예비 기사가 정식 기사가 되고, 그동안 쌓인 평생 장부를 공개한다.
+     * 장부는 지우지 않는다. 이제 그 사람이 가족을 태우며 갚아 나간다(기획서 "평생 장부").
+     */
+    fun graduate(id: String): LifetimeLedger? {
+        val i = members.indexOfFirst { it.id == id }
+        if (i < 0 || members[i].grade != Grade.Learner) return null
+        members[i] = members[i].copy(grade = Grade.Full, licenseEligible = null)
+        val li = lifetime.indexOfFirst { it.learnerId == id }
+        val ledger = if (li >= 0) lifetime[li].copy(revealed = true).also { lifetime[li] = it } else null
+        events.add(0, LedgerEvent(today, "${name(id)} 면허 땀 · 평생 장부 공개", id, id))
+        changed()
+        return ledger
     }
 
     /** 첫 화면의 "시연 가족으로 둘러보기": 아빠·엄마·지우·할머니와 지난 운행·빚이 들어 있는 장부 */
@@ -177,9 +222,7 @@ class FaxiStore(
         events.clear(); events.addAll(next.events)
         receipts.clear(); receipts.addAll(next.receipts)
         lifetime.clear(); lifetime.addAll(next.lifetime)
-        requests.clear(); requests.addAll(next.requests)
         reviews.clear(); reviews.putAll(next.reviews)
-        passengerReviews.clear(); passengerReviews.putAll(next.passengerReviews)
         reviewsReadAloud.clear(); reviewsReadAloud.addAll(next.reviewsReadAloud)
         passengerMessage = null
         lastMessageAt.clear()
@@ -215,9 +258,7 @@ class FaxiStore(
         events = events.toList(),
         receipts = receipts.toList(),
         lifetime = lifetime.toList(),
-        requests = requests.toList(),
         reviews = reviews.toMap(),
-        passengerReviews = passengerReviews.toMap(),
         reviewsReadAloud = reviewsReadAloud.toSet(),
         ridePassengerId = passengerId,
         rideStartedAt = rideStartedAt,
@@ -252,10 +293,6 @@ class FaxiStore(
         reviewsOf(driverId).map { it.second.stars }.takeIf { it.isNotEmpty() }?.average()
 
     /** 손님으로 받은 평균 별점. 평가가 없으면 null */
-    fun passengerRating(memberId: String): Double? =
-        receipts.filter { it.passengerId == memberId }.mapNotNull { passengerReviews[it.id]?.stars }
-            .takeIf { it.isNotEmpty() }?.average()
-
     /** 이 사람이 손님이나 기사로 탄 운행, 최신이 앞 */
     fun ridesOf(memberId: String): List<Receipt> =
         receipts.filter { it.driverId == memberId || it.passengerId == memberId }
@@ -285,8 +322,8 @@ class FaxiStore(
         val driver = member(r.driverId)
         val balances = debts.mapNotNull { d ->
             when (p) {
-                d.debtorId -> Balance(name(d.creditorId), owedToMe = false, amount = d.amount, disputed = d.disputed)
-                d.creditorId -> Balance(name(d.debtorId), owedToMe = true, amount = d.amount, disputed = d.disputed)
+                d.debtorId -> Balance(name(d.creditorId), owedToMe = false, amount = d.amount)
+                d.creditorId -> Balance(name(d.debtorId), owedToMe = true, amount = d.amount)
                 else -> null
             }
         }
@@ -304,7 +341,7 @@ class FaxiStore(
      * 손님 탑승(매번 코드)과 같은 열쇠·같은 방식이다.
      */
     fun signInDriver(id: String, code: String): Boolean {
-        require(member(id).canDrive)
+        require(member(id).canDrive && !member(id).removed)
         if (rideActive || !verifyCode(id, code)) return false
         driverId = id
         driverSignedIn = true
@@ -332,6 +369,7 @@ class FaxiStore(
      * 인터넷 없이 차 안에서 끝난다. 다른 가족의 코드나 1분 넘은 코드는 통과하지 못한다.
      */
     fun verifyCode(memberId: String, code: String): Boolean {
+        if (member(memberId).removed) return false
         val secret = Base32.decode(member(memberId).secret) ?: return false
         val now = clock().atZone(ZoneId.systemDefault()).toEpochSecond()
         return Totp.verify(secret, code, now)
@@ -345,7 +383,7 @@ class FaxiStore(
      */
     fun receiveMessage(envelope: MessageEnvelope): MessageReply {
         if (envelope.familyId != familyId) return MessageReply.Rejected
-        val m = members.firstOrNull { it.id == envelope.memberId } ?: return MessageReply.Rejected
+        val m = family.firstOrNull { it.id == envelope.memberId } ?: return MessageReply.Rejected
         val secret = Base32.decode(m.secret) ?: return MessageReply.Rejected
         val now = clock().atZone(ZoneId.systemDefault()).toEpochSecond()
         if (!envelope.verify(secret, now)) return MessageReply.Rejected
@@ -520,7 +558,7 @@ class FaxiStore(
             events.add(0, LedgerEvent(today, "상계 ${won(offset)}원 · ${owesPhrase(name(d), name(p))} 진 빚과 퉁침", d, p))
         }
         // 밀린 돈은 이번 영수증에 합쳤으니, 남은 빚은 오늘부터 다시 센다
-        if (receipt.billed > 0) debts.add(0, Debt(p, d, receipt.billed, since = today, disputed = old?.disputed ?: false))
+        if (receipt.billed > 0) debts.add(0, Debt(p, d, receipt.billed, since = today))
         return receipt
     }
 
@@ -568,7 +606,7 @@ class FaxiStore(
      */
     fun receiveReview(envelope: ReviewEnvelope): MessageReply {
         if (envelope.familyId != familyId) return MessageReply.Rejected
-        val m = members.firstOrNull { it.id == envelope.memberId } ?: return MessageReply.Rejected
+        val m = family.firstOrNull { it.id == envelope.memberId } ?: return MessageReply.Rejected
         val secret = Base32.decode(m.secret) ?: return MessageReply.Rejected
         val now = clock().atZone(ZoneId.systemDefault()).toEpochSecond()
         if (!envelope.verify(secret, now)) return MessageReply.Rejected
@@ -580,49 +618,30 @@ class FaxiStore(
         return MessageReply.Shown
     }
 
-    /** 기사가 하차 뒤 손님을 평가한다(도착 화면). 운행 하나에 한 번. */
-    fun ratePassenger(receiptId: String, review: Review) {
-        if (receiptId in passengerReviews) return
-        passengerReviews[receiptId] = review
-        changed()
-    }
-
-    fun requestSettlement(debt: Debt, amount: Int) {
-        requests += SettlementRequest("s${nextId++}", debt.debtorId, debt.creditorId, amount)
-        changed()
-    }
-
-    /** 기사의 [받았어요] / [못 받았는데요] */
-    fun confirmSettlement(request: SettlementRequest, received: Boolean) {
-        requests.remove(request)
-        val p = request.payerId
-        val q = request.payeeId
-        val index = debts.indexOfFirst { it.debtorId == p && it.creditorId == q }
-        if (received) {
-            var note = ""
-            if (index >= 0) {
-                val left = debts[index].amount - request.amount
-                if (left <= 0) {
-                    debts.removeAt(index)
-                    note = " · 다 갚음"
-                } else {
-                    // 일부만 갚아도 연체 일수는 처음 날짜부터 그대로 센다
-                    debts[index] = debts[index].copy(amount = left, disputed = false)
-                    note = " · ${won(left)}원 남음"
-                }
-            }
-            events.add(0, LedgerEvent(today, "${owesPhrase(name(p), name(q))} ${won(request.amount)}원 정산 확인$note", p, q))
+    /**
+     * 받는 사람이 "받았어요"를 한 번 누른다(앱은 돈을 옮기지 않고, 따로 받은 금액만 적는다).
+     * 일부만 받으면 남은 돈이 미수금으로 남고, 연체 일수는 처음 날짜부터 그대로 센다.
+     */
+    fun receivePayment(debt: Debt, amount: Int) {
+        val index = debts.indexOfFirst { it.debtorId == debt.debtorId && it.creditorId == debt.creditorId }
+        if (index < 0 || amount <= 0) return
+        val left = debts[index].amount - amount
+        val note = if (left <= 0) {
+            debts.removeAt(index)
+            " · 다 갚음"
         } else {
-            if (index >= 0) debts[index] = debts[index].copy(disputed = true)
-            events.add(0, LedgerEvent(today, "${name(q)}: \"${won(request.amount)}원 못 받았어요\" · 다시 확인", p, q))
+            debts[index] = debts[index].copy(amount = left)
+            " · ${won(left)}원 남음"
         }
+        val p = debt.debtorId
+        val q = debt.creditorId
+        events.add(0, LedgerEvent(today, "${owesPhrase(name(p), name(q))} ${won(minOf(amount, debt.amount))}원 갚음$note", p, q))
         changed()
     }
 
     /** 생일·기념일 빚 탕감. 장부에 생색 기록이 남는다. */
     fun forgive(debt: Debt) {
         debts.remove(debt)
-        requests.removeAll { it.payerId == debt.debtorId && it.payeeId == debt.creditorId }
         events.add(
             0,
             LedgerEvent(
@@ -711,11 +730,10 @@ class FaxiStore(
                 driverId = "dad",
                 debts = listOf(
                     Debt("mom", "dad", 3_120, since = d3),
-                    Debt("grandma", "mom", 9_300, since = d3, disputed = true),
+                    Debt("grandma", "mom", 9_300, since = d3),
                 ),
                 events = listOf(
-                    LedgerEvent(today.minusDays(2), "엄마: \"9,300원 못 받았어요\" · 다시 확인", "grandma", "mom"),
-                    LedgerEvent(d3, "엄마가 아빠에게 5,000원 정산 확인 · 3,120원 남음", "mom", "dad"),
+                                        LedgerEvent(d3, "엄마가 아빠에게 5,000원 갚음 · 3,120원 남음", "mom", "dad"),
                     LedgerEvent(today.minusDays(7), "엄마가 아빠 빚 18,370원 탕감 · 생일 기념", "dad", "mom"),
                 ),
                 receipts = receipts,

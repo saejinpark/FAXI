@@ -77,7 +77,7 @@ enum class PhoneTab(val label: String, val icon: @Composable (Color, Dp) -> Unit
  * - 탑승: 내 코드(손님 탑승·기사 로그인)와 기사님께 한마디. 차에 타서 여는 화면.
  * - 영수증: 영수증 QR 찍기, 방금 찍은 영수증의 기사 후기, 내 영수증 목록.
  * - 정산: 마지막 영수증 기준 받을 돈·갚을 돈.
- * - 설정: 내 정보, 후기 묻기, 차와 연결, 등록 해제.
+ * - 설정: 내 정보, 차와 연결, 등록 해제.
  */
 @Composable
 internal fun PhoneMain(
@@ -247,15 +247,11 @@ private fun BalanceTab(store: PhoneStore) {
             SectionTitle("사람별")
             if (latest.balances.isEmpty()) Text("주고받을 돈이 없어요.", style = Faxi.type.body, color = c.ink)
             latest.balances.forEach { b ->
-                // "다시 확인" 꼬리표가 어느 줄 것인지 헷갈리지 않게 그 줄과 한 묶음으로 붙인다
-                Column(verticalArrangement = Arrangement.spacedBy(FaxiDimens.space1)) {
-                    MoneyRow(if (b.owedToMe) "${b.other}에게 받을 돈" else "${b.other}에게 갚을 돈", b.amount)
-                    if (b.disputed) StatusTag("다시 확인", Tone.Neutral)
-                }
+                MoneyRow(if (b.owedToMe) "${b.other}에게 받을 돈" else "${b.other}에게 갚을 돈", b.amount)
             }
         }
         Text(
-            "${when_(latest.endedAt)} 영수증을 찍은 때 기준이에요. 보냈다고 알리거나 확인하는 건 차 화면 장부에서 해요.",
+            "${when_(latest.endedAt)} 영수증을 찍은 때 기준이에요. 받은 돈은 받는 사람이 차 화면 장부에 적어요.",
             style = Faxi.type.caption, color = c.inkMuted,
         )
     }
@@ -269,7 +265,7 @@ private fun Total(label: String, amount: Int, modifier: Modifier) {
     }
 }
 
-/** 설정: 내 정보, 후기 묻기, 차와 연결(근처 기기 권한), 등록 해제(한 번 더 묻는다), 버전 */
+/** 설정: 내 정보, 차와 연결(근처 기기 권한), 등록 해제(한 번 더 묻는다), 버전 */
 @Composable
 private fun SettingsTab(me: FaxiInvite, store: PhoneStore) {
     val c = Faxi.colors
@@ -283,17 +279,6 @@ private fun SettingsTab(me: FaxiInvite, store: PhoneStore) {
                 Column {
                     Text(me.name, style = t.headline, color = c.ink)
                     Text(if (me.familyId == DemoFamily.FAMILY_ID) "시연 가족으로 등록됨" else "가족 차에 등록됨", style = t.caption, color = c.inkMuted)
-                }
-            }
-        }
-        FaxiCard {
-            SectionTitle("기사 후기")
-            Text("영수증을 찍으면 기사님 후기를 물어봐요. 후기는 다음 운행 때 차가 기사님께 읽어 줘요.", style = t.body, color = c.inkMuted)
-            Row(horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space3)) {
-                listOf(true to "묻기", false to "묻지 않기").forEach { (value, label) ->
-                    SelectTile(selected = store.askReview == value, onClick = { store.updateAskReview(value) }, modifier = Modifier.weight(1f)) {
-                        Text(label, style = t.label, color = c.ink)
-                    }
                 }
             }
         }
