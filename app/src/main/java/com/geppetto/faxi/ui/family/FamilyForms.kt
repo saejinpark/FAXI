@@ -37,7 +37,8 @@ private enum class Driving(val label: String, val grade: Grade) {
 }
 
 /**
- * 첫 실행: 이 집의 가장을 첫 가족으로 등록하며 택시를 연다. 가족이 아무도 없을 때만 뜬다.
+ * 첫 실행: 이 집의 가장을 첫 기사로 등록하며 택시를 연다. 가족이 아무도 없을 때만 뜬다.
+ * 가장은 이 차를 운전하는 사람이라 운전 여부는 묻지 않는다(정식 기사).
  * 심사·시연용으로 시연 가족(아빠·엄마·지우·할머니)을 불러올 수도 있다.
  */
 @Composable
@@ -58,7 +59,8 @@ fun FamilySetupScreen(store: FaxiStore) {
                     title = "가장의 이름",
                     suggestions = listOf("아빠", "엄마"),
                     action = "택시 개업하기",
-                ) { name, grade -> store.startFamily(name, grade) }
+                    askDriving = false,
+                ) { name, _ -> store.startFamily(name) }
             },
             { m ->
                 FaxiCard(m) {
@@ -91,13 +93,14 @@ fun AddMemberScreen(store: FaxiStore, onBack: () -> Unit, onAdded: (String) -> U
     }
 }
 
-/** 이름(빠른 고르기 칸 + 직접 쓰기)과 운전 여부. 이름이 비어 있으면 주 버튼이 꺼져 있다. */
+/** 이름(빠른 고르기 칸 + 직접 쓰기)과 (askDriving이면) 운전 여부. 이름이 비어 있으면 주 버튼이 꺼져 있다. */
 @Composable
 private fun MemberForm(
     modifier: Modifier,
     title: String,
     suggestions: List<String>,
     action: String,
+    askDriving: Boolean = true,
     onSubmit: (name: String, grade: Grade) -> Unit,
 ) {
     val c = Faxi.colors
@@ -124,11 +127,28 @@ private fun MemberForm(
                 focusedBorderColor = c.accent, unfocusedBorderColor = c.lineStrong, cursorColor = c.accentInk,
             ),
         )
+        if (askDriving) DrivingChoice(driving) { driving = it }
+        Spacer(Modifier.weight(1f))
+        FaxiPrimaryButton(
+            action,
+            enabled = name.isNotBlank(),
+            onClick = { onSubmit(name.trim(), driving.grade) },
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+/** 운전 여부 셋 중 하나 + 고른 것의 뜻 한 줄 */
+@Composable
+private fun DrivingChoice(driving: Driving, onPick: (Driving) -> Unit) {
+    val c = Faxi.colors
+    val t = Faxi.type
+    Column(verticalArrangement = Arrangement.spacedBy(FaxiDimens.space4)) {
         SectionTitle("운전")
         Column(verticalArrangement = Arrangement.spacedBy(FaxiDimens.targetGap)) {
             Row(horizontalArrangement = Arrangement.spacedBy(FaxiDimens.targetGap)) {
                 Driving.entries.forEach { d ->
-                    SelectTile(selected = driving == d, onClick = { driving = d }, modifier = Modifier.weight(1f)) {
+                    SelectTile(selected = driving == d, onClick = { onPick(d) }, modifier = Modifier.weight(1f)) {
                         Text(d.label, style = t.label, color = c.ink)
                     }
                 }
@@ -142,13 +162,6 @@ private fun MemberForm(
                 style = t.body, color = c.inkMuted,
             )
         }
-        Spacer(Modifier.weight(1f))
-        FaxiPrimaryButton(
-            action,
-            enabled = name.isNotBlank(),
-            onClick = { onSubmit(name.trim(), driving.grade) },
-            modifier = Modifier.fillMaxWidth(),
-        )
     }
 }
 

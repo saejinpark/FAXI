@@ -30,12 +30,13 @@ class FamilySetupTest {
         val s = empty()
         var reopened = 0
         s.onFamilyChanged = { reopened++ }
-        val head = s.startFamily(" 아빠 ", Grade.Full)
+        val head = s.startFamily(" 아빠 ")
         assertFalse(s.needsSetup)
         assertEquals(listOf(head), s.members.toList())
         assertEquals("아빠", head.name)
         assertEquals("아빠 기사", head.cardTitle)
         assertEquals(head.id, s.driverId)
+        assertTrue(head.canDrive) // 가장은 운전하는 사람
         assertFalse(s.driverSignedIn) // 폰을 연결하고 자기 코드로 로그인해야 한다
         assertTrue(head.secret.isNotEmpty())
         assertEquals(1, reopened)
@@ -44,7 +45,7 @@ class FamilySetupTest {
     @Test
     fun 가족은_한_사람씩_몇_명이든_더한다() {
         val s = empty()
-        s.startFamily("엄마", Grade.Full)
+        s.startFamily("엄마")
         val kids = (1..12).map { s.addMember("$it 째", Grade.Learner) }
         assertEquals(13, s.members.size)
         assertEquals(13, s.members.map { it.id }.toSet().size)

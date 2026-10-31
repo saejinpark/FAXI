@@ -59,7 +59,7 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
   - 안내 음성: 탑승 인사, 하차 요금 안내 켜기/끄기.
   - 독촉·후기 낭독은 가족에 따라 공격적으로 들릴 수 있어서 둔 설정이다. "들어 보기"로 미리 듣는다. 테스트 `app SettingsTest`.
 - 가족 등록: 호출명(PAXI·MAXI 같은 이름)은 없다. 사람은 부르는 이름(엄마, 아빠, 첫째, 지우…)과 등급만 가진다.
-  - 첫 실행(`store.needsSetup`, 가족이 아무도 없음) → `ui/family/FamilyForms.kt` `FamilySetupScreen` "우리 집 택시를 엽니다": 가장을 첫 기사로 등록(`store.startFamily`, 새 가족 ID) 또는 "시연 가족으로 둘러보기"(`store.loadDemo`). 시연 준비·촬영 스크립트는 `am start ... --ez demo true`로 시연 가족을 바로 불러온다.
+  - 첫 실행(`store.needsSetup`, 가족이 아무도 없음) → `ui/family/FamilyForms.kt` `FamilySetupScreen` "우리 집 택시를 엽니다": 가장을 첫 기사로 등록(이름만, 늘 정식 기사. `store.startFamily`, 새 가족 ID) 또는 "시연 가족으로 둘러보기"(`store.loadDemo`). 시연 준비·촬영 스크립트는 `am start ... --ez demo true`로 시연 가족을 바로 불러온다.
   - 가족 추가: 기사 탭 오른쪽 위 "가족 추가" → `AddMemberScreen`(이름 고르기 칸/직접 쓰기 + 운전해요·아직 면허 없어요·이제 운전 안 해요) → `store.addMember` → 그 사람 상세(폰 연결 QR). 몇 명이든 더한다(자식이 12명이어도).
   - 가족 색은 `Member.color`(등록 순서, 네 칸을 돌려 씀), 초대 링크 `k=`로 폰에 같이 간다. 별명이 없으면 자격증 제목은 "엄마 기사"(`cardTitle`).
   - 처음 등록한 가장은 폰이 아직 없으니, 기사 로그인 화면에서 사람을 고르면 아래에 그 사람 "폰 연결"(초대 QR)이 같이 뜬다.

@@ -136,11 +136,11 @@ class FaxiStore(
     var onFamilyChanged: (() -> Unit)? = null
 
     /**
-     * 첫 실행: 이 집의 가장을 첫 가족으로 등록하고 새 가족 ID를 만든다.
-     * 가장은 아직 폰을 연결하지 않았으니 운전석 로그인은 폰 연결 뒤에 한다.
+     * 첫 실행: 이 집의 가장을 첫 기사(정식 기사)로 등록하고 새 가족 ID를 만든다. 가장은 이 차를 운전하는 사람이다.
+     * 아직 폰을 연결하지 않았으니 운전석 로그인은 폰 연결 뒤에 한다.
      */
-    fun startFamily(headName: String, grade: Grade): Member {
-        val head = newMember(headName, grade, color = 0)
+    fun startFamily(headName: String): Member {
+        val head = newMember(headName, Grade.Full, color = 0)
         load(emptySnapshot(newFamilyId()).copy(members = listOf(head), driverId = head.id, driverSignedIn = false))
         return head
     }
