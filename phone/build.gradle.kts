@@ -16,7 +16,13 @@ android {
         minSdk = 28
         targetSdk = 37
         versionCode = 1
-        versionName = "0.1"
+        versionName = "1.0"
+    }
+    buildTypes {
+        release {
+            // 심사용 release 빌드는 디버그 키로 서명한다(스토어 배포 전까지). 서명 없는 release APK는 깔리지 않는다.
+            signingConfig = signingConfigs.getByName("debug")
+        }
     }
 
     compileOptions {

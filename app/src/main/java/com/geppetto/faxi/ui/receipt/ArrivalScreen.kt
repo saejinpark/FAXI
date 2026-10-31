@@ -6,6 +6,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.geppetto.faxi.auth.DemoFamily
 import com.geppetto.faxi.data.FaxiStore
 import com.geppetto.faxi.data.PassengerTags
 import com.geppetto.faxi.data.Receipt
@@ -27,10 +28,11 @@ import com.geppetto.faxi.ui.theme.Faxi
 fun ArrivalScreen(store: FaxiStore, receipt: Receipt, onClose: () -> Unit) {
     val rated = store.passengerReviews[receipt.id]
     val passenger = store.name(receipt.passengerId)
-    // 디버그 빌드에서만: 에뮬레이터 카메라로 차 화면을 찍을 수 없어서, 폰 앱 시험용으로 영수증 링크를 남긴다(비밀 없음)
+    // 디버그 빌드이거나 시연 가족일 때만: 에뮬레이터 카메라로 차 화면을 찍을 수 없어서, 폰 앱 시험용으로 영수증 링크를 남긴다(비밀 없음).
+    // 심사용 release 빌드도 시연 가족으로는 에뮬레이터 두 대로 영수증을 옮겨 볼 수 있다. 실제 가족 장부는 로그에 남기지 않는다.
     val context = LocalContext.current
     LaunchedEffect(receipt.id) {
-        if (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0) {
+        if (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0 || store.familyId == DemoFamily.FAMILY_ID) {
             Log.d("FaxiReceipt", store.ticketFor(receipt).toLink())
         }
     }
