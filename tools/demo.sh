@@ -43,9 +43,9 @@ fi
 # Virtual Console(차량 값 바꾸기)과 손님 한마디(폰 → 차)
 "$ADB" -s "$CAR" forward tcp:8088 tcp:8088 >/dev/null
 "$ADB" -s "$CAR" forward tcp:47800 tcp:47800 >/dev/null
-"$ADB" -s "$CAR" shell am start --user "$CAR_USER" -n com.geppetto.faxi/.MainActivity >/dev/null
+"$ADB" -s "$CAR" shell am start --user "$CAR_USER" -n com.geppetto.faxi/.MainActivity --ez demo true >/dev/null
 
-# 폰 앱(엄마로 등록돼 있으면 그대로 둔다. 처음이면 앱에서 "엄마 · MAXI로 등록")
+# 폰 앱(엄마로 등록돼 있으면 그대로 둔다. 처음이면 앱에서 "엄마 폰으로 등록")
 if [ -n "$PHONE" ]; then
   "$ADB" -s "$PHONE" install -r phone/build/outputs/apk/debug/phone-debug.apk >/dev/null
   "$ADB" -s "$PHONE" shell pm grant com.geppetto.faxi.phone android.permission.CAMERA || true
@@ -56,4 +56,4 @@ fi
 echo
 echo "준비됐어요."
 echo "- 차량 값: 브라우저에서 http://127.0.0.1:8088/ (Gear Selection, ACCEL/BRAKE, 공조·시트·와이퍼·창문)"
-echo "- 폰 앱이 등록 화면이면 \"엄마 · MAXI로 등록\"을 누르세요."
+echo "- 폰 앱이 등록 화면이면 \"엄마 폰으로 등록\"을 누르세요."

@@ -32,6 +32,7 @@ import com.geppetto.faxi.data.FaxiStore
 import com.geppetto.faxi.data.Gear
 import com.geppetto.faxi.data.won
 import com.geppetto.faxi.ui.boarding.BoardingScreen
+import com.geppetto.faxi.ui.family.FamilySetupScreen
 import com.geppetto.faxi.ui.components.BadgeIcon
 import com.geppetto.faxi.ui.components.GearIcon
 import com.geppetto.faxi.ui.settings.SettingsScreen
@@ -94,6 +95,11 @@ fun AppShell(store: FaxiStore, speak: (String) -> Unit, demo: Boolean) {
         // 주차하면 그대로 다시 열린다.
         if (store.lockedForDriving) {
             ParkFirstScreen()
+            return@Box
+        }
+        // 처음 켰을 때: 가장 등록(또는 시연 가족 둘러보기)부터
+        if (store.needsSetup) {
+            FamilySetupScreen(store)
             return@Box
         }
         Row(Modifier.fillMaxSize()) {

@@ -64,11 +64,11 @@ fun DriverLicenseCard(
             .background(c.surface)
             .border(FaxiDimens.borderWidth, c.lineStrong, shape)
             .semantics(mergeDescendants = true) {
-                contentDescription = "FAXI 기사 자격증, ${member.name}, ${member.callsign}, ${member.grade.label}, ${member.nickname}"
+                contentDescription = "FAXI 기사 자격증, ${member.name}, ${member.grade.label}, ${member.cardTitle}"
             },
     ) {
         // 왼쪽 띠: 그 사람의 가족 색(아빠 남색, 엄마 산호, 아이 민트, 조부모 라벤더)
-        Box(Modifier.width(if (large) 20.dp else 14.dp).fillMaxHeight().background(c.family(member.callsign)))
+        Box(Modifier.width(if (large) 20.dp else 14.dp).fillMaxHeight().background(c.family(member.color)))
         Column(
             Modifier.weight(1f).padding(FaxiDimens.space6),
             verticalArrangement = Arrangement.spacedBy(FaxiDimens.space4),
@@ -79,7 +79,6 @@ fun DriverLicenseCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text("FAXI 기사 자격증", style = if (large) t.bodyStrong else t.label, color = c.accentInk)
-                Text(member.callsign, style = if (large) t.title else t.label, color = c.ink)
             }
             Row(
                 horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space6),
@@ -88,7 +87,7 @@ fun DriverLicenseCard(
                 PhotoFrame(member, if (large) 200.dp else 120.dp)
                 Column(verticalArrangement = Arrangement.spacedBy(if (large) FaxiDimens.space3 else FaxiDimens.space2)) {
                     StatusTag(member.grade.label, gradeTone(member.grade))
-                    Text(member.nickname, style = if (large) t.headline else t.title, color = c.ink)
+                    Text(member.cardTitle, style = if (large) t.headline else t.title, color = c.ink)
                     Field("성명", member.name, large)
                     Field("등록", member.registered.format(DateFormat), large)
                     when (member.grade) {
@@ -98,8 +97,9 @@ fun DriverLicenseCard(
                             large,
                         )
                         Grade.Learner -> {
+                            // 면허 딸 날을 모르면(가족 추가 때 묻지 않는다) D-day 대신 "손님으로만 타요"
                             val dday = member.licenseEligible?.let { ChronoUnit.DAYS.between(today, it).toInt() }
-                            Field("면허까지", dday?.let { "D-${won(it)}" } ?: "-", large)
+                            if (dday != null) Field("면허까지", "D-${won(dday)}", large) else Field("운행", "손님으로만 타요", large)
                         }
                         Grade.Honorary -> Field("태운 거리", "${won(member.drivenKm)}km", large)
                     }
@@ -143,7 +143,7 @@ private fun PhotoFrame(member: Member, width: Dp) {
             val fontSize = with(LocalDensity.current) { (width * 0.6f).toSp() }
             Text(emoji, fontSize = fontSize, lineHeight = fontSize)
         } else {
-            Text(member.callsign.take(1), style = Faxi.type.display, color = c.ink)
+            Text(member.name.take(1), style = Faxi.type.display, color = c.ink)
         }
     }
 }

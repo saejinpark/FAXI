@@ -63,7 +63,7 @@ fun MemberDetailScreen(
     val owedToMe = store.debts.filter { it.creditorId == memberId }
     val iOwe = store.debts.filter { it.debtorId == memberId }
 
-    FaxiPage(title = "${member.name} · ${member.callsign}", onBack = onBack) {
+    FaxiPage(title = member.name, onBack = onBack) {
         row(
             { m -> DriverLicenseCard(member, store.driverRating(memberId), m, today = today) },
             { m ->
@@ -160,7 +160,7 @@ private fun ReviewItem(store: FaxiStore, r: Receipt, review: Review) {
  * 화면을 떠나면 다시 숨는다. 주차 상태의 차 안에서 그 사람이 직접 찍는 것을 전제로 한다.
  */
 @Composable
-private fun PhoneLinkCard(store: FaxiStore, memberId: String, modifier: Modifier) {
+internal fun PhoneLinkCard(store: FaxiStore, memberId: String, modifier: Modifier) {
     val c = Faxi.colors
     val t = Faxi.type
     val member = store.member(memberId)

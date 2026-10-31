@@ -28,16 +28,15 @@ enum class Gear { Parked, Driving, Unknown }
 data class Member(
     val id: String,
     val name: String,
-    /** 이름 대신 카드·영수증에 찍히는 호출명: PAXI, MAXI, KIXI, NAXI (가족이 바꿀 수 있다) */
-    val callsign: String,
-    val nickname: String,
+    /** 자격증에 크게 찍히는 별명. 비어 있으면 "엄마 기사"처럼 이름으로 쓴다. */
+    val nickname: String = "",
     val grade: Grade,
     val registered: LocalDate,
     /** 기사로 운행한 누적 거리. 명예 기사는 지난 운전 기록. */
-    val drivenKm: Int,
+    val drivenKm: Int = 0,
     /** 예비 기사만: 면허를 딸 수 있게 되는 날 */
     val licenseEligible: LocalDate? = null,
-    /** 사진 대신 쓰는 캐릭터(Avatars의 key). null이면 호출명 첫 글자를 보여 준다. */
+    /** 사진 대신 쓰는 캐릭터(Avatars의 key). null이면 이름 첫 글자를 보여 준다. */
     val avatar: String? = null,
     /** 자격증 사진 파일 이름(차 내부 저장소). 폰 → 차 사진 전송 통로가 정해지면 쓴다. */
     val photoFile: String? = null,
@@ -46,8 +45,12 @@ data class Member(
      * 차 밖으로는 그 QR 말고 나가지 않는다.
      */
     val secret: String = "",
+    /** 가족 색 칸(0~3). 등록한 순서대로 정해서 자격증 띠·아바타 테두리에 쓴다. */
+    val color: Int = 0,
 ) {
     val canDrive: Boolean get() = grade == Grade.Full
+    /** 자격증 제목: 별명, 없으면 "엄마 기사" */
+    val cardTitle: String get() = nickname.ifBlank { "$name 기사" }
 }
 
 @Serializable

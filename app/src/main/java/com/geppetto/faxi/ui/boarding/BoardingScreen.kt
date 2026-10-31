@@ -42,6 +42,7 @@ import com.geppetto.faxi.ui.components.SectionTitle
 import com.geppetto.faxi.ui.components.SelectTile
 import com.geppetto.faxi.ui.components.ReceiptIcon
 import com.geppetto.faxi.ui.components.WarningIcon
+import com.geppetto.faxi.ui.roster.PhoneLinkCard
 import com.geppetto.faxi.ui.theme.Faxi
 import com.geppetto.faxi.ui.theme.FaxiDimens
 
@@ -77,7 +78,11 @@ private fun DriverSignIn(store: FaxiStore, speak: (String) -> Unit, onCancel: ((
                 FaxiCard(m) {
                     SectionTitle("1  누가 운전하나요?")
                     Text("한 번 로그인하면 차가 기억해요. 운전하는 사람이 바뀔 때만 다시 해요.", style = Faxi.type.body, color = Faxi.colors.inkMuted)
-                    store.members.filter { it.canDrive }.forEach { member ->
+                    val drivers = store.members.filter { it.canDrive }
+                    if (drivers.isEmpty()) {
+                        Text("운전하는 가족이 아직 없어요. 기사 탭에서 \"가족 추가\"로 등록해 주세요.", style = Faxi.type.body, color = Faxi.colors.ink)
+                    }
+                    drivers.forEach { member ->
                         MemberTile(member, selected = member.id == pickedId) { pickedId = member.id }
                     }
                 }
@@ -101,6 +106,8 @@ private fun DriverSignIn(store: FaxiStore, speak: (String) -> Unit, onCancel: ((
                 }
             },
         )
+        // 폰을 아직 연결하지 않았다면(처음 등록한 가장 등): 여기서 초대 QR을 찍으면 그 폰에 코드가 뜬다
+        picked?.let { p -> full { m -> PhoneLinkCard(store, p.id, m) } }
     }
 }
 
@@ -123,7 +130,7 @@ private fun PassengerBoarding(store: FaxiStore, speak: (String) -> Unit, onChang
                         Avatar(driver, FaxiDimens.targetMin, Faxi.type.title)
                         Column(Modifier.weight(1f)) {
                             Text("${driver.name} 택시", style = Faxi.type.title, color = Faxi.colors.ink)
-                            Text("${driver.callsign} · 운전석에 로그인돼 있어요", style = Faxi.type.caption, color = Faxi.colors.inkMuted)
+                            Text("운전석에 로그인돼 있어요", style = Faxi.type.caption, color = Faxi.colors.inkMuted)
                         }
                         FaxiSecondaryButton("기사 바꾸기", onClick = onChangeDriver)
                     }
@@ -228,7 +235,7 @@ private fun MemberTile(member: Member, selected: Boolean, onClick: () -> Unit) {
     SelectTile(selected = selected, onClick = onClick, modifier = Modifier.fillMaxWidth(), wide = true) {
         Avatar(member, FaxiDimens.iconLg, Faxi.type.bodyStrong)
         Column(Modifier.weight(1f)) {
-            Text("${member.name} · ${member.callsign}", style = Faxi.type.bodyStrong, color = Faxi.colors.ink)
+            Text(member.name, style = Faxi.type.bodyStrong, color = Faxi.colors.ink)
             Text(member.grade.label, style = Faxi.type.caption, color = Faxi.colors.inkMuted)
         }
     }

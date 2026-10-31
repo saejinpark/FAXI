@@ -58,6 +58,11 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
   - 후기 읽어 주기 `ReviewsAloud`: 모두 / 별 4개 이상만 / 읽지 않기. 건너뛴 낮은 후기는 읽은 것으로 둬서 나중에 몰아 읽지 않는다(기사 상세에는 남음). "읽지 않기"는 아무것도 읽음 처리하지 않는다.
   - 안내 음성: 탑승 인사, 하차 요금 안내 켜기/끄기.
   - 독촉·후기 낭독은 가족에 따라 공격적으로 들릴 수 있어서 둔 설정이다. "들어 보기"로 미리 듣는다. 테스트 `app SettingsTest`.
+- 가족 등록: 호출명(PAXI·MAXI 같은 이름)은 없다. 사람은 부르는 이름(엄마, 아빠, 첫째, 지우…)과 등급만 가진다.
+  - 첫 실행(`store.needsSetup`, 가족이 아무도 없음) → `ui/family/FamilyForms.kt` `FamilySetupScreen` "우리 집 택시를 엽니다": 가장을 첫 기사로 등록(`store.startFamily`, 새 가족 ID) 또는 "시연 가족으로 둘러보기"(`store.loadDemo`). 시연 준비·촬영 스크립트는 `am start ... --ez demo true`로 시연 가족을 바로 불러온다.
+  - 가족 추가: 기사 탭 오른쪽 위 "가족 추가" → `AddMemberScreen`(이름 고르기 칸/직접 쓰기 + 운전해요·아직 면허 없어요·이제 운전 안 해요) → `store.addMember` → 그 사람 상세(폰 연결 QR). 몇 명이든 더한다(자식이 12명이어도).
+  - 가족 색은 `Member.color`(등록 순서, 네 칸을 돌려 씀), 초대 링크 `k=`로 폰에 같이 간다. 별명이 없으면 자격증 제목은 "엄마 기사"(`cardTitle`).
+  - 처음 등록한 가장은 폰이 아직 없으니, 기사 로그인 화면에서 사람을 고르면 아래에 그 사람 "폰 연결"(초대 QR)이 같이 뜬다.
 - `ui/shell/AppShell.kt` 운행 중(`store.rideActive`)이면 운행 중 화면만, 운행 중이 아닌데 기어가 Driving이면 "주차하면 열려요"만, `store.arrival`이 있으면 도착 화면만, 그 외에는 왼쪽 사이드바 + 탭 화면. 기사가 확인할 정산 요청이 있으면 장부 탭에 "확인 N건". 탭은 `rememberSaveable`, 내비게이션 라이브러리 없음, 전환 즉시.
 - `ui/boarding/BoardingScreen.kt` 두 단계. (1) 기사 로그인(`DriverSignIn`): 운전할 사람을 고르고 그 사람 폰 코드 → `store.signInDriver`. 차가 기억한다(`driverSignedIn`, 장부와 같이 저장, 예전 장부는 로그인한 것으로 읽음). "기사 바꾸기"로 다시, 운행 중에는 못 바꾼다. (2) 손님 탑승(`PassengerBoarding`): 로그인한 "○○ 택시"에 탈 손님 → 손님 폰 코드 → 미터기. 코드는 둘 다 같은 `store.verifyCode`(그 사람 TOTP). 기사 코드는 보안보다 "운전석 로그인"이라는 자연스러움 때문이고, 미터기를 켜는 동의는 손님 코드다. 시연 데이터는 아빠가 로그인한 상태(심사위원이 폰 하나로도 바로 탈 수 있게). 기사가 로그인하면 그 기사가 아직 듣지 못한 가장 최근 후기(손님 폰에서 온 것)를 차가 읽어 준다(`store.takeUnreadReview` → `reviewLine`: "지난 손님 후기입니다. 엄마 손님, 별 세 개. 선곡 최악."). 한 후기는 한 번만(`reviewsReadAloud`, 저장됨). 손님을 고르면 밀린 돈 독촉(화면 + 음성), 기사가 그 손님에게 진 빚이 있으면 "먼저 퉁쳐요" 안내.
 - `ui/driving/DrivingScreen.kt` 다른 화면과 같은 `FaxiPage`에 카드를 내용 크기대로 쌓는다(화면을 채우려고 카드를 늘리지 않는다): 제목 줄 "운행 중" + 미터기 한 줄 / 자격증 | 손님(캐릭터, 출발 시각, 목적지, "아빠 택시 N번째 탑승이에요.") / 손님 한마디(한 줄, 높이 고정) / 요금이 붙는 옵션(넓으면 한 줄에 넷).
@@ -76,14 +81,14 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
   - 사진 대신 캐릭터(`Avatars`, 이모지). 폰 → 차 사진 전송 통로가 정해지면 `Member.photoFile`을 쓴다.
   - 평균 별점은 저장하지 않고 받은 후기로 계산한다(`store.driverRating`).
 - 빚 방향은 화살표 대신 말로 쓴다: `owesPhrase()` → "엄마가 아빠에게". 조사는 `data/Korean.kt`의 `ga()`.
-- `data/FaxiModels.kt` 가족·등급·영수증·빚·정산 요청 모델. `data/FaxiStore.kt` 화면이 보는 유일한 창구(처음 설치하면 시연 데이터로 시작). 상태는 `mutableStateOf`라 바뀌면 화면이 다시 그려진다. 하차 때 장부 반영도 여기서 한다:
+- `data/FaxiModels.kt` 가족·등급·영수증·빚·정산 요청 모델. `data/FaxiStore.kt` 화면이 보는 유일한 창구(처음 설치하면 빈 장부, 가장 등록부터). 상태는 `mutableStateOf`라 바뀌면 화면이 다시 그려진다. 하차 때 장부 반영도 여기서 한다:
   - 밀린 돈 이월(이자 없음, 영수증 "지난 미수금"에 며칠째인지만), 기사가 손님에게 진 빚과 자동 상계(영수증에 "상계" 줄), 예비 기사 손님은 청구 없이 평생 장부로.
   - 정산 확인·"다시 확인"(코드는 `disputed`)·탕감 기록. 두 사람 사이 빚은 한 줄만 둔다.
-- 저장: `FaxiApp`(Application)이 `FaxiStore`를 하나 들고 있어서 주간/야간 전환으로 Activity가 다시 만들어져도 장부가 남는다. 값이 바뀔 때마다 `onChanged` → `FaxiStorage`가 `filesDir/faxi-ledger.json`에 통째로 저장(AtomicFile, 백그라운드 스레드). 저장 파일이 없을 때만 시연 데이터로 시작한다.
+- 저장: `FaxiApp`(Application)이 `FaxiStore`를 하나 들고 있어서 주간/야간 전환으로 Activity가 다시 만들어져도 장부가 남는다. 값이 바뀔 때마다 `onChanged` → `FaxiStorage`가 `filesDir/faxi-ledger.json`에 통째로 저장(AtomicFile, 백그라운드 스레드). 저장 파일이 없으면 빈 장부로 시작하고 화면이 가장 등록을 띄운다.
   - 저장 형식은 `data/Snapshot.kt`의 `FaxiSnapshot`(kotlinx.serialization). 필드를 추가할 땐 기본값을 줘서 예전 파일도 읽히게 한다.
   - 운행 중 손님과 닫지 않은 도착 화면도 저장해서, 앱이 꺼졌다 켜져도 이어진다.
   - 빚은 `since`(시작한 날)를 저장하고 연체 일수는 `store.daysOf(debt)`로 오늘 기준 계산한다. 일수를 숫자로 저장하지 않는다.
-  - 시연 데이터를 다시 보고 싶으면 앱 데이터를 지운다: `adb shell pm clear com.geppetto.faxi`
+  - 처음 상태로: `adb shell pm clear --user 10 com.geppetto.faxi` 뒤 첫 화면에서 가장 등록 또는 시연 가족(`tools/demo.sh`는 시연 가족으로 바로 연다)
 - `core/.../fare/` 요금 엔진(`:core` 모듈). 영수증 줄 `FareLine`도 여기 있다.
   - `Tariff.kt` 요금표(기획서 값) + `VehicleSample`(시각, 누적 주행거리 m, 속도, 냉난방, 엉따, 와이퍼, 창문). 차량에서는 Vehicle SDK 값으로 채운다. 단위는 SDK 문서를 확인하고 맞춘다.
   - `FareMeter.kt` 탑승 순간 값으로 켜고 `update(sample)`로 쌓는다. `lines()`가 영수증 줄.
@@ -95,7 +100,7 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
 - `core/src/test/.../FareMeterTest.kt` 기획서 영수증 예시(15,250원)를 줄 단위로, 거리·대기·심야·우천·급정거·옵션·경유지 규칙을 검사한다. 요금표를 바꾸면 꼭 돌린다.
 - `core/.../auth/` 탑승 인증.
   - `Totp` RFC 6238(HMAC-SHA1, 30초, 4자리), 앞뒤 30초까지 통과. `Base32`(엄격하게 디코드). 테스트는 RFC 예시 값으로 검증한다.
-  - `FaxiInvite` 초대 링크 `faxi://join?f=&m=&n=&c=&s=`(차 화면 QR에 담을 내용). 비밀 열쇠가 차 → 폰으로 가는 유일한 길.
+  - `FaxiInvite` 초대 링크 `faxi://join?f=&m=&n=&k=&s=`(차 화면 QR에 담을 내용, k = 가족 색 칸. 예전 링크의 c=호출명은 버린다). 비밀 열쇠가 차 → 폰으로 가는 유일한 길.
   - `DemoFamily` 시연 가족 고정 열쇠. 차 앱 시연 데이터와 폰 앱 "시연 가족으로 등록"이 같은 열쇠를 써서 QR 없이도 인증을 시연한다. 누구나 아는 열쇠라 실제 가족에게는 쓰지 않는다.
 - 차 앱 인증: `Member.secret`(Base32)을 장부에 저장, `store.verifyBoardingCode(손님, 코드)`. 열쇠가 없는 예전 장부는 불러올 때 채운다.
 - `core/.../qr/` QR(zxing, 인터넷·구글 서비스 없이).
@@ -137,13 +142,13 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
   - 색: FAXI 디자인 시스템(https://claude.ai/artifact/13q7cCn7wsigv23nJYGwV2)의 tokens.json과 `ui/theme/Color.kt`는 같은 값이다. 한쪽을 고치면 다른 쪽도 고친다. 폰 앱도 같은 `FaxiTheme`을 쓰므로 값은 한 곳뿐이다.
   - 무드는 산호 `accent`(버튼 면) + 밤 남색 `surface`. `accent`는 면 색이라 글자로 쓰지 않는다. 글자 강조는 `accentInk`. 글자 색은 bg·surface·surfaceRaised 위에서 모두 4.5:1 이상.
   - `danger`는 산호와 밝기가 비슷하다. 늘 단어나 경고 아이콘과 함께.
-  - 가족 색 `familyPaxi/Maxi/Kixi/Naxi`(`Faxi.colors.family(호출명)`): 그 사람을 가리키는 표시(자격증 왼쪽 띠, 아바타 테두리)에만. 버튼·배경에는 쓰지 않는다.
+  - 가족 색 네 칸 `family1~4`(`Faxi.colors.family(member.color)`, 등록 순서대로 돌려 쓴다): 그 사람을 가리키는 표시(자격증 왼쪽 띠, 아바타 테두리)에만. 버튼·배경에는 쓰지 않는다.
   - QR은 `qrPaper` 위 `qrInk`(테마와 상관없이 밝게).
   - 금액은 `Faxi.type.amount` / `amountLarge`(숫자 폭 고정 tnum).
   - 모든 글자 스타일은 `localeList = ko-KR` + 어절 단위 줄바꿈(`WordBreak.Phrase`). 기기 언어가 영어인 에뮬레이터에서도 "차 화/면"처럼 글자 중간에서 끊지 않는다. 새 스타일을 만들 때도 `Faxi.type`에서 copy한다.
 - `ui/components/Layout.kt` `FaxiPage`(제목 줄 + 본문). 본문은 `row(a, b)` / `full(a)`로 줄 단위로 쌓는다. 칸(Cell)은 받은 Modifier를 카드 맨 바깥에 붙이고, 카드 안 버튼 앞에는 `Spacer(Modifier.weight(1f))`를 둬서 짝꿍 카드와 버튼 줄을 맞춘다.
 - `ui/components/Buttons.kt` `FaxiPrimaryButton`(화면당 하나), `FaxiSecondaryButton`, `FaxiIconButton`, `SelectTile`(고르면 accent 굵은 테두리 + 체크).
-- `ui/components/Cards.kt` `FaxiCard`, `SectionTitle`, `StatusTag`(단어로 상태 표시), `Avatar`/`AvatarCircle`(캐릭터 또는 호출명 첫 글자), `MoneyRow`, `BigWon`.
+- `ui/components/Cards.kt` `FaxiCard`, `SectionTitle`, `StatusTag`(단어로 상태 표시), `Avatar`/`AvatarCircle`(캐릭터 또는 이름 첫 글자), `MoneyRow`, `BigWon`.
 - `ui/components/LicenseCard.kt` `DriverLicenseCard`: 신분증 모양(맨 위 "FAXI 기사 자격증", 왼쪽 가족 색 띠, 3:4 사진 칸, 성명·등록·운행 칸). 위에 가득 찬 띠나 아래 통계 줄을 두면 티켓처럼 보이니 피한다. `large`(운행 중 화면)는 칸 글자 24sp 이상.
 - `ui/components/Icons.kt` 아이콘 라이브러리 없이 Canvas로 28×28 격자, 선 3단위. 모두 정지 그림.
 - `ui/components/Previews.kt` `@FaxiPreviews`(차량 1920dp + 폴드 900dp)와 `PreviewFrame`. 화면 파일마다 아래에 둔다.

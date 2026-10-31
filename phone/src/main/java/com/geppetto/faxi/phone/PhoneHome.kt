@@ -279,10 +279,9 @@ private fun SettingsTab(me: FaxiInvite, store: PhoneStore) {
     PhonePage("설정") {
         FaxiCard {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space4)) {
-                AvatarCircle(null, me.callsign.take(1), FaxiDimens.targetMin, t.title, c.family(me.callsign))
+                AvatarCircle(null, me.name.take(1), FaxiDimens.targetMin, t.title, c.family(me.color))
                 Column {
                     Text(me.name, style = t.headline, color = c.ink)
-                    Text(me.callsign, style = t.bodyStrong, color = c.family(me.callsign))
                     Text(if (me.familyId == DemoFamily.FAMILY_ID) "시연 가족으로 등록됨" else "가족 차에 등록됨", style = t.caption, color = c.inkMuted)
                 }
             }

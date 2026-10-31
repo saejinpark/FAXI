@@ -140,7 +140,7 @@ private fun PassengerCell(store: FaxiStore, modifier: Modifier) {
         ) {
             Avatar(p, 136.dp)
             Column(verticalArrangement = Arrangement.spacedBy(FaxiDimens.space2)) {
-                Text("${p.name} · ${p.callsign}", style = t.headline, color = c.ink)
+                Text(p.name, style = t.headline, color = c.ink)
                 store.rideStartedAt?.let { Text("${it.format(StartFormat)} 출발", style = t.title, color = c.inkMuted) }
                 // 내비 목적지와 경유지(금액은 운행 중에 보이지 않는다). 바뀔 때만 바뀌는 정지 표시.
                 store.navi.destination?.let { Text("$it 가는 중", style = t.title, color = c.ink, maxLines = 1) }

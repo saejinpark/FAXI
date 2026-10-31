@@ -37,7 +37,8 @@ class FaxiStore(
     snapshot: FaxiSnapshot,
     private val clock: () -> LocalDateTime = LocalDateTime::now,
 ) {
-    val familyId: String = snapshot.familyId
+    var familyId: String = snapshot.familyId
+        private set
     val members = mutableStateListOf<Member>().apply { addAll(snapshot.members.map(::withSecret)) }
 
     var driverId by mutableStateOf(snapshot.driverId)
@@ -128,6 +129,67 @@ class FaxiStore(
 
     private var nextId = snapshot.nextId
 
+    /** 처음 켰을 때(가족이 아무도 없을 때). 화면은 가장 등록부터 시작한다. */
+    val needsSetup: Boolean get() = members.isEmpty()
+
+    /** 가족이 통째로 바뀌었을 때(가장 등록, 시연 가족 불러오기). FaxiApp이 손님 한마디 창구(NSD 이름 = 가족 ID)를 다시 연다. */
+    var onFamilyChanged: (() -> Unit)? = null
+
+    /**
+     * 첫 실행: 이 집의 가장을 첫 가족으로 등록하고 새 가족 ID를 만든다.
+     * 가장은 아직 폰을 연결하지 않았으니 운전석 로그인은 폰 연결 뒤에 한다.
+     */
+    fun startFamily(headName: String, grade: Grade): Member {
+        val head = newMember(headName, grade, color = 0)
+        load(emptySnapshot(newFamilyId()).copy(members = listOf(head), driverId = head.id, driverSignedIn = false))
+        return head
+    }
+
+    /** 가족 한 사람 더하기. 색은 등록 순서대로 네 칸을 돌려 쓴다. 폰 연결(초대 QR)은 그 사람 상세에서 한다. */
+    fun addMember(name: String, grade: Grade): Member {
+        val m = newMember(name, grade, color = members.size)
+        members += m
+        changed()
+        return m
+    }
+
+    /** 첫 화면의 "시연 가족으로 둘러보기": 아빠·엄마·지우·할머니와 지난 운행·빚이 들어 있는 장부 */
+    fun loadDemo() = load(sampleSnapshot(today))
+
+    private fun newMember(name: String, grade: Grade, color: Int) = Member(
+        id = "m${nextId++}", name = name.trim(), grade = grade, registered = today,
+        secret = Base32.encode(Totp.newSecret()), color = color,
+    )
+
+    /** 장부 전체를 바꿔 끼운다(가족 만들기·시연 가족). 운행 중 상태와 요금 엔진도 비운다. */
+    private fun load(next: FaxiSnapshot) {
+        familyId = next.familyId
+        members.clear(); members.addAll(next.members.map(::withSecret))
+        driverId = next.driverId
+        driverSignedIn = next.driverSignedIn
+        passengerId = next.ridePassengerId
+        rideStartedAt = next.rideStartedAt
+        rideFrom = next.rideFrom
+        rideWaypoints = next.rideWaypoints
+        liveMeter = null
+        resetRideDistance()
+        debts.clear(); debts.addAll(next.debts)
+        events.clear(); events.addAll(next.events)
+        receipts.clear(); receipts.addAll(next.receipts)
+        lifetime.clear(); lifetime.addAll(next.lifetime)
+        requests.clear(); requests.addAll(next.requests)
+        reviews.clear(); reviews.putAll(next.reviews)
+        passengerReviews.clear(); passengerReviews.putAll(next.passengerReviews)
+        reviewsReadAloud.clear(); reviewsReadAloud.addAll(next.reviewsReadAloud)
+        passengerMessage = null
+        lastMessageAt.clear()
+        arrival = next.arrivalReceiptId?.let { id -> next.receipts.firstOrNull { it.id == id } }
+        nextId = maxOf(nextId, next.nextId)
+        settings = next.settings
+        changed()
+        onFamilyChanged?.invoke()
+    }
+
     /** 가족이 고른 설정(음성, 독촉 말투, 후기 낭독) */
     var settings by mutableStateOf(snapshot.settings)
         private set
@@ -214,7 +276,7 @@ class FaxiStore(
     /** 이 사람 폰에 건넬 초대(차 화면 QR). 비밀 열쇠가 들어 있으니 그 사람 앞에서만 띄운다. */
     fun inviteFor(memberId: String): FaxiInvite {
         val m = member(memberId)
-        return FaxiInvite(familyId, m.id, m.name, m.callsign, m.secret)
+        return FaxiInvite(familyId, m.id, m.name, m.color, m.secret)
     }
 
     /** 영수증 QR에 담을 내용: 영수증 + 지금 이 손님의 받을 돈·갚을 돈 */
@@ -230,7 +292,7 @@ class FaxiStore(
         }
         return ReceiptTicket(
             familyId = familyId, id = r.id, passengerId = p, passenger = name(p),
-            driver = "${driver.name} · ${driver.callsign}", route = "${r.from} → ${r.to}",
+            driver = driver.name, route = "${r.from} → ${r.to}",
             endedAt = r.endedAt.toString(), lines = r.lines, fareTotal = r.fareTotal, billed = r.billed,
             carriedOver = r.carriedOver, offset = r.offset, toLifetime = r.toLifetime,
             balances = balances,
@@ -586,6 +648,16 @@ class FaxiStore(
 
         fun sample(clock: () -> LocalDateTime = LocalDateTime::now): FaxiStore = FaxiStore(sampleSnapshot(clock().toLocalDate()), clock)
 
+        /** 아무도 없는 장부(처음 설치). 화면은 가장 등록부터 시작한다. */
+        fun emptySnapshot(familyId: String = newFamilyId()) = FaxiSnapshot(
+            familyId = familyId, members = emptyList(), driverId = "", driverSignedIn = false,
+            debts = emptyList(), events = emptyList(), receipts = emptyList(), lifetime = emptyList(),
+        )
+
+        /** 가족 ID: 초대·영수증 QR과 차 찾기(NSD "FAXI-가족ID")에 쓰는 무작위 값 */
+        private fun newFamilyId(): String =
+            "f" + java.security.SecureRandom().let { r -> (1..8).joinToString("") { "%x".format(r.nextInt(16)) } }
+
         /**
          * 처음 설치했을 때(저장 파일이 없을 때) 쓰는 시연 데이터.
          * 엄마는 8,120원 중 5,000원만 보내서 3,120원이 사흘째 밀려 있다.
@@ -594,21 +666,21 @@ class FaxiStore(
         fun sampleSnapshot(today: LocalDate): FaxiSnapshot {
             val d3 = today.minusDays(3)
             val dad = Member(
-                "dad", "아빠", "PAXI", "새벽 픽업 김기사", Grade.Full,
-                LocalDate.of(2026, 10, 1), drivenKm = 1_284, avatar = "bear",
+                "dad", "아빠", "새벽 픽업 김기사", Grade.Full,
+                LocalDate.of(2026, 10, 1), drivenKm = 1_284, avatar = "bear", color = 0,
             )
             val mom = Member(
-                "mom", "엄마", "MAXI", "주차 장인 박기사", Grade.Full,
-                LocalDate.of(2026, 10, 1), drivenKm = 962, avatar = "fox",
+                "mom", "엄마", "주차 장인 박기사", Grade.Full,
+                LocalDate.of(2026, 10, 1), drivenKm = 962, avatar = "fox", color = 1,
             )
             val kid = Member(
-                "kid", "지우", "KIXI", "뒷좌석 과자왕", Grade.Learner,
+                "kid", "지우", "뒷좌석 과자왕", Grade.Learner,
                 LocalDate.of(2026, 10, 1), drivenKm = 0, avatar = "rabbit",
-                licenseEligible = LocalDate.of(2029, 3, 14),
+                licenseEligible = LocalDate.of(2029, 3, 14), color = 2,
             )
             val grandma = Member(
-                "grandma", "할머니", "NAXI", "40년 무사고", Grade.Honorary,
-                LocalDate.of(2026, 10, 3), drivenKm = 412_000, avatar = "turtle",
+                "grandma", "할머니", "40년 무사고", Grade.Honorary,
+                LocalDate.of(2026, 10, 3), drivenKm = 412_000, avatar = "turtle", color = 3,
             )
             val receipts = listOf(
                 Receipt(

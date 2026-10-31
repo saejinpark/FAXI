@@ -136,7 +136,7 @@ private fun PhoneApp(store: PhoneStore, incoming: androidx.compose.runtime.Mutab
             onDismissRequest = { pendingInvite = null },
             containerColor = Faxi.colors.surface,
             shape = RoundedCornerShape(FaxiDimens.radiusLg),
-            title = { Text("${invite.name} · ${invite.callsign}로 등록할까요?", style = Faxi.type.title, color = Faxi.colors.ink) },
+            title = { Text("이 폰을 ${invite.name} 폰으로 등록할까요?", style = Faxi.type.title, color = Faxi.colors.ink) },
             text = {
                 Row(horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space2)) {
                     if (otherFamily) WarningIcon(Faxi.colors.danger, FaxiDimens.iconMd)
@@ -200,10 +200,10 @@ private fun RegisterScreen(store: PhoneStore, onScan: () -> Unit, onBadLink: () 
             Text("차 앱 시연 데이터와 같은 열쇠를 써요. 실제 가족에게는 쓰지 마세요.", style = Faxi.type.caption, color = c.inkMuted)
             DemoFamily.people.forEach { p ->
                 FaxiSecondaryButton(
-                    "${p.name} · ${p.callsign}로 등록",
+                    "${p.name} 폰으로 등록",
                     onClick = { store.register(DemoFamily.inviteOf(p)) },
                     modifier = Modifier.fillMaxWidth(),
-                    leading = { AvatarCircle(null, p.callsign.take(1), FaxiDimens.iconLg, Faxi.type.label, c.family(p.callsign)) },
+                    leading = { AvatarCircle(null, p.name.take(1), FaxiDimens.iconLg, Faxi.type.label, c.family(p.color)) },
                 )
             }
         }

@@ -17,7 +17,7 @@ import com.geppetto.faxi.ui.theme.Faxi
 @Composable
 fun Avatar(member: Member, size: Dp, style: TextStyle = Faxi.type.title) {
     // 테두리는 그 사람의 가족 색: 누구인지 색으로도 한 번 더 알린다(이름·호출명과 함께)
-    AvatarCircle(avatarOf(member.avatar)?.emoji, member.callsign.take(1), size, style, Faxi.colors.family(member.callsign))
+    AvatarCircle(avatarOf(member.avatar)?.emoji, member.name.take(1), size, style, Faxi.colors.family(member.color))
 }
 
 fun gradeTone(grade: Grade): Tone = when (grade) {

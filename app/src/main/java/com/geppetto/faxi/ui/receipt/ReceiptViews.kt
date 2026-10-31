@@ -78,7 +78,7 @@ fun ReceiptCard(
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(FaxiDimens.space2)) {
                 Text("FAXI 영수증", style = t.title, color = c.ink)
                 Text(
-                    "${driver.name} 택시(${driver.callsign}) · 손님 ${passenger.name}",
+                    "${driver.name} 택시 · 손님 ${passenger.name}",
                     style = t.bodyStrong,
                     color = c.ink,
                 )

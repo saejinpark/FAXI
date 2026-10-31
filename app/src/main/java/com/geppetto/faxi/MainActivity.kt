@@ -25,6 +25,8 @@ class MainActivity : ComponentActivity() {
         // 장부는 Activity가 다시 만들어져도 살아 있도록 FaxiApp이 들고 있다
         val app = application as FaxiApp
         val store = app.store
+        // 시연 준비 스크립트(tools/demo.sh, 영상 촬영): 처음 켤 때 가장 등록 대신 시연 가족을 바로 불러온다
+        if (intent?.getBooleanExtra("demo", false) == true && store.needsSetup) store.loadDemo()
         store.onArrival = { r ->
             if (store.settings.fareAloud) speaker.speak(
                 if (r.toLifetime) {

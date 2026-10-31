@@ -3,6 +3,7 @@ package com.geppetto.faxi.ui.roster
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.material3.Text
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -21,7 +22,10 @@ import com.geppetto.faxi.ui.components.DriverLicenseCard
 import com.geppetto.faxi.ui.components.FaxiCard
 import com.geppetto.faxi.ui.components.FaxiPage
 import com.geppetto.faxi.ui.components.FaxiPreviews
+import com.geppetto.faxi.ui.components.FaxiSecondaryButton
 import com.geppetto.faxi.ui.components.LedgerIcon
+import com.geppetto.faxi.ui.components.PlusIcon
+import com.geppetto.faxi.ui.family.AddMemberScreen
 import com.geppetto.faxi.ui.components.PreviewFrame
 import com.geppetto.faxi.ui.components.SectionTitle
 import com.geppetto.faxi.ui.components.StatusTag
@@ -33,7 +37,7 @@ import java.time.LocalDate
 
 /**
  * 기사 탭. 안에서 단계로 들어간다(내비게이션 라이브러리 없이 상태 셋으로, 장부 탭과 같은 방식):
- * 명단 → 기사 상세 → 빚 상세 → 영수증. 뒤로는 한 단계씩.
+ * 명단 → 기사 상세 → 빚 상세 → 영수증, 명단 → 가족 추가 → 새 사람 상세(폰 연결). 뒤로는 한 단계씩.
  */
 @Composable
 fun RosterScreen(store: FaxiStore, today: LocalDate = LocalDate.now()) {
@@ -41,6 +45,7 @@ fun RosterScreen(store: FaxiStore, today: LocalDate = LocalDate.now()) {
     // "debtorId>creditorId"
     var pair by rememberSaveable { mutableStateOf<String?>(null) }
     var receiptId by rememberSaveable { mutableStateOf<String?>(null) }
+    var adding by rememberSaveable { mutableStateOf(false) }
 
     val receipt = receiptId?.let(store::receipt)
     if (receipt != null) {
@@ -63,18 +68,25 @@ fun RosterScreen(store: FaxiStore, today: LocalDate = LocalDate.now()) {
         )
         return
     }
-    RosterHome(store, today, onOpenMember = { memberId = it })
+    if (adding) {
+        // 더하면 바로 그 사람 상세로: 폰 연결(초대 QR)이 거기 있다
+        AddMemberScreen(store, onBack = { adding = false }, onAdded = { adding = false; memberId = it })
+        return
+    }
+    RosterHome(store, today, onOpenMember = { memberId = it }, onAdd = { adding = true })
 }
 
 /** 명단: 가족 자격증 카드(누르면 기사 상세) + 예비 기사의 평생 장부 */
 @Composable
-private fun RosterHome(store: FaxiStore, today: LocalDate, onOpenMember: (String) -> Unit) {
+private fun RosterHome(store: FaxiStore, today: LocalDate, onOpenMember: (String) -> Unit, onAdd: () -> Unit) {
     val c = Faxi.colors
     val t = Faxi.type
 
     FaxiPage(
         title = "기사 명단",
-        trailing = { Text("카드를 누르면 자세히 볼 수 있어요", style = t.caption, color = c.inkMuted) },
+        trailing = {
+            FaxiSecondaryButton("가족 추가", onClick = onAdd, leading = { PlusIcon(c.ink, FaxiDimens.iconMd) })
+        },
     ) {
         store.members.chunked(2).forEach { pair ->
             val cells = pair.map { member ->
@@ -87,7 +99,9 @@ private fun RosterHome(store: FaxiStore, today: LocalDate, onOpenMember: (String
                     )
                 }
             }
-            row(*cells.toTypedArray())
+            // 한 사람만 남은 줄도 자격증이 화면 폭으로 늘어나지 않게 빈 칸을 채운다
+            val filled = if (cells.size == 1) cells + @Composable { m: Modifier -> Spacer(m) } else cells
+            row(*filled.toTypedArray())
         }
         store.lifetime.forEach { ledger ->
             val learner = store.member(ledger.learnerId)
@@ -98,7 +112,7 @@ private fun RosterHome(store: FaxiStore, today: LocalDate, onOpenMember: (String
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         LedgerIcon(c.accentInk, FaxiDimens.iconMd)
-                        SectionTitle("평생 장부 · ${learner.name}(${learner.callsign})")
+                        SectionTitle("평생 장부 · ${learner.name}")
                         StatusTag("${learner.name}에게는 면허 따는 날 공개")
                     }
                     Text(
