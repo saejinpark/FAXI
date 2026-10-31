@@ -43,6 +43,7 @@ import com.geppetto.faxi.ui.components.MeterIcon
 import com.geppetto.faxi.ui.components.PreviewFrame
 import com.geppetto.faxi.ui.components.SeatHeatIcon
 import com.geppetto.faxi.ui.components.SectionTitle
+import com.geppetto.faxi.fare.FamilyExtra
 import com.geppetto.faxi.ui.components.SnowflakeIcon
 import com.geppetto.faxi.ui.components.SunIcon
 import com.geppetto.faxi.ui.components.TwoColumnMin
@@ -148,6 +149,14 @@ private fun PassengerCell(store: FaxiStore, modifier: Modifier) {
             }
         }
         Text("${driver.name} 택시 ${nth}번째 탑승이에요.", style = t.title, color = c.ink)
+        // 탑승 때 정한 가족 할증·할인. 운행 중에는 바뀌지 않는 정지 꼬리표(금액은 내릴 때).
+        // 주행 중 읽는 정보라 24sp 이상(title)
+        if (store.rideExtras.isNotEmpty()) {
+            Text(
+                FamilyExtra.entries.filter { it in store.rideExtras }.joinToString(" · ") { "${it.label} ${it.tag}" },
+                style = t.title, color = c.accentInk,
+            )
+        }
         if (p.grade == Grade.Learner) {
             Text("요금은 평생 장부에 쌓여요.", style = t.title, color = c.inkMuted)
         }

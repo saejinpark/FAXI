@@ -16,6 +16,7 @@ import com.geppetto.faxi.qr.Balance
 import com.geppetto.faxi.qr.ReceiptTicket
 import com.geppetto.faxi.auth.Totp
 import com.geppetto.faxi.fare.FakeTrip
+import com.geppetto.faxi.fare.FamilyExtra
 import com.geppetto.faxi.fare.FareLine
 import com.geppetto.faxi.fare.FareMeter
 import com.geppetto.faxi.fare.Hvac
@@ -91,6 +92,9 @@ class FaxiStore(
     private var rideFrom: String? = snapshot.rideFrom
     /** 이번 운행에 추가된 경유지 수(빼면 줄어든다). 하차 때 요금 엔진에 넣는다. */
     var rideWaypoints by mutableStateOf(snapshot.rideWaypoints)
+        private set
+    /** 이번 운행의 가족 할증·할인(탑승 때 기사가 고르고 손님 코드로 동의). 운행 중에는 바꾸지 않는다. */
+    var rideExtras by mutableStateOf(snapshot.rideExtras.mapNotNull(FamilyExtra::of).toSet())
         private set
     /** 이번 운행 중에 내비가 도착을 알린 장소 */
     private var rideArrivedAt: String? = null
@@ -216,6 +220,7 @@ class FaxiStore(
         rideStartedAt = next.rideStartedAt
         rideFrom = next.rideFrom
         rideWaypoints = next.rideWaypoints
+        rideExtras = next.rideExtras.mapNotNull(FamilyExtra::of).toSet()
         liveMeter = null
         resetRideDistance()
         debts.clear(); debts.addAll(next.debts)
@@ -264,6 +269,7 @@ class FaxiStore(
         rideStartedAt = rideStartedAt,
         rideFrom = rideFrom,
         rideWaypoints = rideWaypoints,
+        rideExtras = FamilyExtra.entries.filter { it in rideExtras }.map { it.code },
         arrivalReceiptId = arrival?.id,
         nextId = nextId,
         settings = settings,
@@ -396,10 +402,11 @@ class FaxiStore(
         return MessageReply.Shown
     }
 
-    fun startRide(passengerId: String) {
+    fun startRide(passengerId: String, extras: Set<FamilyExtra> = emptySet()) {
         require(driverSignedIn) { "기사가 로그인해야 탈 수 있다" }
         require(passengerId != driverId)
         this.passengerId = passengerId
+        rideExtras = extras
         passengerMessage = null
         rideStartedAt = clock().withSecond(0).withNano(0)
         resetRideDistance()
@@ -514,7 +521,7 @@ class FaxiStore(
         val base = Receipt(
             id = "r${nextId++}", driverId = driverId, passengerId = passenger,
             from = from, to = to, km = (meter.distanceM / 1000).roundToInt(),
-            endedAt = clock().withSecond(0).withNano(0), lines = meter.lines(),
+            endedAt = clock().withSecond(0).withNano(0), lines = FamilyExtra.apply(meter.lines(), rideExtras),
             shake = comfort.shake,
             hardBrakes = comfort.brakes,
         )
@@ -533,6 +540,7 @@ class FaxiStore(
         resetRideDistance()
         rideFrom = null
         rideWaypoints = 0
+        rideExtras = emptySet()
         rideArrivedAt = null
         changed()
         onRideChanged?.invoke(null)

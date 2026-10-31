@@ -4,6 +4,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.IntrinsicSize
+import com.geppetto.faxi.fare.FamilyExtra
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -115,6 +119,7 @@ private fun DriverSignIn(store: FaxiStore, speak: (String) -> Unit, onCancel: ((
 @Composable
 private fun PassengerBoarding(store: FaxiStore, speak: (String) -> Unit, onChangeDriver: () -> Unit, onStarted: () -> Unit) {
     var passengerId by remember { mutableStateOf<String?>(null) }
+    var extras by remember { mutableStateOf(emptySet<FamilyExtra>()) }
     val driver = store.member(store.driverId)
     val passenger = passengerId?.let(store::member)
 
@@ -160,21 +165,45 @@ private fun PassengerBoarding(store: FaxiStore, speak: (String) -> Unit, onChang
                             )
                         }
                     }
+                    // 가족 할증·할인: 기사가 지금(주차 중) 고르고, 손님이 코드를 누르면 동의한 것. 운행 중에는 못 바꾼다.
+                    SectionTitle("가족 할증·할인")
+                    FamilyExtra.entries.chunked(2).forEach { pair ->
+                        Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(FaxiDimens.targetGap)) {
+                            pair.forEach { x ->
+                                val on = x in extras
+                                SelectTile(
+                                    selected = on,
+                                    onClick = { extras = if (on) extras - x else extras + x },
+                                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                                ) {
+                                    Column(Modifier.weight(1f)) {
+                                        Text("${x.label} ${x.tag}", style = Faxi.type.bodyStrong, color = Faxi.colors.ink)
+                                        Text(x.hint, style = Faxi.type.caption, color = Faxi.colors.inkMuted)
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             },
             { m ->
                 CodeCard(
                     modifier = m,
                     title = "2  탑승 코드",
-                    prompt = if (passenger == null) "손님을 먼저 골라 주세요." else "${passenger.name} 폰에 뜬 4자리를 눌러 주세요.",
+                    prompt = when {
+                        passenger == null -> "손님을 먼저 골라 주세요."
+                        extras.isEmpty() -> "${passenger.name} 폰에 뜬 4자리를 눌러 주세요."
+                        else -> "${passenger.name} 폰에 뜬 4자리를 누르면 고른 할증·할인에도 동의한 거예요."
+                    },
                     enabled = passenger != null,
                     action = "미터기 켜기",
                 ) { code ->
                     val p = passengerId ?: return@CodeCard false
                     if (!store.verifyCode(p, code)) return@CodeCard false
                     if (store.settings.greet) speak("손님, 어디로 모실까요?")
-                    store.startRide(p)
+                    store.startRide(p, extras)
                     passengerId = null
+                    extras = emptySet()
                     onStarted()
                     true
                 }

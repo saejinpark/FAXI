@@ -127,4 +127,17 @@ class FaxiStoreTest {
         // 시연 가족 열쇠는 폰 앱과 같은 고정값
         assertEquals(com.geppetto.faxi.auth.DemoFamily.secretOf("mom"), s.member("mom").secret)
     }
+
+    @Test
+    fun 탑승_때_고른_가족_할증은_앱이_다시_켜져도_남고_영수증에_붙는다() {
+        val s = FaxiStore.sample(clock)
+        s.startRide("mom", setOf(com.geppetto.faxi.fare.FamilyExtra.Late, com.geppetto.faxi.fare.FamilyExtra.Luggage))
+        val reopened = FaxiStore(faxiSnapshotFromJson(s.snapshot().toJson()), clock)
+        assertEquals(s.rideExtras, reopened.rideExtras)
+        val r = reopened.endRide()
+        // 기획서 예시 15,250원 + 지각 20% 3,050원 + 짐 500원
+        assertEquals(15_250 + 3_050 + 500, r.fareTotal)
+        assertEquals(listOf("지각 할증", "짐 할증"), r.lines.takeLast(2).map { it.label })
+        assertTrue(reopened.rideExtras.isEmpty())
+    }
 }
