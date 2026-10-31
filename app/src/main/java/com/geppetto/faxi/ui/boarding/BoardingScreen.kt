@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -45,8 +46,10 @@ import com.geppetto.faxi.ui.theme.Faxi
 import com.geppetto.faxi.ui.theme.FaxiDimens
 
 /**
- * 탑승 (주차 상태). 기사 고르기 → "손님 누구세요?" → 손님 폰의 탑승 코드 4자리 → 미터기 켜기.
- * 미터기는 혼자 켤 수 없다: 다른 가족의 코드가 있어야 켜진다.
+ * 탑승 (주차 상태). 두 단계다.
+ * 1) 기사 로그인: 운전할 사람이 자기 폰 코드를 누르면 차가 기억한다(기사가 바뀔 때만 다시).
+ * 2) 손님 탑승: 매 운행 "손님 누구세요?" → 손님 폰 코드 4자리 → 미터기 켜기.
+ * 미터기는 혼자 켤 수 없다: 요금을 낼 손님이 자기 폰으로 확인해야 켜진다.
  */
 @Composable
 fun BoardingScreen(
@@ -54,10 +57,57 @@ fun BoardingScreen(
     speak: (String) -> Unit,
     onStarted: () -> Unit,
 ) {
-    var passengerId by remember { mutableStateOf<String?>(null) }
-    var code by remember { mutableStateOf("") }
-    var wrongCode by remember { mutableStateOf(false) }
+    // 기사 바꾸기를 누르면 로그인 단계로 돌아간다(지금 기사는 새 기사가 로그인할 때까지 그대로)
+    var changingDriver by remember { mutableStateOf(false) }
+    if (!store.driverSignedIn || changingDriver) {
+        DriverSignIn(store, speak, onCancel = if (store.driverSignedIn) ({ changingDriver = false }) else null, onSignedIn = { changingDriver = false })
+    } else {
+        PassengerBoarding(store, speak, onChangeDriver = { changingDriver = true }, onStarted = onStarted)
+    }
+}
 
+/** 기사 로그인: 운전할 사람 고르기 → 그 사람 폰 코드 → 로그인. 로그인하면 아직 못 들은 후기를 읽어 준다. */
+@Composable
+private fun DriverSignIn(store: FaxiStore, speak: (String) -> Unit, onCancel: (() -> Unit)?, onSignedIn: () -> Unit) {
+    var pickedId by remember { mutableStateOf<String?>(null) }
+    val picked = pickedId?.let(store::member)
+    FaxiPage(title = "기사 로그인", trailing = { onCancel?.let { FaxiSecondaryButton("취소", onClick = it) } }) {
+        row(
+            { m ->
+                FaxiCard(m) {
+                    SectionTitle("1  누가 운전하나요?")
+                    Text("한 번 로그인하면 차가 기억해요. 운전하는 사람이 바뀔 때만 다시 해요.", style = Faxi.type.body, color = Faxi.colors.inkMuted)
+                    store.members.filter { it.canDrive }.forEach { member ->
+                        MemberTile(member, selected = member.id == pickedId) { pickedId = member.id }
+                    }
+                }
+            },
+            { m ->
+                CodeCard(
+                    modifier = m,
+                    title = "2  기사 코드",
+                    prompt = if (picked == null) "운전할 사람을 먼저 골라 주세요." else "${picked.name} 폰에 뜬 4자리를 눌러 주세요.",
+                    enabled = picked != null,
+                    action = "로그인",
+                ) { code ->
+                    val id = pickedId ?: return@CodeCard false
+                    if (!store.signInDriver(id, code)) return@CodeCard false
+                    // 후기 낭독: 이 기사가 아직 듣지 못한 가장 최근 후기를 한 번 읽어 준다(주차 중, 차 안 가족 모두가 듣는다)
+                    store.takeUnreadReview(id)?.let { (receipt, review) ->
+                        speak(reviewLine(store.member(receipt.passengerId).name, review.stars, review.tags))
+                    }
+                    onSignedIn()
+                    true
+                }
+            },
+        )
+    }
+}
+
+/** 손님 탑승: 로그인한 기사의 택시에 탈 손님 고르기 → 손님 폰 코드 → 미터기 켜기 */
+@Composable
+private fun PassengerBoarding(store: FaxiStore, speak: (String) -> Unit, onChangeDriver: () -> Unit, onStarted: () -> Unit) {
+    var passengerId by remember { mutableStateOf<String?>(null) }
     val driver = store.member(store.driverId)
     val passenger = passengerId?.let(store::member)
 
@@ -65,18 +115,19 @@ fun BoardingScreen(
         row(
             { m ->
                 FaxiCard(m) {
-                    SectionTitle("1  기사")
-                    store.members.filter { it.canDrive }.forEach { member ->
-                        MemberTile(member, selected = member.id == driver.id) {
-                            store.selectDriver(member.id)
-                            if (passengerId == member.id) passengerId = null
-                            // 후기 낭독: 이 기사가 아직 듣지 못한 가장 최근 후기를 한 번 읽어 준다(주차 중, 차 안 가족 모두가 듣는다)
-                            store.takeUnreadReview(member.id)?.let { (receipt, review) ->
-                                speak(reviewLine(store.member(receipt.passengerId).name, review.stars, review.tags))
-                            }
+                    SectionTitle("기사")
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space4),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Avatar(driver, FaxiDimens.targetMin, Faxi.type.title)
+                        Column(Modifier.weight(1f)) {
+                            Text("${driver.name} 택시", style = Faxi.type.title, color = Faxi.colors.ink)
+                            Text("${driver.callsign} · 운전석에 로그인돼 있어요", style = Faxi.type.caption, color = Faxi.colors.inkMuted)
                         }
+                        FaxiSecondaryButton("기사 바꾸기", onClick = onChangeDriver)
                     }
-                    SectionTitle("2  손님")
+                    SectionTitle("1  손님 누구세요?")
                     store.members.filter { it.id != driver.id }.forEach { member ->
                         MemberTile(member, selected = member.id == passengerId) {
                             passengerId = member.id
@@ -105,48 +156,68 @@ fun BoardingScreen(
                 }
             },
             { m ->
-                FaxiCard(m) {
-                    SectionTitle("3  탑승 코드")
-                    Text(
-                        if (passenger == null) "손님을 먼저 골라 주세요." else "${passenger.name} 폰에 뜬 4자리를 눌러 주세요.",
-                        style = Faxi.type.body,
-                        color = Faxi.colors.ink,
-                    )
-                    CodeBoxes(code)
-                    if (wrongCode) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space2),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            WarningIcon(Faxi.colors.danger, FaxiDimens.iconMd)
-                            Text("코드가 맞지 않아요. 폰의 새 코드를 눌러 주세요.", style = Faxi.type.body, color = Faxi.colors.danger)
-                        }
-                    }
-                    Keypad(
-                        enabled = passenger != null,
-                        onDigit = { if (code.length < 4) code += it; wrongCode = false },
-                        onDelete = { code = code.dropLast(1); wrongCode = false },
-                    )
-                    Spacer(Modifier.weight(1f))
-                    FaxiPrimaryButton(
-                        "미터기 켜기",
-                        enabled = passenger != null && code.length == 4,
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = {
-                            val p = passengerId ?: return@FaxiPrimaryButton
-                            if (store.verifyBoardingCode(p, code)) {
-                                if (store.settings.greet) speak("손님, 어디로 모실까요?")
-                                store.startRide(p)
-                                code = ""
-                                passengerId = null
-                                onStarted()
-                            } else {
-                                wrongCode = true
-                                code = ""
-                            }
-                        },
-                    )
+                CodeCard(
+                    modifier = m,
+                    title = "2  탑승 코드",
+                    prompt = if (passenger == null) "손님을 먼저 골라 주세요." else "${passenger.name} 폰에 뜬 4자리를 눌러 주세요.",
+                    enabled = passenger != null,
+                    action = "미터기 켜기",
+                ) { code ->
+                    val p = passengerId ?: return@CodeCard false
+                    if (!store.verifyCode(p, code)) return@CodeCard false
+                    if (store.settings.greet) speak("손님, 어디로 모실까요?")
+                    store.startRide(p)
+                    passengerId = null
+                    onStarted()
+                    true
                 }
+            },
+        )
+    }
+}
+
+/**
+ * 코드 4칸 + 숫자판 + 주 버튼. 기사 로그인과 손님 탑승이 같이 쓴다.
+ * submit이 false면 "코드가 맞지 않아요"를 띄우고 칸을 비운다. 안내 줄은 자리를 미리 잡아 버튼이 밀리지 않는다.
+ */
+@Composable
+private fun CodeCard(
+    modifier: Modifier,
+    title: String,
+    prompt: String,
+    enabled: Boolean,
+    action: String,
+    submit: (String) -> Boolean,
+) {
+    var code by remember { mutableStateOf("") }
+    var wrongCode by remember { mutableStateOf(false) }
+    FaxiCard(modifier) {
+        SectionTitle(title)
+        Text(prompt, style = Faxi.type.body, color = Faxi.colors.ink)
+        CodeBoxes(code)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space2),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.heightIn(min = FaxiDimens.iconMd),
+        ) {
+            if (wrongCode) {
+                WarningIcon(Faxi.colors.danger, FaxiDimens.iconMd)
+                Text("코드가 맞지 않아요. 폰의 새 코드를 눌러 주세요.", style = Faxi.type.body, color = Faxi.colors.danger)
+            }
+        }
+        Keypad(
+            enabled = enabled,
+            onDigit = { if (code.length < 4) code += it; wrongCode = false },
+            onDelete = { code = code.dropLast(1); wrongCode = false },
+        )
+        Spacer(Modifier.weight(1f))
+        FaxiPrimaryButton(
+            action,
+            enabled = enabled && code.length == 4,
+            modifier = Modifier.fillMaxWidth(),
+            onClick = {
+                wrongCode = !submit(code)
+                code = ""
             },
         )
     }
@@ -237,4 +308,10 @@ private fun Keypad(enabled: Boolean, onDigit: (Char) -> Unit, onDelete: () -> Un
 @Composable
 private fun BoardingPreview() = PreviewFrame {
     BoardingScreen(FaxiStore.sample(), speak = {}, onStarted = {})
+}
+
+@FaxiPreviews
+@Composable
+private fun DriverSignInPreview() = PreviewFrame {
+    BoardingScreen(FaxiStore.sample().apply { signOutDriver() }, speak = {}, onStarted = {})
 }

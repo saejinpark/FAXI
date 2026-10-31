@@ -118,12 +118,12 @@ class FaxiStoreTest {
         val now = clock().atZone(java.time.ZoneId.systemDefault()).toEpochSecond()
         fun codeOf(id: String, at: Long) =
             com.geppetto.faxi.auth.Totp.code(com.geppetto.faxi.auth.Base32.decode(s.member(id).secret)!!, at)
-        assertTrue(s.verifyBoardingCode("mom", codeOf("mom", now)))
-        assertTrue(s.verifyBoardingCode("mom", codeOf("mom", now - 30))) // 시계가 조금 달라도
-        assertEquals(false, s.verifyBoardingCode("mom", codeOf("mom", now - 120))) // 2분 지난 코드
+        assertTrue(s.verifyCode("mom", codeOf("mom", now)))
+        assertTrue(s.verifyCode("mom", codeOf("mom", now - 30))) // 시계가 조금 달라도
+        assertEquals(false, s.verifyCode("mom", codeOf("mom", now - 120))) // 2분 지난 코드
         // 다른 가족의 코드로는 못 탄다(우연히 같은 4자리가 아니라면)
         val grandmaCode = codeOf("grandma", now)
-        if (grandmaCode != codeOf("mom", now)) assertEquals(false, s.verifyBoardingCode("mom", grandmaCode))
+        if (grandmaCode != codeOf("mom", now)) assertEquals(false, s.verifyCode("mom", grandmaCode))
         // 시연 가족 열쇠는 폰 앱과 같은 고정값
         assertEquals(com.geppetto.faxi.auth.DemoFamily.secretOf("mom"), s.member("mom").secret)
     }

@@ -24,6 +24,8 @@ data class FaxiSnapshot(
     val familyId: String = com.geppetto.faxi.auth.DemoFamily.FAMILY_ID,
     val members: List<Member>,
     val driverId: String,
+    /** 기사가 자기 폰 코드로 운전석에 로그인해 있는지. 차가 기억한다. 예전 장부는 그 기사가 로그인해 있던 것으로 본다. */
+    val driverSignedIn: Boolean = true,
     val debts: List<Debt>,
     val events: List<LedgerEvent>,
     val receipts: List<Receipt>,

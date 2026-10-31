@@ -168,7 +168,7 @@ private fun PhoneLinkCard(store: FaxiStore, memberId: String, modifier: Modifier
     FaxiCard(modifier) {
         SectionTitle("폰 연결")
         Text(
-            "${member.name} 폰의 FAXI 앱에서 \"초대 QR 찍기\"를 누르고 이 QR을 찍으면, 그 폰에 탑승 코드가 떠요.",
+            "${member.name} 폰의 FAXI 앱에서 \"초대 QR 찍기\"를 누르고 이 QR을 찍으면, 그 폰에 코드가 떠요. 탈 때와 기사로 로그인할 때 그 코드를 눌러요.",
             style = t.body, color = c.ink,
         )
         if (!shown) {

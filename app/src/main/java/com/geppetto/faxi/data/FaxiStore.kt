@@ -42,6 +42,9 @@ class FaxiStore(
 
     var driverId by mutableStateOf(snapshot.driverId)
         private set
+    /** 기사가 운전석에 로그인해 있는지. 손님은 로그인한 기사의 택시에만 탈 수 있다. */
+    var driverSignedIn by mutableStateOf(snapshot.driverSignedIn)
+        private set
     var passengerId by mutableStateOf(snapshot.ridePassengerId)
         private set
     /** 미터기를 켠 시각. 운행 중 화면에 "출발 09:12"로 보여 준다(움직이는 경과 시간은 쓰지 않는다). */
@@ -145,6 +148,7 @@ class FaxiStore(
         familyId = familyId,
         members = members.toList(),
         driverId = driverId,
+        driverSignedIn = driverSignedIn,
         debts = debts.toList(),
         events = events.toList(),
         receipts = receipts.toList(),
@@ -233,18 +237,40 @@ class FaxiStore(
         )
     }
 
-    fun selectDriver(id: String) {
+    /**
+     * 기사 로그인: 운전할 사람이 자기 폰에 뜬 4자리를 누른다. 맞으면 차가 기억해서, 기사가 바뀔 때까지 다시 묻지 않는다.
+     * 손님 탑승(매번 코드)과 같은 열쇠·같은 방식이다.
+     */
+    fun signInDriver(id: String, code: String): Boolean {
+        require(member(id).canDrive)
+        if (rideActive || !verifyCode(id, code)) return false
+        driverId = id
+        driverSignedIn = true
+        changed()
+        return true
+    }
+
+    /** 기사 바꾸기: 운전석 로그인을 푼다(운행 중에는 못 한다). 다음 기사가 자기 코드로 로그인한다. */
+    fun signOutDriver() {
+        if (rideActive) return
+        driverSignedIn = false
+        changed()
+    }
+
+    /** 코드 없이 기사를 앉힌다. 단위 테스트와 미리보기 전용(화면에서는 signInDriver만 쓴다). */
+    internal fun selectDriver(id: String) {
         require(member(id).canDrive)
         driverId = id
+        driverSignedIn = true
         changed()
     }
 
     /**
-     * 탑승 인증: 손님 폰에 뜬 4자리가 그 손님 비밀 열쇠로 지금(±30초) 만든 코드와 같은지.
+     * 그 사람 폰에 뜬 4자리가 그 사람 비밀 열쇠로 지금(±30초) 만든 코드와 같은지. 기사 로그인과 손님 탑승에 같이 쓴다.
      * 인터넷 없이 차 안에서 끝난다. 다른 가족의 코드나 1분 넘은 코드는 통과하지 못한다.
      */
-    fun verifyBoardingCode(passengerId: String, code: String): Boolean {
-        val secret = Base32.decode(member(passengerId).secret) ?: return false
+    fun verifyCode(memberId: String, code: String): Boolean {
+        val secret = Base32.decode(member(memberId).secret) ?: return false
         val now = clock().atZone(ZoneId.systemDefault()).toEpochSecond()
         return Totp.verify(secret, code, now)
     }
@@ -271,6 +297,7 @@ class FaxiStore(
     }
 
     fun startRide(passengerId: String) {
+        require(driverSignedIn) { "기사가 로그인해야 탈 수 있다" }
         require(passengerId != driverId)
         this.passengerId = passengerId
         passengerMessage = null
