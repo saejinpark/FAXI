@@ -37,7 +37,7 @@ class FamilySetupTest {
         assertEquals("아빠 기사", head.cardTitle)
         assertEquals(head.id, s.driverId)
         assertTrue(head.canDrive) // 가장은 운전하는 사람
-        assertFalse(s.driverSignedIn) // 폰을 연결하고 자기 코드로 로그인해야 한다
+        assertTrue(s.driverSignedIn) // 가장은 바로 오늘의 기사
         assertTrue(head.secret.isNotEmpty())
         assertEquals(1, reopened)
     }
@@ -124,7 +124,7 @@ class FamilySetupTest {
     }
 
     @Test
-    fun 운전석에_로그인한_기사를_빼면_로그인이_풀린다() {
+    fun 오늘의_기사를_빼면_다시_고른다() {
         val s = FaxiStore.sample(clock)
         s.addMember("삼촌", Grade.Full).also { u -> s.selectDriver(u.id) }
         val uncle = s.driverId

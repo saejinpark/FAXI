@@ -16,6 +16,11 @@ data class FaxiSettings(
     val dunning: Dunning = Dunning.Firm,
     /** 기사를 고를 때 지난 후기 읽기 */
     val reviewsAloud: ReviewsAloud = ReviewsAloud.All,
+    /**
+     * 탑승 때 손님 폰 코드(4자리)로 확인할지. 기본은 꺼짐: 손님이 옆자리에서 차 화면의 "제가 탈게요"를 누른다.
+     * 켜면 손님 폰에 뜬 코드를 눌러야 미터기가 켜진다(폰 앱 필요).
+     */
+    val phoneCode: Boolean = false,
 )
 
 enum class Dunning(val label: String) {

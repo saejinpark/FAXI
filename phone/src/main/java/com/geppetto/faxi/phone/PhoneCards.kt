@@ -126,7 +126,7 @@ internal fun MessageCard(me: FaxiInvite, sender: MessageSender) {
             val reply = sender.send(me, msg)
             failed = reply != MessageReply.Shown
             status = reply.problem() ?: when (reply) {
-                MessageReply.NotRiding -> "지금 이 차에 타고 있지 않아요. 탑승 코드부터 눌러 주세요."
+                MessageReply.NotRiding -> "지금 이 차에 타고 있지 않아요. 차 화면에서 먼저 타 주세요."
                 MessageReply.TooSoon -> "방금 보냈어요. 10초 뒤에 다시 보내 주세요."
                 else -> "\"${msg.text}\" 기사님 화면에 떴어요."
             }

@@ -44,7 +44,7 @@ class FaxiStore(
 
     var driverId by mutableStateOf(snapshot.driverId)
         private set
-    /** 기사가 운전석에 로그인해 있는지. 손님은 로그인한 기사의 택시에만 탈 수 있다. */
+    /** 오늘의 기사가 정해져 있는지(가족에서 빼면 다시 고른다). 손님은 정해진 기사의 택시에만 탈 수 있다. */
     var driverSignedIn by mutableStateOf(snapshot.driverSignedIn)
         private set
     var passengerId by mutableStateOf(snapshot.ridePassengerId)
@@ -142,11 +142,11 @@ class FaxiStore(
 
     /**
      * 첫 실행: 이 집의 가장을 첫 기사(정식 기사)로 등록하고 새 가족 ID를 만든다. 가장은 이 차를 운전하는 사람이다.
-     * 아직 폰을 연결하지 않았으니 운전석 로그인은 폰 연결 뒤에 한다.
+     * 가장이 첫 기사로 정해진 채 시작한다.
      */
     fun startFamily(headName: String): Member {
         val head = newMember(headName, Grade.Full, color = 0)
-        load(emptySnapshot(newFamilyId()).copy(members = listOf(head), driverId = head.id, driverSignedIn = false))
+        load(emptySnapshot(newFamilyId()).copy(members = listOf(head), driverId = head.id, driverSignedIn = true))
         return head
     }
 
@@ -176,7 +176,7 @@ class FaxiStore(
 
     /**
      * 가족에서 빼기. 지난 영수증·기록에는 이름이 남는다. 그 사람 폰의 코드·한마디는 더 받지 않는다.
-     * 운전석에 로그인해 있던 사람이면 로그인을 푼다.
+     * 오늘의 기사였으면 기사를 다시 고르게 한다.
      */
     fun removeMember(id: String): Boolean {
         if (whyCannotRemove(id) != null) return false
@@ -344,35 +344,21 @@ class FaxiStore(
     }
 
     /**
-     * 기사 로그인: 운전할 사람이 자기 폰에 뜬 4자리를 누른다. 맞으면 차가 기억해서, 기사가 바뀔 때까지 다시 묻지 않는다.
-     * 손님 탑승(매번 코드)과 같은 열쇠·같은 방식이다.
+     * 오늘의 기사 고르기. 차가 기억해서 운전하는 사람이 바뀔 때만 다시 고른다(운행 중에는 못 바꾼다).
+     * 고르면 그 기사가 아직 못 들은 후기를 화면이 읽어 준다(takeUnreadReview).
      */
-    fun signInDriver(id: String, code: String): Boolean {
-        require(member(id).canDrive && !member(id).removed)
-        if (rideActive || !verifyCode(id, code)) return false
+    fun selectDriver(id: String): Boolean {
+        val m = member(id)
+        require(m.canDrive && !m.removed)
+        if (rideActive) return false
         driverId = id
         driverSignedIn = true
         changed()
         return true
     }
 
-    /** 기사 바꾸기: 운전석 로그인을 푼다(운행 중에는 못 한다). 다음 기사가 자기 코드로 로그인한다. */
-    fun signOutDriver() {
-        if (rideActive) return
-        driverSignedIn = false
-        changed()
-    }
-
-    /** 코드 없이 기사를 앉힌다. 단위 테스트와 미리보기 전용(화면에서는 signInDriver만 쓴다). */
-    internal fun selectDriver(id: String) {
-        require(member(id).canDrive)
-        driverId = id
-        driverSignedIn = true
-        changed()
-    }
-
     /**
-     * 그 사람 폰에 뜬 4자리가 그 사람 비밀 열쇠로 지금(±30초) 만든 코드와 같은지. 기사 로그인과 손님 탑승에 같이 쓴다.
+     * 그 사람 폰에 뜬 4자리가 그 사람 비밀 열쇠로 지금(±30초) 만든 코드와 같은지. 설정 "손님 폰 코드로 확인"을 켰을 때 탑승에 쓴다.
      * 인터넷 없이 차 안에서 끝난다. 다른 가족의 코드나 1분 넘은 코드는 통과하지 못한다.
      */
     fun verifyCode(memberId: String, code: String): Boolean {
@@ -404,7 +390,7 @@ class FaxiStore(
     }
 
     fun startRide(passengerId: String, extras: Set<FamilyExtra> = emptySet()) {
-        require(driverSignedIn) { "기사가 로그인해야 탈 수 있다" }
+        require(driverSignedIn) { "기사를 먼저 골라야 탈 수 있다" }
         require(passengerId != driverId)
         this.passengerId = passengerId
         rideExtras = extras

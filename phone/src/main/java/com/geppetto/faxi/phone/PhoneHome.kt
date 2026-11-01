@@ -74,7 +74,7 @@ enum class PhoneTab(val label: String, val icon: @Composable (Color, Dp) -> Unit
 
 /**
  * 등록한 뒤의 폰 앱: 위에 탭 화면, 아래 탭 막대. 탭 상태는 PhoneApp이 들고 있다(영수증을 찍으면 영수증 탭으로 옮기려고).
- * - 탑승: 내 코드(손님 탑승·기사 로그인)와 기사님께 한마디. 차에 타서 여는 화면.
+ * - 탑승: 기사님께 한마디와 내 코드(차 설정에서 코드 확인을 켰을 때만 쓴다). 차에 타서 여는 화면.
  * - 영수증: 영수증 QR 찍기, 방금 찍은 영수증의 기사 후기, 내 영수증 목록.
  * - 정산: 마지막 영수증 기준 받을 돈·갚을 돈.
  * - 설정: 내 정보, 차와 연결, 등록 해제.
@@ -144,7 +144,7 @@ private fun BottomTabs(current: PhoneTab, reviewWaiting: Boolean, onTab: (PhoneT
     }
 }
 
-/** 탑승: 내 코드(30초마다, 손님 탑승과 기사 로그인에 같이 쓴다) + 기사님께 한마디. 후기를 기다리는 영수증이 있으면 맨 위에 한 줄로 알린다. */
+/** 탑승: 내 코드(30초마다, 차 설정에서 코드 확인을 켰을 때 탑승에 쓴다) + 기사님께 한마디. 후기를 기다리는 영수증이 있으면 맨 위에 한 줄로 알린다. */
 @Composable
 private fun RideTab(me: FaxiInvite, store: PhoneStore, sender: MessageSender, onReview: () -> Unit) {
     val c = Faxi.colors
@@ -166,6 +166,8 @@ private fun RideTab(me: FaxiInvite, store: PhoneStore, sender: MessageSender, on
                 FaxiSecondaryButton("후기 쓰기", onClick = onReview, modifier = Modifier.fillMaxWidth())
             }
         }
+        // 폰의 주인공은 한마디. 코드는 차 설정에서 코드 확인을 켠 집만 쓰니 아래에 둔다
+        MessageCard(me, sender)
         FaxiCard {
             SectionTitle("${me.name} 코드")
             Text(
@@ -183,9 +185,8 @@ private fun RideTab(me: FaxiInvite, store: PhoneStore, sender: MessageSender, on
                 color = c.accent,
                 trackColor = c.surfaceRaised,
             )
-            Text("${left}초 뒤에 바뀌어요. 차에 탈 때나 기사로 로그인할 때 차 화면에 이 숫자를 눌러 주세요.", style = Faxi.type.caption, color = c.inkMuted)
+            Text("${left}초 뒤에 바뀌어요. 차 설정에서 \"손님 폰 코드로 확인\"을 켰을 때만 차 화면에 눌러요.", style = Faxi.type.caption, color = c.inkMuted)
         }
-        MessageCard(me, sender)
     }
 }
 

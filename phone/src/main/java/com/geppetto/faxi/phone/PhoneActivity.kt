@@ -141,7 +141,7 @@ private fun PhoneApp(store: PhoneStore, incoming: androidx.compose.runtime.Mutab
                 Row(horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space2)) {
                     if (otherFamily) WarningIcon(Faxi.colors.danger, FaxiDimens.iconMd)
                     Text(
-                        if (otherFamily) "다른 가족 차예요. 등록하면 지금 가족의 영수증은 지워져요." else "이 폰에 ${invite.name}님의 코드가 떠요. 차에 탈 때와 기사로 로그인할 때 써요.",
+                        if (otherFamily) "다른 가족 차예요. 등록하면 지금 가족의 영수증은 지워져요." else "이 폰으로 기사님께 한마디를 보내고, 영수증을 모으고, 기사 후기를 남겨요.",
                         style = Faxi.type.body,
                         color = Faxi.colors.ink,
                     )
