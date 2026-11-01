@@ -105,6 +105,23 @@ fun MeterIcon(color: Color, size: Dp) = Icon28(size) {
     drawCircle(color, radius = 2f * s, center = Offset(14f * s, 15f * s))
 }
 
+/**
+ * 택시 표시등: 앱 아이콘과 같은 집 모양 표시등 안에 F. 운행 중 화면 맨 위 띠에 쓴다.
+ * lamp = 표시등 면, ink = F 글자(면과 대비되는 색).
+ */
+@Composable
+fun TaxiLampIcon(lamp: Color, ink: Color, size: Dp) = Icon28(size) {
+    val s = u()
+    val house = Path().apply {
+        moveTo(14f * s, 2.5f * s); lineTo(26f * s, 11f * s); lineTo(26f * s, 25f * s)
+        lineTo(2f * s, 25f * s); lineTo(2f * s, 11f * s); close()
+    }
+    drawPath(house, lamp)
+    line(ink, 11f, 11.5f, 11f, 21f)
+    line(ink, 11f, 11.5f, 18f, 11.5f)
+    line(ink, 11f, 16.2f, 16.5f, 16.2f)
+}
+
 /** 탑승: 사람 */
 @Composable
 fun PersonIcon(color: Color, size: Dp) = Icon28(size) {

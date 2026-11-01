@@ -88,8 +88,9 @@ class FaxiStore(
     /** 내비 값(NaviFeed). 차가 아니면 비어 있다. */
     var navi by mutableStateOf(NaviReading())
         private set
-    /** 이번 운행 출발지(탑승 때 내비 주소) */
-    private var rideFrom: String? = snapshot.rideFrom
+    /** 이번 운행 출발지(탑승 때 내비 주소). 운행 중 화면 경로 칸에도 쓴다. */
+    var rideFrom: String? = snapshot.rideFrom
+        private set
     /** 이번 운행에 추가된 경유지 수(빼면 줄어든다). 하차 때 요금 엔진에 넣는다. */
     var rideWaypoints by mutableStateOf(snapshot.rideWaypoints)
         private set

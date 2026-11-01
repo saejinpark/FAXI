@@ -32,6 +32,8 @@ import com.geppetto.faxi.data.CabinState
 import com.geppetto.faxi.data.FaxiStore
 import com.geppetto.faxi.data.Grade
 import com.geppetto.faxi.fare.Hvac
+import com.geppetto.faxi.ui.components.TaxiLampIcon
+import com.geppetto.faxi.fare.Tariff
 import com.geppetto.faxi.ui.components.Avatar
 import com.geppetto.faxi.ui.components.ChatIcon
 import com.geppetto.faxi.ui.components.DriverLicenseCard
@@ -51,16 +53,17 @@ import com.geppetto.faxi.ui.components.WindowIcon
 import com.geppetto.faxi.ui.components.WiperIcon
 import com.geppetto.faxi.ui.theme.Faxi
 import com.geppetto.faxi.ui.theme.FaxiDimens
+import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 private val StartFormat = DateTimeFormatter.ofPattern("HH:mm")
 
 /**
- * 운행 중 (주행). 다른 화면과 같은 틀(FaxiPage)에 카드를 내용 크기대로 쌓는다. 화면을 채우려고 카드를 늘리지 않는다.
- * 자격증 | 손님 / 손님 한마디 / 요금 붙는 옵션.
+ * 운행 중 (주행). 화면의 주인공은 옆자리 손님이다. 위에서부터:
+ * 택시 표시등 띠(○○ 손님 모시는 중 + 지금 붙는 할증) / 자격증 | 경로 / 손님 한마디 / 지금 붙는 요금.
  * - 모두 정지 표시다. 금액은 화면에 없다: 하차 때 도착 화면에서 한 번에 공개한다.
  *   움직이는 숫자·흐르는 그래프·경과 시간은 넣지 않는다(Pleos 주행 중 화면 규칙).
- * - 손님 한마디와 옵션은 바뀔 때만 바뀐다(차의 표시등과 같은 성격). 한마디 칸은 높이를 미리 잡아 둬서 와도 아래가 밀리지 않는다.
+ * - 할증 꼬리표·한마디·옵션은 바뀔 때만 바뀐다(차의 표시등과 같은 성격). 한마디 칸은 높이를 미리 잡아 둬서 와도 아래가 밀리지 않는다.
  * - 운전자가 만질 것은 없다. 글자는 24sp 이상.
  * - onDemoPark는 차량 값이 없는 기기(폰·폴드) 시연에서만 넘긴다. 차에서는 기어 P가 하차다.
  */
@@ -68,23 +71,94 @@ private val StartFormat = DateTimeFormatter.ofPattern("HH:mm")
 fun DrivingScreen(store: FaxiStore, onDemoPark: (() -> Unit)?) {
     val driver = store.member(store.driverId)
     FaxiPage(
-        title = "운행 중",
-        trailing = {
-            Row(horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space6), verticalAlignment = Alignment.CenterVertically) {
-                Row(horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space3), verticalAlignment = Alignment.CenterVertically) {
-                    MeterIcon(Faxi.colors.accentInk, FaxiDimens.iconLg)
-                    Text("미터기가 돌고 있어요. 요금은 내릴 때 알려 드려요.", style = Faxi.type.bodyStrong, color = Faxi.colors.ink)
-                }
-                if (onDemoPark != null) FaxiSecondaryButton("시연: 주차(P)", onClick = onDemoPark)
-            }
-        },
+        title = "${driver.name} 택시 운행 중",
+        trailing = { if (onDemoPark != null) FaxiSecondaryButton("시연: 주차(P)", onClick = onDemoPark) },
     ) {
+        full { m -> LampBand(store, m) }
         row(
             { m -> DriverLicenseCard(driver, store.driverRating(driver.id), m, large = true) },
-            { m -> PassengerCell(store, m) },
+            { m -> RouteCell(store, m) },
         )
         full { m -> MessageCell(store, m) }
         full { m -> OptionsCell(store.cabin, m) }
+    }
+}
+
+/**
+ * 택시 표시등 띠: 앱 아이콘과 같은 표시등 + "엄마 손님 모시는 중" + 지금 붙는 할증 꼬리표.
+ * 할증은 차량 조건(우천·심야)과 탑승 때 정한 가족 할증·할인. 금액이 아니라 이름만.
+ */
+@Composable
+private fun LampBand(store: FaxiStore, modifier: Modifier) {
+    val c = Faxi.colors
+    val t = Faxi.type
+    val p = store.passengerId?.let(store::member)
+    val tariff = Tariff()
+    val tags = buildList {
+        if (store.cabin.wiper) add("우천 할증 ${tariff.rainPct}%")
+        if (tariff.isNight(LocalDateTime.now())) add("심야 할증 ${tariff.nightPct}%")
+        FamilyExtra.entries.filter { it in store.rideExtras }.forEach { add("${it.label} ${it.tag}") }
+        if (p?.grade == Grade.Learner) add("평생 장부에 쌓여요")
+    }
+    val shape = RoundedCornerShape(FaxiDimens.radiusLg)
+    Row(
+        modifier
+            .background(c.surface, shape)
+            .border(FaxiDimens.borderWidth * 2, c.accent, shape)
+            .padding(horizontal = FaxiDimens.space6, vertical = FaxiDimens.space4),
+        horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space6),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        TaxiLampIcon(c.accent, c.surface, 88.dp)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(FaxiDimens.space1)) {
+            Text("${p?.name ?: "손님"} 손님 모시는 중", style = t.headline, color = c.ink)
+            Text("요금은 내릴 때 한 번에 알려 드려요.", style = t.title, color = c.inkMuted)
+        }
+        // 꼬리표는 많아야 너덧 개. 넘치면 두 줄로 내려간다(움직이지 않는다).
+        Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(FaxiDimens.space2)) {
+            tags.chunked(2).forEach { line ->
+                Row(horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space2)) { line.forEach { LampTag(it) } }
+            }
+        }
+    }
+}
+
+/** 표시등 띠의 할증 꼬리표. 주행 중 읽는 글자라 24sp 이상(title) */
+@Composable
+private fun LampTag(text: String) {
+    val c = Faxi.colors
+    Text(
+        text,
+        style = Faxi.type.title,
+        color = c.accentInk,
+        modifier = Modifier
+            .border(FaxiDimens.borderWidth, c.accentInk, RoundedCornerShape(50))
+            .padding(horizontal = FaxiDimens.space4, vertical = FaxiDimens.space1),
+    )
+}
+
+/** 경로: 출발 시각, 출발지 → 목적지(내비), 경유지, 이 기사 차 몇 번째인지. 바뀔 때만 바뀌는 정지 표시. */
+@Composable
+private fun RouteCell(store: FaxiStore, modifier: Modifier) {
+    val c = Faxi.colors
+    val t = Faxi.type
+    val p = store.passengerId?.let(store::member) ?: return FaxiCard(modifier) {}
+    val driver = store.member(store.driverId)
+    val nth = store.ridesTogether(driver.id, p.id) + 1
+    FaxiCard(modifier) {
+        SectionTitle("경로")
+        Row(horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space4), verticalAlignment = Alignment.CenterVertically) {
+            Avatar(p, FaxiDimens.targetMin)
+            store.rideStartedAt?.let { Text("${it.format(StartFormat)} 출발", style = t.title, color = c.inkMuted) }
+        }
+        Text(store.rideFrom ?: "여기서 출발", style = t.title, color = c.inkMuted, maxLines = 1)
+        Text(
+            store.navi.destination?.let { "→ $it" } ?: "→ 목적지 미정",
+            style = t.headline, color = c.ink, maxLines = 2,
+        )
+        if (store.rideWaypoints > 0) Text("경유지 ${store.rideWaypoints}곳", style = t.title, color = c.ink)
+        Spacer(Modifier.weight(1f))
+        Text("${driver.name} 택시 ${nth}번째 탑승이에요.", style = t.title, color = c.inkMuted)
     }
 }
 
@@ -125,49 +199,11 @@ private fun MessageCell(store: FaxiStore, modifier: Modifier) {
 /** 한마디 칸 높이: 한마디가 와도 아래 옵션 칸이 밀리지 않게 큰 글자 한 줄 높이로 미리 잡는다 */
 private val MessageHeight = 120.dp
 
-/** 손님: 캐릭터, 이름, 출발 시각, 목적지, 이 기사 차 몇 번째인지 */
-@Composable
-private fun PassengerCell(store: FaxiStore, modifier: Modifier) {
-    val c = Faxi.colors
-    val t = Faxi.type
-    val p = store.passengerId?.let(store::member) ?: return FaxiCard(modifier) {}
-    val driver = store.member(store.driverId)
-    val nth = store.ridesTogether(driver.id, p.id) + 1
-    FaxiCard(modifier) {
-        SectionTitle("손님")
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space6),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Avatar(p, 136.dp)
-            Column(verticalArrangement = Arrangement.spacedBy(FaxiDimens.space2)) {
-                Text(p.name, style = t.headline, color = c.ink)
-                store.rideStartedAt?.let { Text("${it.format(StartFormat)} 출발", style = t.title, color = c.inkMuted) }
-                // 내비 목적지와 경유지(금액은 운행 중에 보이지 않는다). 바뀔 때만 바뀌는 정지 표시.
-                store.navi.destination?.let { Text("$it 가는 중", style = t.title, color = c.ink, maxLines = 1) }
-                if (store.rideWaypoints > 0) Text("경유지 ${store.rideWaypoints}곳", style = t.title, color = c.inkMuted)
-            }
-        }
-        Text("${driver.name} 택시 ${nth}번째 탑승이에요.", style = t.title, color = c.ink)
-        // 탑승 때 정한 가족 할증·할인. 운행 중에는 바뀌지 않는 정지 꼬리표(금액은 내릴 때).
-        // 주행 중 읽는 정보라 24sp 이상(title)
-        if (store.rideExtras.isNotEmpty()) {
-            Text(
-                FamilyExtra.entries.filter { it in store.rideExtras }.joinToString(" · ") { "${it.label} ${it.tag}" },
-                style = t.title, color = c.accentInk,
-            )
-        }
-        if (p.grade == Grade.Learner) {
-            Text("요금은 평생 장부에 쌓여요.", style = t.title, color = c.inkMuted)
-        }
-    }
-}
-
 /** 요금이 붙는 차량 옵션 4개의 켜짐/꺼짐. 색과 함께 "켜짐/꺼짐" 단어로 알린다. */
 @Composable
 private fun OptionsCell(cabin: CabinState, modifier: Modifier) {
     FaxiCard(modifier) {
-        SectionTitle("요금이 붙는 옵션")
+        SectionTitle("지금 붙는 요금")
         // 넓으면 한 줄에 넷, 좁으면 둘씩
         BoxWithConstraints {
             val perRow = if (maxWidth >= TwoColumnMin) 4 else 2
@@ -213,12 +249,12 @@ private fun OptionChip(
         modifier
             .background(if (on) c.surfaceRaised else c.surface, shape)
             .border(if (on) FaxiDimens.borderWidth * 2 else FaxiDimens.borderWidth, if (on) c.accent else c.line, shape)
-            .padding(FaxiDimens.space4)
+            .padding(FaxiDimens.space6)
             .semantics(mergeDescendants = true) { contentDescription = "$name ${if (on) onWord else offWord}, $rate" },
         horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space3),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        icon(ink, FaxiDimens.iconLg)
+        icon(ink, 56.dp)
         Column(Modifier.weight(1f)) {
             Text(name, style = t.title, color = c.ink)
             Text(rate, style = t.title, color = c.inkMuted)
