@@ -19,7 +19,9 @@ import ai.pleos.playground.navi.helper.listener.NaviHelperEventListener
 /**
  * 내비 창구: Pleos NaviHelper SDK(`ai.pleos.playground:NaviHelper`, 권한 pleos.car.permission.NAVI_ROUTE, 읽기만).
  * - 지금 위치 주소: `getCurrentLocationInfo()`를 15초마다 물어본다(출발지, 목적지 없이 내렸을 때의 도착지).
- * - 목적지 이름: `getDestinationInfo()`. 경로 안내가 시작되거나 목적지가 바뀌면 다시 묻는다.
+ * - 목적지 이름: `getDestinationInfo()`. 경로 안내가 시작되거나 목적지가 바뀌면 묻고, 15초마다도 묻는다.
+ *   경유지를 넣으면 내비가 경로를 끝냈다가(안내 취소) 다시 짜는데 onRouteStarted가 오지 않았다(에뮬레이터 로그).
+ *   그래서 안내 취소·경유지 변경 뒤에는 잠깐 기다렸다 목적지를 다시 묻는다.
  * - 도착: `onDestinationArrived`의 장소 이름.
  * - 경유지: `onWaypointChanged`의 추가/삭제 → 경유지 추가 요금.
  * 어떤 이벤트가 오는지는 내비 앱 구현과 상태에 따라 다르다(공식 문서). 콜백 스레드는 문서에 없어서 메인으로 옮긴다.
@@ -50,6 +52,7 @@ class NaviFeed(
         }
         override fun onRouteCancelled() {
             post { reading.copy(destination = null) }
+            askDestinationSoon()
         }
         override fun onDestinationArrived(info: DestinationArrivedInfo) {
             post { reading.copy(arrivedAt = info.name.ifBlank { info.address }.ifBlank { null }) }
@@ -61,6 +64,7 @@ class NaviFeed(
                 else -> WaypointChange.Removed
             }
             main.post { onWaypoint(change) }
+            askDestinationSoon()
         }
         override fun onError(code: NaviErrorCode) {
             Log.w(TAG, "내비 오류 $code")
@@ -70,8 +74,17 @@ class NaviFeed(
     private val poll = object : Runnable {
         override fun run() {
             runCatching { navi?.getCurrentLocationInfo() }
+            runCatching { navi?.getDestinationInfo() }
             main.postDelayed(this, POLL_MS)
         }
+    }
+
+    private val askDestination = Runnable { runCatching { navi?.getDestinationInfo() } }
+
+    /** 내비가 경로를 다시 짤 시간을 두고 목적지를 다시 묻는다 */
+    private fun askDestinationSoon() {
+        main.removeCallbacks(askDestination)
+        main.postDelayed(askDestination, REASK_MS)
     }
 
     fun start(): Boolean {
@@ -94,6 +107,7 @@ class NaviFeed(
 
     fun stop() {
         main.removeCallbacks(poll)
+        main.removeCallbacks(askDestination)
         navi?.let { n -> runCatching { n.removeListener(listener); n.release() } }
         navi = null
     }
@@ -106,6 +120,7 @@ class NaviFeed(
     private companion object {
         const val TAG = "FaxiNavi"
         const val POLL_MS = 15_000L
+        const val REASK_MS = 2_000L
     }
 }
 
