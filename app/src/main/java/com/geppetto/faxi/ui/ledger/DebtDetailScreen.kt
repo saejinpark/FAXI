@@ -47,7 +47,7 @@ import kotlin.math.abs
 
 /**
  * 두 사람 사이 빚 상세 (주차 상태).
- * 왼쪽: 남은 돈 → 손님이 보낸 금액을 적어 확인 요청 → 기사가 [받았어요]/[못 받았는데요].
+ * 왼쪽: 남은 돈 → 받은 사람이 받은 금액을 적고 [받았어요].
  * 오른쪽: 이 빚을 만든 운행 영수증, 둘 사이 기록, 탕감(확인을 한 번 더 받는다).
  */
 @Composable
@@ -63,7 +63,6 @@ fun DebtDetailScreen(
     val debtor = store.name(debtorId)
     val creditor = store.name(creditorId)
     val debt = store.debt(debtorId, creditorId)
-    val pending = store.requests.firstOrNull { it.payerId == debtorId && it.payeeId == creditorId }
     var amount by remember(debt) { mutableIntStateOf(debt?.amount ?: 0) }
     var confirmForgive by remember(debt) { mutableStateOf(false) }
 
@@ -89,16 +88,10 @@ fun DebtDetailScreen(
                     ) {
                         val days = store.daysOf(debt)
                         Text(if (days > 0) "${days}일째" else "오늘 생긴 빚", style = t.body, color = c.inkMuted)
-                        if (debt.disputed) StatusTag("다시 확인", Tone.Neutral)
                     }
                     Divider()
-                    if (pending != null) {
-                        SectionTitle("확인 기다리는 중")
-                        RequestItem(store, pending)
-                        return@FaxiCard
-                    }
-                    SectionTitle("${debtor}: 보낸 금액 적기")
-                    Text("앱은 돈을 옮기지 않아요. 따로 보낸 뒤 금액만 적어요.", style = t.caption, color = c.inkMuted)
+                    SectionTitle("${creditor.ga()} 받은 돈")
+                    Text("앱은 돈을 옮기지 않아요. 따로 받은 뒤 ${creditor.ga()} 금액만 적어요.", style = t.caption, color = c.inkMuted)
                     Text("${won(amount)}원", style = t.amountLarge.copy(fontSize = t.headline.fontSize), color = c.ink)
                     // 줄이 생겼다 사라지면 아래 버튼이 손가락 밑에서 움직이므로 항상 한 줄을 둔다
                     Text(
@@ -117,10 +110,10 @@ fun DebtDetailScreen(
                     }
                     Spacer(Modifier.weight(1f))
                     FaxiPrimaryButton(
-                        "${creditor}에게 보냈다고 알리기",
+                        "받았어요",
                         enabled = amount > 0,
                         modifier = Modifier.fillMaxWidth(),
-                        onClick = { store.requestSettlement(debt, amount) },
+                        onClick = { store.receivePayment(debt, amount) },
                     )
                 }
             },

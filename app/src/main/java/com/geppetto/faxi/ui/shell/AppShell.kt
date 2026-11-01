@@ -32,6 +32,7 @@ import com.geppetto.faxi.data.FaxiStore
 import com.geppetto.faxi.data.Gear
 import com.geppetto.faxi.data.won
 import com.geppetto.faxi.ui.boarding.BoardingScreen
+import com.geppetto.faxi.ui.family.FamilySetupScreen
 import com.geppetto.faxi.ui.components.BadgeIcon
 import com.geppetto.faxi.ui.components.GearIcon
 import com.geppetto.faxi.ui.settings.SettingsScreen
@@ -96,13 +97,18 @@ fun AppShell(store: FaxiStore, speak: (String) -> Unit, demo: Boolean) {
             ParkFirstScreen()
             return@Box
         }
+        // 처음 켰을 때: 가장 등록(또는 시연 가족 둘러보기)부터
+        if (store.needsSetup) {
+            FamilySetupScreen(store)
+            return@Box
+        }
         Row(Modifier.fillMaxSize()) {
-            Sidebar(tab, ledgerBadge = store.requests.size, onSelect = { tab = it })
+            Sidebar(tab, onSelect = { tab = it })
             Box(Modifier.weight(1f).fillMaxHeight()) {
                 when (tab) {
                     Tab.Board -> BoardingScreen(store, speak, onStarted = {})
                     Tab.Ledger -> LedgerScreen(store)
-                    Tab.Roster -> RosterScreen(store)
+                    Tab.Roster -> RosterScreen(store, speak)
                     Tab.Settings -> SettingsScreen(store, speak)
                 }
             }
@@ -126,7 +132,7 @@ private fun ParkFirstScreen() {
 }
 
 @Composable
-private fun Sidebar(current: Tab, ledgerBadge: Int, onSelect: (Tab) -> Unit) {
+private fun Sidebar(current: Tab, onSelect: (Tab) -> Unit) {
     val c = Faxi.colors
     Column(
         Modifier
@@ -159,10 +165,6 @@ private fun Sidebar(current: Tab, ledgerBadge: Int, onSelect: (Tab) -> Unit) {
             ) {
                 t.icon(ink, FaxiDimens.iconMd)
                 Text(t.label, style = Faxi.type.label, color = ink)
-                // 기사가 확인할 정산 요청이 있으면 장부 탭에 단어로 알린다
-                if (t == Tab.Ledger && ledgerBadge > 0) {
-                    Text("확인 ${ledgerBadge}건", style = Faxi.type.caption, color = if (on) c.onAccent else c.danger)
-                }
             }
         }
         Spacer(Modifier.weight(1f))

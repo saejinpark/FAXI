@@ -8,15 +8,20 @@ import com.geppetto.faxi.message.RideMessage
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonNames
 import kotlinx.serialization.UseSerializers
 
-/** 기사 등급. 실제 면허증은 받지 않고 "면허가 있습니다" 자기 선언으로 정식 기사가 된다. */
+/**
+ * 기사 등급 둘. 실제 면허증은 받지 않고 "운전해요" 자기 선언으로 정식 기사가 된다.
+ * 예전 장부의 "명예 기사"(Honorary)는 정식 기사로 읽는다(운전 안 하는 어른도 손님으로는 똑같이 탄다).
+ */
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 enum class Grade(val label: String) {
-    Full("정식 기사"),
+    @JsonNames("Honorary") Full("정식 기사"),
     Learner("예비 기사"),
-    Honorary("명예 기사"),
 }
 
 /** 기어 상태. 탑승·영수증·후기·정산은 Parked에서만 연다. */
@@ -28,16 +33,15 @@ enum class Gear { Parked, Driving, Unknown }
 data class Member(
     val id: String,
     val name: String,
-    /** 이름 대신 카드·영수증에 찍히는 호출명: PAXI, MAXI, KIXI, NAXI (가족이 바꿀 수 있다) */
-    val callsign: String,
-    val nickname: String,
+    /** 자격증에 크게 찍히는 별명. 비어 있으면 "엄마 기사"처럼 이름으로 쓴다. */
+    val nickname: String = "",
     val grade: Grade,
     val registered: LocalDate,
-    /** 기사로 운행한 누적 거리. 명예 기사는 지난 운전 기록. */
-    val drivenKm: Int,
+    /** 기사로 운행한 누적 거리 */
+    val drivenKm: Int = 0,
     /** 예비 기사만: 면허를 딸 수 있게 되는 날 */
     val licenseEligible: LocalDate? = null,
-    /** 사진 대신 쓰는 캐릭터(Avatars의 key). null이면 호출명 첫 글자를 보여 준다. */
+    /** 사진 대신 쓰는 캐릭터(Avatars의 key). null이면 이름 첫 글자를 보여 준다. */
     val avatar: String? = null,
     /** 자격증 사진 파일 이름(차 내부 저장소). 폰 → 차 사진 전송 통로가 정해지면 쓴다. */
     val photoFile: String? = null,
@@ -46,8 +50,14 @@ data class Member(
      * 차 밖으로는 그 QR 말고 나가지 않는다.
      */
     val secret: String = "",
+    /** 가족 색 칸(0~3). 등록한 순서대로 정해서 자격증 띠·아바타 테두리에 쓴다. */
+    val color: Int = 0,
+    /** 가족에서 뺀 사람. 지난 영수증·기록의 이름은 남기고, 명단·탑승·폰 연결에서는 사라진다. */
+    val removed: Boolean = false,
 ) {
     val canDrive: Boolean get() = grade == Grade.Full
+    /** 자격증 제목: 별명, 없으면 "엄마 기사" */
+    val cardTitle: String get() = nickname.ifBlank { "$name 기사" }
 }
 
 @Serializable
@@ -86,21 +96,11 @@ data class Debt(
     val amount: Int,
     /** 이 빚이 지금 금액으로 시작된 날. 연체 일수는 이 날짜로 계산한다. */
     val since: LocalDate,
-    val disputed: Boolean = false,
 ) {
     fun daysOn(today: LocalDate): Int = ChronoUnit.DAYS.between(since, today).toInt().coerceAtLeast(0)
 }
 
-/** 손님이 "보냈어요"라고 적은 정산 요청. 기사가 받았는지 확인한다. */
-@Serializable
-data class SettlementRequest(
-    val id: String,
-    val payerId: String,
-    val payeeId: String,
-    val amount: Int,
-)
-
-/** 장부 기록 한 줄(정산, 분쟁, 탕감, 상계). 두 사람 사이 기록이면 a·b가 그 둘이다. */
+/** 장부 기록 한 줄(갚음, 탕감, 상계). 두 사람 사이 기록이면 a·b가 그 둘이다. */
 @Serializable
 data class LedgerEvent(
     val date: LocalDate,
@@ -119,6 +119,8 @@ data class LifetimeLedger(
     val rides: Int,
     val km: Int,
     val amount: Int,
+    /** 면허를 따서 공개했는지. 공개 뒤에도 장부는 남는다(이제 운전해서 갚아 나간다). */
+    val revealed: Boolean = false,
 )
 
 /**
@@ -163,5 +165,3 @@ val Avatars = listOf(
 
 fun avatarOf(key: String?): AvatarChoice? = Avatars.firstOrNull { it.key == key }
 
-/** 기사가 손님을 평가할 때 고르는 태그(기사 후기 태그는 core의 DriverTag, 폰에서 쓴다) */
-val PassengerTags = listOf("인사 잘함", "벨트 먼저 맴", "과자 부스러기", "길 훈수", "또 태워 줄게요")

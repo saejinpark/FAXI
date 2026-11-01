@@ -73,14 +73,27 @@ fun SettingsScreen(store: FaxiStore, speak: (String) -> Unit) {
                 }
             },
         )
-        full { m ->
-            FaxiCard(m) {
-                SectionTitle("안내 음성")
-                OnOff("탑승 인사", "미터기를 켤 때 \"손님, 어디로 모실까요?\"", s.greet) { store.updateSettings(s.copy(greet = it)) }
-                OnOff("요금 안내", "내릴 때 요금을 읽어요.", s.fareAloud) { store.updateSettings(s.copy(fareAloud = it)) }
-                Text("가족 장부는 이 차 안에만 저장돼요. 버전 ${appVersion()}", style = t.caption, color = c.inkMuted)
-            }
-        }
+        row(
+            { m ->
+                FaxiCard(m) {
+                    SectionTitle("안내 음성")
+                    OnOff("탑승 인사", "미터기를 켤 때 \"손님, 어디로 모실까요?\"", s.greet) { store.updateSettings(s.copy(greet = it)) }
+                    OnOff("요금 안내", "내릴 때 요금을 읽어요.", s.fareAloud) { store.updateSettings(s.copy(fareAloud = it)) }
+                }
+            },
+            { m ->
+                FaxiCard(m) {
+                    SectionTitle("탑승 확인")
+                    OnOff(
+                        "손님 폰 코드로 확인",
+                        "켜면 손님 폰의 FAXI 앱에 뜬 4자리를 눌러야 미터기가 켜져요. 끄면 옆자리 손님이 차 화면의 \"제가 탈게요\"를 눌러요.",
+                        s.phoneCode,
+                    ) { store.updateSettings(s.copy(phoneCode = it)) }
+                    Spacer(Modifier.weight(1f))
+                    Text("가족 장부는 이 차 안에만 저장돼요. 버전 ${appVersion()}", style = t.caption, color = c.inkMuted)
+                }
+            },
+        )
     }
 }
 

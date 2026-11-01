@@ -50,8 +50,8 @@ import com.geppetto.faxi.ui.components.AvatarCircle
 import com.geppetto.faxi.ui.components.FaxiCard
 import com.geppetto.faxi.ui.components.FaxiPrimaryButton
 import com.geppetto.faxi.ui.components.FaxiSecondaryButton
+import com.geppetto.faxi.ui.components.ChatIcon
 import com.geppetto.faxi.ui.components.GearIcon
-import com.geppetto.faxi.ui.components.MeterIcon
 import com.geppetto.faxi.ui.components.MoneyRow
 import com.geppetto.faxi.ui.components.ReceiptIcon
 import com.geppetto.faxi.ui.components.SectionTitle
@@ -64,9 +64,9 @@ import com.geppetto.faxi.ui.theme.Faxi
 import com.geppetto.faxi.ui.theme.FaxiDimens
 import kotlinx.coroutines.delay
 
-/** 폰 앱 아래 탭 넷. 손님이 차에 탈 때 여는 탑승이 첫 탭이다. */
+/** 폰 앱 아래 탭 넷. 차에 타서 여는 한마디가 첫 탭이다. */
 enum class PhoneTab(val label: String, val icon: @Composable (Color, Dp) -> Unit) {
-    Ride("탑승", { c, s -> MeterIcon(c, s) }),
+    Ride("한마디", { c, s -> ChatIcon(c, s) }),
     Receipts("영수증", { c, s -> ReceiptIcon(c, s) }),
     Balance("정산", { c, s -> SwapIcon(c, s) }),
     Settings("설정", { c, s -> GearIcon(c, s) }),
@@ -74,10 +74,10 @@ enum class PhoneTab(val label: String, val icon: @Composable (Color, Dp) -> Unit
 
 /**
  * 등록한 뒤의 폰 앱: 위에 탭 화면, 아래 탭 막대. 탭 상태는 PhoneApp이 들고 있다(영수증을 찍으면 영수증 탭으로 옮기려고).
- * - 탑승: 탑승 코드와 기사님께 한마디. 차에 타서 여는 화면.
+ * - 한마디: 기사님께 한마디. 차에 타서 여는 화면.
  * - 영수증: 영수증 QR 찍기, 방금 찍은 영수증의 기사 후기, 내 영수증 목록.
  * - 정산: 마지막 영수증 기준 받을 돈·갚을 돈.
- * - 설정: 내 정보, 후기 묻기, 차와 연결, 등록 해제.
+ * - 설정: 내 정보, 탑승 코드(차 설정에서 코드 확인을 켠 집만), 차와 연결, 등록 해제.
  */
 @Composable
 internal fun PhoneMain(
@@ -144,48 +144,63 @@ private fun BottomTabs(current: PhoneTab, reviewWaiting: Boolean, onTab: (PhoneT
     }
 }
 
-/** 탑승: 탑승 코드(30초마다) + 기사님께 한마디. 후기를 기다리는 영수증이 있으면 맨 위에 한 줄로 알린다. */
+/** 한마디: 기사님께 한마디. 후기를 기다리는 영수증이 있으면 맨 위에 한 줄로 알린다. */
 @Composable
 private fun RideTab(me: FaxiInvite, store: PhoneStore, sender: MessageSender, onReview: () -> Unit) {
     val c = Faxi.colors
-    val secret = remember(me) { Base32.decode(me.secret) }
-    var now by remember { mutableLongStateOf(System.currentTimeMillis() / 1000) }
-    LaunchedEffect(Unit) {
-        while (true) {
-            delay(1000 - System.currentTimeMillis() % 1000)
-            now = System.currentTimeMillis() / 1000
-        }
-    }
-    val code = secret?.let { Totp.code(it, now) } ?: "----"
-    val left = Totp.secondsLeft(now)
-
-    PhonePage("탑승") {
+    PhonePage("한마디") {
         store.pendingReview?.let { t ->
             FaxiCard {
                 Text("${t.driver.substringBefore(" · ")} 기사님 후기를 기다리고 있어요.", style = Faxi.type.bodyStrong, color = c.ink)
                 FaxiSecondaryButton("후기 쓰기", onClick = onReview, modifier = Modifier.fillMaxWidth())
             }
         }
-        FaxiCard {
-            SectionTitle("${me.name} 탑승 코드")
-            Text(
-                code.toCharArray().joinToString(" "),
-                style = Faxi.type.amountLarge,
-                color = c.ink,
-                textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .semantics { contentDescription = "탑승 코드 ${code.toCharArray().joinToString(" ")}" },
-            )
-            LinearProgressIndicator(
-                progress = { left / Totp.STEP_SECONDS.toFloat() },
-                modifier = Modifier.fillMaxWidth(),
-                color = c.accent,
-                trackColor = c.surfaceRaised,
-            )
-            Text("${left}초 뒤에 바뀌어요. 차 화면에 이 숫자를 눌러 주세요.", style = Faxi.type.caption, color = c.inkMuted)
-        }
         MessageCard(me, sender)
+    }
+}
+
+/**
+ * 탑승 코드(30초마다 바뀌는 4자리). 차 설정 "손님 폰 코드로 확인"을 켠 집에서만 탈 때 쓴다.
+ * 평소에는 쓸 일이 없어서 설정 탭에 접어 두고, 눌러야 보인다.
+ */
+@Composable
+private fun BoardingCodeCard(me: FaxiInvite) {
+    val c = Faxi.colors
+    var shown by remember { mutableStateOf(false) }
+    FaxiCard {
+        SectionTitle("탑승 코드")
+        Text("차 설정에서 \"손님 폰 코드로 확인\"을 켠 집만 써요. 탈 때 이 숫자를 차 화면에 눌러요.", style = Faxi.type.body, color = c.inkMuted)
+        if (!shown) {
+            FaxiSecondaryButton("코드 보기", onClick = { shown = true }, modifier = Modifier.fillMaxWidth())
+            return@FaxiCard
+        }
+        val secret = remember(me) { Base32.decode(me.secret) }
+        var now by remember { mutableLongStateOf(System.currentTimeMillis() / 1000) }
+        LaunchedEffect(Unit) {
+            while (true) {
+                delay(1000 - System.currentTimeMillis() % 1000)
+                now = System.currentTimeMillis() / 1000
+            }
+        }
+        val code = secret?.let { Totp.code(it, now) } ?: "----"
+        val left = Totp.secondsLeft(now)
+        Text(
+            code.toCharArray().joinToString(" "),
+            style = Faxi.type.amountLarge,
+            color = c.ink,
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics { contentDescription = "탑승 코드 ${code.toCharArray().joinToString(" ")}" },
+        )
+        LinearProgressIndicator(
+            progress = { left / Totp.STEP_SECONDS.toFloat() },
+            modifier = Modifier.fillMaxWidth(),
+            color = c.accent,
+            trackColor = c.surfaceRaised,
+        )
+        Text("${left}초 뒤에 바뀌어요.", style = Faxi.type.caption, color = c.inkMuted)
+        FaxiSecondaryButton("접기", onClick = { shown = false }, modifier = Modifier.fillMaxWidth())
     }
 }
 
@@ -219,7 +234,7 @@ private fun ReceiptsTab(me: FaxiInvite, store: PhoneStore, sender: MessageSender
 }
 
 /**
- * 정산: 가장 최근 영수증을 찍은 순간의 사본. 폰은 차 장부를 바꾸지 못한다(보냈다고 알리기는 차 화면 장부에서).
+ * 정산: 가장 최근 영수증을 찍은 순간의 사본. 폰은 차 장부를 바꾸지 못한다("받았어요"는 받은 사람이 차 화면 장부에서).
  * 맨 위에 받을 돈·갚을 돈 합계를 크게, 그 아래 사람별.
  */
 @Composable
@@ -247,15 +262,11 @@ private fun BalanceTab(store: PhoneStore) {
             SectionTitle("사람별")
             if (latest.balances.isEmpty()) Text("주고받을 돈이 없어요.", style = Faxi.type.body, color = c.ink)
             latest.balances.forEach { b ->
-                // "다시 확인" 꼬리표가 어느 줄 것인지 헷갈리지 않게 그 줄과 한 묶음으로 붙인다
-                Column(verticalArrangement = Arrangement.spacedBy(FaxiDimens.space1)) {
-                    MoneyRow(if (b.owedToMe) "${b.other}에게 받을 돈" else "${b.other}에게 갚을 돈", b.amount)
-                    if (b.disputed) StatusTag("다시 확인", Tone.Neutral)
-                }
+                MoneyRow(if (b.owedToMe) "${b.other}에게 받을 돈" else "${b.other}에게 갚을 돈", b.amount)
             }
         }
         Text(
-            "${when_(latest.endedAt)} 영수증을 찍은 때 기준이에요. 보냈다고 알리거나 확인하는 건 차 화면 장부에서 해요.",
+            "${when_(latest.endedAt)} 영수증을 찍은 때 기준이에요. 받은 돈은 받는 사람이 차 화면 장부에 적어요.",
             style = Faxi.type.caption, color = c.inkMuted,
         )
     }
@@ -269,7 +280,7 @@ private fun Total(label: String, amount: Int, modifier: Modifier) {
     }
 }
 
-/** 설정: 내 정보, 후기 묻기, 차와 연결(근처 기기 권한), 등록 해제(한 번 더 묻는다), 버전 */
+/** 설정: 내 정보, 탑승 코드(접어 둠), 차와 연결(근처 기기 권한), 등록 해제(한 번 더 묻는다), 버전 */
 @Composable
 private fun SettingsTab(me: FaxiInvite, store: PhoneStore) {
     val c = Faxi.colors
@@ -279,25 +290,14 @@ private fun SettingsTab(me: FaxiInvite, store: PhoneStore) {
     PhonePage("설정") {
         FaxiCard {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space4)) {
-                AvatarCircle(null, me.callsign.take(1), FaxiDimens.targetMin, t.title, c.family(me.callsign))
+                AvatarCircle(null, me.name.take(1), FaxiDimens.targetMin, t.title, c.family(me.color))
                 Column {
                     Text(me.name, style = t.headline, color = c.ink)
-                    Text(me.callsign, style = t.bodyStrong, color = c.family(me.callsign))
                     Text(if (me.familyId == DemoFamily.FAMILY_ID) "시연 가족으로 등록됨" else "가족 차에 등록됨", style = t.caption, color = c.inkMuted)
                 }
             }
         }
-        FaxiCard {
-            SectionTitle("기사 후기")
-            Text("영수증을 찍으면 기사님 후기를 물어봐요. 후기는 다음 운행 때 차가 기사님께 읽어 줘요.", style = t.body, color = c.inkMuted)
-            Row(horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space3)) {
-                listOf(true to "묻기", false to "묻지 않기").forEach { (value, label) ->
-                    SelectTile(selected = store.askReview == value, onClick = { store.updateAskReview(value) }, modifier = Modifier.weight(1f)) {
-                        Text(label, style = t.label, color = c.ink)
-                    }
-                }
-            }
-        }
+        BoardingCodeCard(me)
         FaxiCard {
             SectionTitle("차와 연결")
             Text("한마디와 후기는 차와 같은 Wi-Fi(차 핫스팟)에서 차로 바로 보내요. 인터넷이나 서버를 거치지 않아요.", style = t.body, color = c.inkMuted)

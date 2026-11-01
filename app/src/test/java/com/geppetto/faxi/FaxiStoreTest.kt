@@ -54,25 +54,25 @@ class FaxiStoreTest {
     }
 
     @Test
-    fun 일부만_받으면_나머지가_남고_분쟁은_풀린다() {
+    fun 받았어요를_누르면_그만큼_줄고_다_받으면_사라진다() {
         val s = FaxiStore.sample(clock)
         val debt = s.debt("grandma", "mom")!!
-        assertTrue(debt.disputed)
-        s.requestSettlement(debt, 9_000)
-        s.confirmSettlement(s.requests.first(), received = true)
+        s.receivePayment(debt, 9_000)
         val left = s.debt("grandma", "mom")!!
         assertEquals(300, left.amount)
-        assertEquals(false, left.disputed)
+        assertEquals(debt.since, left.since) // 일부만 갚아도 연체 일수는 처음 날짜부터
+        assertEquals("할머니가 엄마에게 9,000원 갚음 · 300원 남음", s.events.first().text)
+        s.receivePayment(left, 300)
+        assertNull(s.debt("grandma", "mom"))
+        assertEquals("할머니가 엄마에게 300원 갚음 · 다 갚음", s.events.first().text)
     }
 
     @Test
-    fun 탕감하면_빚과_대기중_요청이_사라진다() {
+    fun 탕감하면_빚이_사라진다() {
         val s = FaxiStore.sample(clock)
         val debt = s.debt("mom", "dad")!!
-        s.requestSettlement(debt, 1_000)
         s.forgive(debt)
         assertNull(s.debt("mom", "dad"))
-        assertTrue(s.requests.isEmpty())
         assertEquals("아빠가 엄마 빚 3,120원 탕감", s.events.first().text)
     }
 
@@ -94,7 +94,7 @@ class FaxiStoreTest {
         val s = FaxiStore.sample(clock)
         s.startRide("mom")
         s.endRide()
-        s.requestSettlement(s.debts.first(), 1_000)
+        s.receivePayment(s.debts.first(), 1_000)
         val snap = s.snapshot()
         assertEquals(snap, faxiSnapshotFromJson(snap.toJson()))
         val restored = FaxiStore(faxiSnapshotFromJson(snap.toJson()), clock)
@@ -118,13 +118,26 @@ class FaxiStoreTest {
         val now = clock().atZone(java.time.ZoneId.systemDefault()).toEpochSecond()
         fun codeOf(id: String, at: Long) =
             com.geppetto.faxi.auth.Totp.code(com.geppetto.faxi.auth.Base32.decode(s.member(id).secret)!!, at)
-        assertTrue(s.verifyBoardingCode("mom", codeOf("mom", now)))
-        assertTrue(s.verifyBoardingCode("mom", codeOf("mom", now - 30))) // 시계가 조금 달라도
-        assertEquals(false, s.verifyBoardingCode("mom", codeOf("mom", now - 120))) // 2분 지난 코드
+        assertTrue(s.verifyCode("mom", codeOf("mom", now)))
+        assertTrue(s.verifyCode("mom", codeOf("mom", now - 30))) // 시계가 조금 달라도
+        assertEquals(false, s.verifyCode("mom", codeOf("mom", now - 120))) // 2분 지난 코드
         // 다른 가족의 코드로는 못 탄다(우연히 같은 4자리가 아니라면)
         val grandmaCode = codeOf("grandma", now)
-        if (grandmaCode != codeOf("mom", now)) assertEquals(false, s.verifyBoardingCode("mom", grandmaCode))
+        if (grandmaCode != codeOf("mom", now)) assertEquals(false, s.verifyCode("mom", grandmaCode))
         // 시연 가족 열쇠는 폰 앱과 같은 고정값
         assertEquals(com.geppetto.faxi.auth.DemoFamily.secretOf("mom"), s.member("mom").secret)
+    }
+
+    @Test
+    fun 탑승_때_고른_가족_할증은_앱이_다시_켜져도_남고_영수증에_붙는다() {
+        val s = FaxiStore.sample(clock)
+        s.startRide("mom", setOf(com.geppetto.faxi.fare.FamilyExtra.Late, com.geppetto.faxi.fare.FamilyExtra.Luggage))
+        val reopened = FaxiStore(faxiSnapshotFromJson(s.snapshot().toJson()), clock)
+        assertEquals(s.rideExtras, reopened.rideExtras)
+        val r = reopened.endRide()
+        // 기획서 예시 15,250원 + 지각 20% 3,050원 + 짐 500원
+        assertEquals(15_250 + 3_050 + 500, r.fareTotal)
+        assertEquals(listOf("지각 할증", "짐 할증"), r.lines.takeLast(2).map { it.label })
+        assertTrue(reopened.rideExtras.isEmpty())
     }
 }

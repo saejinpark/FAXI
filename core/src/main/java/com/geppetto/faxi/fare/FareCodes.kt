@@ -19,6 +19,11 @@ object FareCodes {
         "V" to ("환기 서비스" to "%s분"),
         "P" to ("경유지 추가" to "%s곳"),
         "K" to ("기사 귀책 환급" to "급정거 %s회"),
+        // 가족 할증·할인(FamilyExtra)
+        "L" to ("지각 할증" to "%s%%"),
+        "G" to ("짐 할증" to null),
+        "A" to ("대기 부탁" to null),
+        "T" to ("생일·심부름 할인" to "%s%%"),
     )
 
     fun shorten(line: FareLine): FareLine {

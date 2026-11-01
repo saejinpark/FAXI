@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.geppetto.faxi.auth.DemoFamily
 import com.geppetto.faxi.auth.FaxiInvite
 import com.geppetto.faxi.qr.ReceiptTicket
 import kotlinx.serialization.builtins.ListSerializer
@@ -19,7 +20,7 @@ import kotlinx.serialization.json.Json
 class PhoneStore(context: Context) {
     private val prefs = context.getSharedPreferences("faxi-phone", Context.MODE_PRIVATE)
 
-    var me by mutableStateOf(prefs.getString(KEY_INVITE, null)?.let(FaxiInvite::parse))
+    var me by mutableStateOf(prefs.getString(KEY_INVITE, null)?.let(FaxiInvite::parse)?.let(::withDemoColor))
         private set
 
     /** 최신이 앞 */
@@ -32,17 +33,8 @@ class PhoneStore(context: Context) {
     var reviewed by mutableStateOf(prefs.getStringSet(KEY_REVIEWED, emptySet())!!.toSet())
         private set
 
-    /** 설정: 영수증을 찍으면 기사 후기를 물을지 */
-    var askReview by mutableStateOf(prefs.getBoolean(KEY_ASK_REVIEW, true))
-        private set
-
-    fun updateAskReview(on: Boolean) {
-        askReview = on
-        prefs.edit().putBoolean(KEY_ASK_REVIEW, on).apply()
-    }
-
-    /** 후기를 물어볼 영수증: 묻기가 켜져 있고 가장 최근 것이 아직 후기 전이면 */
-    val pendingReview: ReceiptTicket? get() = if (!askReview) null else receipts.firstOrNull()?.takeIf { it.id !in reviewed }
+    /** 후기를 물어볼 영수증: 가장 최근 것이 아직 후기 전이면(건너뛰려면 후기 카드의 "안 남길래요") */
+    val pendingReview: ReceiptTicket? get() = receipts.firstOrNull()?.takeIf { it.id !in reviewed }
 
     fun markReviewed(receiptId: String) {
         reviewed = reviewed + receiptId
@@ -94,7 +86,11 @@ class PhoneStore(context: Context) {
         const val KEY_INVITE = "invite"
         const val KEY_RECEIPTS = "receipts"
         const val KEY_REVIEWED = "reviewed"
-        const val KEY_ASK_REVIEW = "ask-review"
         val LinkList = ListSerializer(String.serializer())
     }
 }
+
+/** 예전 시연 가족 링크(c=호출명)에는 가족 색이 없다: 시연 가족이면 차와 같은 색을 채운다 */
+private fun withDemoColor(i: FaxiInvite): FaxiInvite =
+    if (i.familyId != DemoFamily.FAMILY_ID) i
+    else DemoFamily.people.firstOrNull { it.memberId == i.memberId }?.let { i.copy(color = it.color) } ?: i

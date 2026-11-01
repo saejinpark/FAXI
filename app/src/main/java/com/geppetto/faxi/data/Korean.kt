@@ -12,6 +12,15 @@ private fun String.hasBatchim(): Boolean {
 /** 이름 + 주격 조사: "엄마가", "지민이" */
 fun String.ga(): String = this + if (hasBatchim()) "이" else "가"
 
+/** "엄마와", "지윤과" */
+fun String.wa(): String = this + if (hasBatchim()) "과" else "와"
+
+/** "엄마를", "지윤을" */
+fun String.eul(): String = this + if (hasBatchim()) "을" else "를"
+
+/** "엄마는", "지윤은" */
+fun String.eun(): String = this + if (hasBatchim()) "은" else "는"
+
 /** "엄마가 아빠에게" — 빚의 방향을 화살표 대신 말로 */
 fun owesPhrase(debtor: String, creditor: String): String = "${debtor.ga()} ${creditor}에게"
 
@@ -31,4 +40,10 @@ fun reviewLine(passenger: String, stars: Int, tags: Collection<String>): String 
     val count = StarWords.getOrElse(stars.coerceIn(1, 5) - 1) { "$stars" }
     val tagText = if (tags.isEmpty()) "" else " ${tags.joinToString(", ")}."
     return "지난 손님 후기입니다. $passenger 손님, 별 $count 개.$tagText"
+}
+
+/** 면허 땄을 때 차가 읽는 말: "지우, 면허 축하해요. 지금까지 2,140번, 18,204킬로미터를 태워 줬어요. 평생 장부는 14,502,310원이에요. 이제 지우가 기사예요." */
+fun licenseLine(name: String, ledger: LifetimeLedger?): String {
+    val story = ledger?.let { "지금까지 ${won(it.rides)}번, ${won(it.km)}킬로미터를 태워 줬어요. 평생 장부는 ${won(it.amount)}원이에요. " } ?: ""
+    return "$name, 면허 축하해요. ${story}이제 ${name.ga()} 기사예요."
 }

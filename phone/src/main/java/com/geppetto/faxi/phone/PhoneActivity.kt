@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -52,7 +53,7 @@ import kotlinx.coroutines.launch
  * - 등록 뒤: 아래 탭 넷(PhoneMain). 탑승(코드·한마디), 영수증(찍기·후기·목록), 정산, 설정
  * QR을 찍거나 faxi:// 링크를 열면(딥 링크) 같은 곳(handleLink)으로 온다.
  * 폰은 손님이 보는 화면이라 차 앱의 주행 중 규칙(움직임 금지)은 적용하지 않는다.
- * 색·글자·버튼은 차 앱과 같은 :design(FaxiTheme)을 쓴다. 폰이라고 따로 만들지 않는다.
+ * 색·글자·버튼은 차 앱과 같은 :design(FaxiTheme)을 쓴다. 다만 폰은 낮에 손에 들고 보는 손님 화면이라 밝은 종이 톤(paper = true).
  */
 class PhoneActivity : ComponentActivity() {
     /** 딥 링크로 들어온 링크. 화면이 꺼내 쓰고 비운다. */
@@ -60,10 +61,14 @@ class PhoneActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        // 화면이 늘 밝은 종이라, 시스템이 다크 모드여도 상태 바 아이콘은 어둡게
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT),
+        )
         val store = PhoneStore(applicationContext)
         incoming.value = intent?.dataString
-        setContent { FaxiTheme { PhoneApp(store, incoming) } }
+        setContent { FaxiTheme(paper = true) { PhoneApp(store, incoming) } }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -136,12 +141,12 @@ private fun PhoneApp(store: PhoneStore, incoming: androidx.compose.runtime.Mutab
             onDismissRequest = { pendingInvite = null },
             containerColor = Faxi.colors.surface,
             shape = RoundedCornerShape(FaxiDimens.radiusLg),
-            title = { Text("${invite.name} · ${invite.callsign}로 등록할까요?", style = Faxi.type.title, color = Faxi.colors.ink) },
+            title = { Text("이 폰을 ${invite.name} 폰으로 등록할까요?", style = Faxi.type.title, color = Faxi.colors.ink) },
             text = {
                 Row(horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space2)) {
                     if (otherFamily) WarningIcon(Faxi.colors.danger, FaxiDimens.iconMd)
                     Text(
-                        if (otherFamily) "다른 가족 차예요. 등록하면 지금 가족의 영수증은 지워져요." else "이 폰에 ${invite.name}님의 탑승 코드가 떠요.",
+                        if (otherFamily) "다른 가족 차예요. 등록하면 지금 가족의 영수증은 지워져요." else "이 폰으로 기사님께 한마디를 보내고, 영수증을 모으고, 기사 후기를 남겨요.",
                         style = Faxi.type.body,
                         color = Faxi.colors.ink,
                     )
@@ -200,10 +205,10 @@ private fun RegisterScreen(store: PhoneStore, onScan: () -> Unit, onBadLink: () 
             Text("차 앱 시연 데이터와 같은 열쇠를 써요. 실제 가족에게는 쓰지 마세요.", style = Faxi.type.caption, color = c.inkMuted)
             DemoFamily.people.forEach { p ->
                 FaxiSecondaryButton(
-                    "${p.name} · ${p.callsign}로 등록",
+                    "${p.name} 폰으로 등록",
                     onClick = { store.register(DemoFamily.inviteOf(p)) },
                     modifier = Modifier.fillMaxWidth(),
-                    leading = { AvatarCircle(null, p.callsign.take(1), FaxiDimens.iconLg, Faxi.type.label, c.family(p.callsign)) },
+                    leading = { AvatarCircle(null, p.name.take(1), FaxiDimens.iconLg, Faxi.type.label, c.family(p.color)) },
                 )
             }
         }

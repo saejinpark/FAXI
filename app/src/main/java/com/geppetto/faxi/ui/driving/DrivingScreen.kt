@@ -32,6 +32,8 @@ import com.geppetto.faxi.data.CabinState
 import com.geppetto.faxi.data.FaxiStore
 import com.geppetto.faxi.data.Grade
 import com.geppetto.faxi.fare.Hvac
+import com.geppetto.faxi.ui.components.TaxiLampIcon
+import com.geppetto.faxi.fare.Tariff
 import com.geppetto.faxi.ui.components.Avatar
 import com.geppetto.faxi.ui.components.ChatIcon
 import com.geppetto.faxi.ui.components.DriverLicenseCard
@@ -43,6 +45,7 @@ import com.geppetto.faxi.ui.components.MeterIcon
 import com.geppetto.faxi.ui.components.PreviewFrame
 import com.geppetto.faxi.ui.components.SeatHeatIcon
 import com.geppetto.faxi.ui.components.SectionTitle
+import com.geppetto.faxi.fare.FamilyExtra
 import com.geppetto.faxi.ui.components.SnowflakeIcon
 import com.geppetto.faxi.ui.components.SunIcon
 import com.geppetto.faxi.ui.components.TwoColumnMin
@@ -50,46 +53,107 @@ import com.geppetto.faxi.ui.components.WindowIcon
 import com.geppetto.faxi.ui.components.WiperIcon
 import com.geppetto.faxi.ui.theme.Faxi
 import com.geppetto.faxi.ui.theme.FaxiDimens
+import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 private val StartFormat = DateTimeFormatter.ofPattern("HH:mm")
 
 /**
- * 운행 중 (주행). 다른 화면과 같은 틀(FaxiPage)에 카드를 내용 크기대로 쌓는다. 화면을 채우려고 카드를 늘리지 않는다.
- * 자격증 | 손님 / 손님 한마디 / 요금 붙는 옵션.
+ * 운행 중 (주행). "밤 택시" 스타일: 밤 바탕 위에 상자 없이, 종이 물건은 기사 자격증 하나.
+ * 화면의 주인공은 옆자리 손님이다. 위에서부터:
+ * 표시등 + "엄마 손님 모시는 중" + 지금 붙는 할증 꼬리표 / 경로 한 줄 / 자격증(종이) | 손님 한마디 / 지금 붙는 요금.
+ * 한마디를 한 번도 받지 않은 집은 한마디 칸 없이 자격증 | 경로.
  * - 모두 정지 표시다. 금액은 화면에 없다: 하차 때 도착 화면에서 한 번에 공개한다.
  *   움직이는 숫자·흐르는 그래프·경과 시간은 넣지 않는다(Pleos 주행 중 화면 규칙).
- * - 손님 한마디와 옵션은 바뀔 때만 바뀐다(차의 표시등과 같은 성격). 한마디 칸은 높이를 미리 잡아 둬서 와도 아래가 밀리지 않는다.
+ * - 할증 꼬리표·한마디·옵션은 바뀔 때만 바뀐다(차의 표시등과 같은 성격). 한마디 칸은 높이를 미리 잡아 둬서 와도 아래가 밀리지 않는다.
  * - 운전자가 만질 것은 없다. 글자는 24sp 이상.
  * - onDemoPark는 차량 값이 없는 기기(폰·폴드) 시연에서만 넘긴다. 차에서는 기어 P가 하차다.
  */
 @Composable
 fun DrivingScreen(store: FaxiStore, onDemoPark: (() -> Unit)?) {
+    val c = Faxi.colors
     val driver = store.member(store.driverId)
+    val p = store.passengerId?.let(store::member)
     FaxiPage(
-        title = "운행 중",
+        title = "${p?.name ?: "손님"} 손님 모시는 중",
+        leading = { TaxiLampIcon(c.accent, c.bg, 72.dp) },
         trailing = {
-            Row(horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space6), verticalAlignment = Alignment.CenterVertically) {
-                Row(horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space3), verticalAlignment = Alignment.CenterVertically) {
-                    MeterIcon(Faxi.colors.accentInk, FaxiDimens.iconLg)
-                    Text("미터기가 돌고 있어요. 요금은 내릴 때 알려 드려요.", style = Faxi.type.bodyStrong, color = Faxi.colors.ink)
-                }
+            Row(horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space3), verticalAlignment = Alignment.CenterVertically) {
+                surchargeTags(store).forEach { LampTag(it) }
                 if (onDemoPark != null) FaxiSecondaryButton("시연: 주차(P)", onClick = onDemoPark)
             }
         },
     ) {
-        row(
-            { m -> DriverLicenseCard(driver, store.driverRating(driver.id), m, large = true) },
-            { m -> PassengerCell(store, m) },
-        )
-        full { m -> MessageCell(store, m) }
+        // 한마디를 받은 적 없는 집(폰을 안 쓰는 집)은 한마디 칸 대신 경로를 자격증 옆에 크게
+        if (store.messagesSeen) {
+            full { m -> RouteLine(store, m) }
+            row(
+                { m -> DriverLicenseCard(driver, store.driverRating(driver.id), m, large = true) },
+                { m -> MessageCell(store, m) },
+            )
+        } else {
+            row(
+                { m -> DriverLicenseCard(driver, store.driverRating(driver.id), m, large = true) },
+                { m -> RouteLine(store, m.padding(vertical = FaxiDimens.space4)) },
+            )
+        }
         full { m -> OptionsCell(store.cabin, m) }
+    }
+}
+
+/** 지금 붙는 할증 이름(금액 아님): 차량 조건(우천·심야) + 탑승 때 정한 가족 할증·할인 + 예비 기사 손님 */
+@Composable
+private fun surchargeTags(store: FaxiStore): List<String> {
+    val tariff = Tariff()
+    val p = store.passengerId?.let(store::member)
+    return buildList {
+        if (store.cabin.wiper) add("우천 할증")
+        if (tariff.isNight(LocalDateTime.now())) add("심야 할증")
+        FamilyExtra.entries.filter { it in store.rideExtras }.forEach { add(it.label) }
+        if (p?.grade == Grade.Learner) add("평생 장부")
+    }
+}
+
+/** 할증 꼬리표. 주행 중 읽는 글자라 24sp 이상(title) */
+@Composable
+private fun LampTag(text: String) {
+    val c = Faxi.colors
+    Text(
+        text,
+        style = Faxi.type.title,
+        color = c.accentInk,
+        modifier = Modifier
+            .border(FaxiDimens.borderWidth, c.accentInk, RoundedCornerShape(50))
+            .padding(horizontal = FaxiDimens.space4, vertical = FaxiDimens.space1),
+    )
+}
+
+/** 경로 한 줄(상자 없이): 출발지 → 목적지(내비) · 출발 시각 · 경유지 · 이 기사 차 몇 번째 */
+@Composable
+private fun RouteLine(store: FaxiStore, modifier: Modifier) {
+    val c = Faxi.colors
+    val t = Faxi.type
+    val p = store.passengerId?.let(store::member) ?: return
+    val driver = store.member(store.driverId)
+    val nth = store.ridesTogether(driver.id, p.id) + 1
+    val dest = store.navi.destination ?: "목적지 미정"
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(FaxiDimens.space1)) {
+        Text("${store.rideFrom ?: "여기"} → $dest", style = t.headline, color = c.ink, maxLines = 2)
+        Text(
+            listOfNotNull(
+                store.rideStartedAt?.let { "${it.format(StartFormat)} 출발" },
+                store.rideWaypoints.takeIf { it > 0 }?.let { "경유지 ${it}곳" },
+                "${driver.name} 택시 ${nth}번째 탑승",
+                "요금은 내릴 때 한 번에",
+            ).joinToString(" · "),
+            style = t.title, color = c.inkMuted,
+        )
     }
 }
 
 /**
  * 손님 한마디: 손님이 폰으로 보낸 마지막 한마디(아이콘 + 한 줄). 없으면 보내는 법을 흐리게.
- * 새 한마디가 와도 깜빡이거나 소리 내지 않는다(주행 중 움직임·말하기 금지). 테두리만 accent로 바뀐다.
+ * 새 한마디가 와도 깜빡이거나 소리 내지 않는다(주행 중 움직임·말하기 금지). 상자 없이 밤 바탕 위에 큰 글자로.
  */
 @Composable
 private fun MessageCell(store: FaxiStore, modifier: Modifier) {
@@ -97,95 +161,65 @@ private fun MessageCell(store: FaxiStore, modifier: Modifier) {
     val t = Faxi.type
     val p = store.passengerId?.let(store::member)
     val got = store.passengerMessage
-    val shape = RoundedCornerShape(FaxiDimens.radiusLg)
-    Row(
+    Column(
         modifier
             .heightIn(min = MessageHeight)
-            .background(c.surface, shape)
-            .border(if (got != null) FaxiDimens.borderWidth * 2 else FaxiDimens.borderWidth, if (got != null) c.accent else c.line, shape)
-            .padding(horizontal = FaxiDimens.space6, vertical = FaxiDimens.space4)
+            .padding(vertical = FaxiDimens.space4)
             .semantics(mergeDescendants = true) {
                 contentDescription = got?.let { "${p?.name ?: "손님"}의 한마디: ${it.message.text}" } ?: "손님 한마디 없음"
             },
-        horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space6),
-        verticalAlignment = Alignment.CenterVertically,
+        verticalArrangement = Arrangement.spacedBy(FaxiDimens.space3, Alignment.CenterVertically),
     ) {
+        Text(
+            if (got != null) "${p?.name ?: "손님"}의 한마디 · ${got.at.format(StartFormat)}" else "${p?.name ?: "손님"}의 한마디",
+            style = t.title, color = c.inkMuted,
+        )
         if (got != null) {
-            MessageIcon(got.message.code, c.accentInk, 72.dp)
-            Text(got.message.text, style = t.display, color = c.ink, maxLines = 1, modifier = Modifier.weight(1f))
-            Text("${got.at.format(StartFormat)} ${p?.name ?: "손님"}", style = t.body, color = c.inkMuted)
+            Row(horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space4), verticalAlignment = Alignment.CenterVertically) {
+                MessageIcon(got.message.code, c.accentInk, 72.dp)
+                Text(got.message.text, style = t.display, color = c.ink, maxLines = 2)
+            }
         } else {
-            ChatIcon(c.inkMuted, FaxiDimens.iconLg)
-            Text("${p?.name ?: "손님"} 폰에서 보낸 한마디가 여기 떠요.", style = t.title, color = c.inkMuted)
+            Row(horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space3), verticalAlignment = Alignment.CenterVertically) {
+                ChatIcon(c.inkMuted, FaxiDimens.iconLg)
+                Text("폰에서 보내면 여기 떠요.", style = t.title, color = c.inkMuted)
+            }
         }
     }
 }
 
 /** 한마디 칸 높이: 한마디가 와도 아래 옵션 칸이 밀리지 않게 큰 글자 한 줄 높이로 미리 잡는다 */
-private val MessageHeight = 120.dp
+private val MessageHeight = 200.dp
 
-/** 손님: 캐릭터, 이름, 출발 시각, 목적지, 이 기사 차 몇 번째인지 */
-@Composable
-private fun PassengerCell(store: FaxiStore, modifier: Modifier) {
-    val c = Faxi.colors
-    val t = Faxi.type
-    val p = store.passengerId?.let(store::member) ?: return FaxiCard(modifier) {}
-    val driver = store.member(store.driverId)
-    val nth = store.ridesTogether(driver.id, p.id) + 1
-    FaxiCard(modifier) {
-        SectionTitle("손님")
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space6),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Avatar(p, 136.dp)
-            Column(verticalArrangement = Arrangement.spacedBy(FaxiDimens.space2)) {
-                Text("${p.name} · ${p.callsign}", style = t.headline, color = c.ink)
-                store.rideStartedAt?.let { Text("${it.format(StartFormat)} 출발", style = t.title, color = c.inkMuted) }
-                // 내비 목적지와 경유지(금액은 운행 중에 보이지 않는다). 바뀔 때만 바뀌는 정지 표시.
-                store.navi.destination?.let { Text("$it 가는 중", style = t.title, color = c.ink, maxLines = 1) }
-                if (store.rideWaypoints > 0) Text("경유지 ${store.rideWaypoints}곳", style = t.title, color = c.inkMuted)
-            }
-        }
-        Text("${driver.name} 택시 ${nth}번째 탑승이에요.", style = t.title, color = c.ink)
-        if (p.grade == Grade.Learner) {
-            Text("요금은 평생 장부에 쌓여요.", style = t.title, color = c.inkMuted)
-        }
-    }
-}
-
-/** 요금이 붙는 차량 옵션 4개의 켜짐/꺼짐. 색과 함께 "켜짐/꺼짐" 단어로 알린다. */
+/** 지금 붙는 요금: 차량 옵션 4개의 켜짐/꺼짐(상자 없이 윗줄로). 색과 함께 단어로 알린다. */
 @Composable
 private fun OptionsCell(cabin: CabinState, modifier: Modifier) {
-    FaxiCard(modifier) {
-        SectionTitle("요금이 붙는 옵션")
-        // 넓으면 한 줄에 넷, 좁으면 둘씩
-        BoxWithConstraints {
-            val perRow = if (maxWidth >= TwoColumnMin) 4 else 2
-            val chips: List<@Composable (Modifier) -> Unit> = listOf(
-                { m ->
-                    OptionChip(
-                        "냉난방", "분당 30원", cabin.hvac != Hvac.Off, m,
-                        onWord = if (cabin.hvac == Hvac.Heat) "난방" else "냉방",
-                    ) { col, s -> if (cabin.hvac == Hvac.Heat) SunIcon(col, s) else SnowflakeIcon(col, s) }
-                },
-                { m -> OptionChip("엉따", "분당 20원", cabin.seatHeat, m) { col, s -> SeatHeatIcon(col, s) } },
-                { m -> OptionChip("와이퍼", "요금 10%", cabin.wiper, m) { col, s -> WiperIcon(col, s) } },
-                { m ->
-                    OptionChip("창문", "분당 10원", cabin.windowOpen, m, onWord = "열림", offWord = "닫힘") { col, s -> WindowIcon(col, s) }
-                },
-            )
-            Column(verticalArrangement = Arrangement.spacedBy(FaxiDimens.space3)) {
-                chips.chunked(perRow).forEach { line ->
-                    Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space3)) {
-                        line.forEach { chip -> chip(Modifier.weight(1f).fillMaxHeight()) }
-                    }
+    BoxWithConstraints(modifier) {
+        val perRow = if (maxWidth >= TwoColumnMin) 4 else 2
+        val chips: List<@Composable (Modifier) -> Unit> = listOf(
+            { m ->
+                OptionChip(
+                    "냉난방", "분당 30원", cabin.hvac != Hvac.Off, m,
+                    onWord = if (cabin.hvac == Hvac.Heat) "난방" else "냉방",
+                ) { col, s -> if (cabin.hvac == Hvac.Heat) SunIcon(col, s) else SnowflakeIcon(col, s) }
+            },
+            { m -> OptionChip("엉따", "분당 20원", cabin.seatHeat, m) { col, s -> SeatHeatIcon(col, s) } },
+            { m -> OptionChip("와이퍼", "할증 10%", cabin.wiper, m) { col, s -> WiperIcon(col, s) } },
+            { m ->
+                OptionChip("창문", "분당 10원", cabin.windowOpen, m, onWord = "열림", offWord = "닫힘") { col, s -> WindowIcon(col, s) }
+            },
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(FaxiDimens.space6)) {
+            chips.chunked(perRow).forEach { line ->
+                Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space6)) {
+                    line.forEach { chip -> chip(Modifier.weight(1f).fillMaxHeight()) }
                 }
             }
         }
     }
 }
 
+/** 옵션 하나: 윗줄(켜지면 산호, 두껍게) + 아이콘 + 이름·요금 + 켜짐/꺼짐 단어 */
 @Composable
 private fun OptionChip(
     name: String,
@@ -199,22 +233,19 @@ private fun OptionChip(
     val c = Faxi.colors
     val t = Faxi.type
     val ink = if (on) c.accentInk else c.inkMuted
-    val shape = RoundedCornerShape(FaxiDimens.radiusMd)
-    Row(
-        modifier
-            .background(if (on) c.surfaceRaised else c.surface, shape)
-            .border(if (on) FaxiDimens.borderWidth * 2 else FaxiDimens.borderWidth, if (on) c.accent else c.line, shape)
-            .padding(FaxiDimens.space4)
-            .semantics(mergeDescendants = true) { contentDescription = "$name ${if (on) onWord else offWord}, $rate" },
-        horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space3),
-        verticalAlignment = Alignment.CenterVertically,
+    Column(
+        modifier.semantics(mergeDescendants = true) { contentDescription = "$name ${if (on) onWord else offWord}, $rate" },
+        verticalArrangement = Arrangement.spacedBy(FaxiDimens.space3),
     ) {
-        icon(ink, FaxiDimens.iconLg)
-        Column(Modifier.weight(1f)) {
-            Text(name, style = t.title, color = c.ink)
-            Text(rate, style = t.title, color = c.inkMuted)
+        Box(Modifier.fillMaxWidth().height(if (on) 6.dp else 2.dp).background(if (on) c.accent else c.line, RoundedCornerShape(3.dp)))
+        Row(horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space3), verticalAlignment = Alignment.CenterVertically) {
+            icon(ink, 56.dp)
+            Column(Modifier.weight(1f)) {
+                Text(name, style = t.title, color = c.ink)
+                Text(rate, style = t.title, color = c.inkMuted)
+            }
+            Text(if (on) onWord else offWord, style = t.title, color = ink)
         }
-        Text(if (on) onWord else offWord, style = t.bodyStrong, color = ink)
     }
 }
 

@@ -126,7 +126,7 @@ internal fun MessageCard(me: FaxiInvite, sender: MessageSender) {
             val reply = sender.send(me, msg)
             failed = reply != MessageReply.Shown
             status = reply.problem() ?: when (reply) {
-                MessageReply.NotRiding -> "지금 이 차에 타고 있지 않아요. 탑승 코드부터 눌러 주세요."
+                MessageReply.NotRiding -> "지금 이 차에 타고 있지 않아요. 차 화면에서 먼저 타 주세요."
                 MessageReply.TooSoon -> "방금 보냈어요. 10초 뒤에 다시 보내 주세요."
                 else -> "\"${msg.text}\" 기사님 화면에 떴어요."
             }
@@ -267,7 +267,8 @@ internal fun ReceiptItem(t: ReceiptTicket) {
         // 폰은 좁아서 이름·시각·금액을 한 줄에 몰지 않고 세로로 쌓는다
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(FaxiDimens.space1)) {
-                Text("${t.driver} 택시", style = Faxi.type.bodyStrong, color = c.ink)
+                // 예전 영수증은 "아빠 · PAXI"처럼 호출명이 붙어 있다
+                Text("${t.driver.substringBefore(" · ")} 택시", style = Faxi.type.bodyStrong, color = c.ink)
                 Text("${when_(t.endedAt)} · ${t.route}", style = Faxi.type.caption, color = c.inkMuted)
                 Text(
                     "${"%,d".format(if (t.toLifetime) t.fareTotal else t.billed)}원",

@@ -3,6 +3,7 @@ package com.geppetto.faxi.ui.roster
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.material3.Text
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -16,12 +17,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.geppetto.faxi.data.FaxiStore
 import com.geppetto.faxi.data.won
+import com.geppetto.faxi.data.ga
 import com.geppetto.faxi.ui.components.BigWon
 import com.geppetto.faxi.ui.components.DriverLicenseCard
 import com.geppetto.faxi.ui.components.FaxiCard
 import com.geppetto.faxi.ui.components.FaxiPage
 import com.geppetto.faxi.ui.components.FaxiPreviews
+import com.geppetto.faxi.ui.components.FaxiSecondaryButton
 import com.geppetto.faxi.ui.components.LedgerIcon
+import com.geppetto.faxi.ui.components.PlusIcon
+import com.geppetto.faxi.ui.family.AddMemberScreen
+import com.geppetto.faxi.ui.family.EditMemberScreen
+import com.geppetto.faxi.data.licenseLine
 import com.geppetto.faxi.ui.components.PreviewFrame
 import com.geppetto.faxi.ui.components.SectionTitle
 import com.geppetto.faxi.ui.components.StatusTag
@@ -33,14 +40,17 @@ import java.time.LocalDate
 
 /**
  * 기사 탭. 안에서 단계로 들어간다(내비게이션 라이브러리 없이 상태 셋으로, 장부 탭과 같은 방식):
- * 명단 → 기사 상세 → 빚 상세 → 영수증. 뒤로는 한 단계씩.
+ * 명단 → 기사 상세 → 빚 상세 → 영수증, 명단 → 가족 추가 → 새 사람 상세(폰 연결). 뒤로는 한 단계씩.
  */
 @Composable
-fun RosterScreen(store: FaxiStore, today: LocalDate = LocalDate.now()) {
+fun RosterScreen(store: FaxiStore, speak: (String) -> Unit = {}, today: LocalDate = LocalDate.now()) {
     var memberId by rememberSaveable { mutableStateOf<String?>(null) }
     // "debtorId>creditorId"
     var pair by rememberSaveable { mutableStateOf<String?>(null) }
     var receiptId by rememberSaveable { mutableStateOf<String?>(null) }
+    var adding by rememberSaveable { mutableStateOf(false) }
+    var editingId by rememberSaveable { mutableStateOf<String?>(null) }
+    var revealId by rememberSaveable { mutableStateOf<String?>(null) }
 
     val receipt = receiptId?.let(store::receipt)
     if (receipt != null) {
@@ -52,6 +62,14 @@ fun RosterScreen(store: FaxiStore, today: LocalDate = LocalDate.now()) {
         DebtDetailScreen(store, p[0], p[1], onBack = { pair = null }, onOpenReceipt = { receiptId = it })
         return
     }
+    revealId?.let { rid ->
+        LicenseRevealScreen(store, rid, onDone = { revealId = null })
+        return
+    }
+    editingId?.let { eid ->
+        EditMemberScreen(store, eid, onBack = { editingId = null }, onRemoved = { editingId = null; memberId = null })
+        return
+    }
     val id = memberId
     if (id != null) {
         MemberDetailScreen(
@@ -59,24 +77,37 @@ fun RosterScreen(store: FaxiStore, today: LocalDate = LocalDate.now()) {
             onBack = { memberId = null },
             onOpenDebt = { pair = "${it.debtorId}>${it.creditorId}" },
             onOpenReceipt = { receiptId = it },
+            onEdit = { editingId = id },
+            onGraduate = {
+                val ledger = store.graduate(id)
+                speak(licenseLine(store.name(id), ledger))
+                revealId = id
+            },
             today = today,
         )
         return
     }
-    RosterHome(store, today, onOpenMember = { memberId = it })
+    if (adding) {
+        // 더하면 바로 그 사람 상세로: 폰 연결(초대 QR)이 거기 있다
+        AddMemberScreen(store, onBack = { adding = false }, onAdded = { adding = false; memberId = it })
+        return
+    }
+    RosterHome(store, today, onOpenMember = { memberId = it }, onAdd = { adding = true })
 }
 
 /** 명단: 가족 자격증 카드(누르면 기사 상세) + 예비 기사의 평생 장부 */
 @Composable
-private fun RosterHome(store: FaxiStore, today: LocalDate, onOpenMember: (String) -> Unit) {
+private fun RosterHome(store: FaxiStore, today: LocalDate, onOpenMember: (String) -> Unit, onAdd: () -> Unit) {
     val c = Faxi.colors
     val t = Faxi.type
 
     FaxiPage(
         title = "기사 명단",
-        trailing = { Text("카드를 누르면 자세히 볼 수 있어요", style = t.caption, color = c.inkMuted) },
+        trailing = {
+            FaxiSecondaryButton("가족 추가", onClick = onAdd, leading = { PlusIcon(c.ink, FaxiDimens.iconMd) })
+        },
     ) {
-        store.members.chunked(2).forEach { pair ->
+        store.family.chunked(2).forEach { pair ->
             val cells = pair.map { member ->
                 @Composable { m: Modifier ->
                     DriverLicenseCard(
@@ -87,9 +118,11 @@ private fun RosterHome(store: FaxiStore, today: LocalDate, onOpenMember: (String
                     )
                 }
             }
-            row(*cells.toTypedArray())
+            // 한 사람만 남은 줄도 자격증이 화면 폭으로 늘어나지 않게 빈 칸을 채운다
+            val filled = if (cells.size == 1) cells + @Composable { m: Modifier -> Spacer(m) } else cells
+            row(*filled.toTypedArray())
         }
-        store.lifetime.forEach { ledger ->
+        store.lifetime.filter { !store.member(it.learnerId).removed }.forEach { ledger ->
             val learner = store.member(ledger.learnerId)
             full { m ->
                 FaxiCard(m) {
@@ -98,8 +131,8 @@ private fun RosterHome(store: FaxiStore, today: LocalDate, onOpenMember: (String
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         LedgerIcon(c.accentInk, FaxiDimens.iconMd)
-                        SectionTitle("평생 장부 · ${learner.name}(${learner.callsign})")
-                        StatusTag("${learner.name}에게는 면허 따는 날 공개")
+                        SectionTitle("평생 장부 · ${learner.name}")
+                        StatusTag(if (ledger.revealed) "면허 따서 공개됨" else "${learner.name}에게는 면허 따는 날 공개")
                     }
                     Text(
                         "${ledger.sinceYear}년부터 ${won(ledger.rides)}번, ${won(ledger.km)}km를 태워 줬어요.",
@@ -107,7 +140,8 @@ private fun RosterHome(store: FaxiStore, today: LocalDate, onOpenMember: (String
                     )
                     BigWon(ledger.amount)
                     Text(
-                        "정식 기사가 되면 부모님을 태운 요금으로 갚아 나가요. 갚을 수는 있지만, 다 갚기는 어려워요.",
+                        if (ledger.revealed) "이제 ${learner.name.ga()} 기사예요. 가족을 태우며 갚아 나가요. 갚을 수는 있지만, 다 갚기는 어려워요."
+                        else "정식 기사가 되면 부모님을 태운 요금으로 갚아 나가요. 갚을 수는 있지만, 다 갚기는 어려워요.",
                         style = t.body, color = c.inkMuted,
                     )
                 }

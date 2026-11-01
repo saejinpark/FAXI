@@ -1,5 +1,6 @@
 package com.geppetto.faxi.qr
 
+import com.geppetto.faxi.fare.FamilyExtra
 import com.geppetto.faxi.fare.FareCodes
 import com.geppetto.faxi.fare.FareLine
 import kotlinx.serialization.SerialName
@@ -34,7 +35,7 @@ data class ReceiptTicket(
     /** 이 영수증의 손님. 폰은 자기 영수증만 받는다. */
     @SerialName("pm") val passengerId: String,
     @SerialName("p") val passenger: String,
-    /** "아빠 · PAXI" */
+    /** 기사 이름 "아빠" */
     @SerialName("d") val driver: String,
     /** "우리집 → 이마트 성수점" */
     @SerialName("r") val route: String,
@@ -56,18 +57,24 @@ data class ReceiptTicket(
     /**
      * QR용 압축 형식: 이름표 없는 JSON 배열(자리로 뜻을 정한다) + 영수증 줄은 기호.
      * [가족, 영수증, 손님ID, 손님, 기사, 경로, 하차시각, 이번요금, 갚을돈, 이월, (빈 자리: 예전 연체 이자, 늘 0), 상계, 평생장부(0/1),
-     *  [[기호, 설명, 금액], ...], [[상대, 받을돈(0/1), 금액, 분쟁(0/1)], ...]]
+     *  [[기호, 설명, 금액], ...], [[상대, 받을돈(0/1), 금액, 분쟁(0/1)], ...], 가족 할증·할인 기호("LGAT")]
      * 자리를 바꾸면 예전 영수증 QR을 못 읽으니 새 값은 끝에만 붙인다.
+     * 가족 할증·할인 줄은 싣지 않고 기호만 끝에 붙인다. 앞 줄들로 금액이 정해지므로 받는 쪽이 FamilyExtra.apply로 되살린다
+     * (넷 다 실으면 QR이 69칸을 넘는다).
      */
     private fun toWire(): JsonArray = buildJsonArray {
         add(familyId); add(id); add(passengerId); add(passenger); add(driver); add(route); add(endedAt)
         add(fareTotal); add(billed); add(carriedOver); add(0); add(offset); add(if (toLifetime) 1 else 0)
+        val extraLabels = FamilyExtra.entries.associateBy { it.label }
+        val extras = lines.mapNotNull { extraLabels[it.label] }
         addJsonArray {
-            lines.map(FareCodes::shorten).forEach { l -> addJsonArray { add(l.label); add(l.detail); add(l.amount) } }
+            lines.filter { it.label !in extraLabels }.map(FareCodes::shorten)
+                .forEach { l -> addJsonArray { add(l.label); add(l.detail); add(l.amount) } }
         }
         addJsonArray {
             balances.forEach { b -> addJsonArray { add(b.other); add(if (b.owedToMe) 1 else 0); add(b.amount); add(if (b.disputed) 1 else 0) } }
         }
+        if (extras.isNotEmpty()) add(extras.joinToString("") { it.code })
     }
 
     companion object {
@@ -80,10 +87,13 @@ data class ReceiptTicket(
                 familyId = str(0), id = str(1), passengerId = str(2), passenger = str(3), driver = str(4),
                 route = str(5), endedAt = str(6), fareTotal = int(7), billed = int(8), carriedOver = int(9),
                 offset = int(11), toLifetime = int(12) == 1,
-                lines = a[13].jsonArray.map { e ->
-                    val l = e.jsonArray
-                    FareCodes.expand(FareLine(l[0].jsonPrimitive.content, l[1].jsonPrimitive.contentOrNull, l[2].jsonPrimitive.int))
-                },
+                lines = FamilyExtra.apply(
+                    a[13].jsonArray.map { e ->
+                        val l = e.jsonArray
+                        FareCodes.expand(FareLine(l[0].jsonPrimitive.content, l[1].jsonPrimitive.contentOrNull, l[2].jsonPrimitive.int))
+                    },
+                    a.getOrNull(15)?.jsonPrimitive?.content.orEmpty().mapNotNull { FamilyExtra.of(it.toString()) }.toSet(),
+                ),
                 balances = a[14].jsonArray.map { e ->
                     val b = e.jsonArray
                     Balance(b[0].jsonPrimitive.content, b[1].jsonPrimitive.int == 1, b[2].jsonPrimitive.int, b[3].jsonPrimitive.int == 1)
@@ -110,6 +120,7 @@ data class Balance(
     @SerialName("n") val other: String,
     @SerialName("in") val owedToMe: Boolean,
     @SerialName("a") val amount: Int,
+    /** 예전 "분쟁 중" 표시. 정산 확인 단계를 없애서 지금은 늘 false(QR 자리를 지키려고 남긴다) */
     @SerialName("dp") val disputed: Boolean = false,
 )
 

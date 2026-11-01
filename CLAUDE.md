@@ -51,57 +51,67 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
   - Virtual Console 카드: Gear Selection, ACCEL/BRAKE, HVAC Power, Air Conditioning, Target Temperature, Seat Temperature(Driver/Passenger 고르고 H1~H3), Windshield Wiper Switch, Window Position(창 고르고 %).
 - 화면 흐름 (탭은 운행·장부·기사·설정 넷. 화면 글자는 "운행", "주행 중"은 차가 움직이는 상태를 말할 때만 쓴다):
   - 운행 탭(제목 "운행 시작") → 미터기 켜기 → 운행 중(전체 화면) → 하차 → 도착 화면(전체 화면, 영수증 공개 + 후기) → 닫으면 탑승 탭.
-  - 장부 탭 → 빚 한 줄 누르기 → 두 사람 사이 빚 상세(정산 요청·확인, 둘 사이 운행, 기록, 탕감) → 운행 누르기 → 지난 영수증.
+  - 장부 탭 → 빚 한 줄 누르기 → 두 사람 사이 빚 상세(받은 돈 적고 "받았어요", 둘 사이 운행, 기록, 탕감) → 운행 누르기 → 지난 영수증.
   - "지금 보이는 영수증이 어느 운행 것인지" 늘 분명해야 한다. 영수증만 따로 보여 주는 탭을 다시 만들지 않는다.
 - `ui/settings/SettingsScreen.kt` 설정 탭(주차 중에만). `data/FaxiSettings.kt`(장부와 같이 저장, 바꾸면 바로 저장):
   - 밀린 돈 알림 `Dunning`: 단호하게(택시 말투) / 부드럽게("엄마, 지난번 요금 3,120원이 남아 있어요.") / 화면에만(소리 없음). `dunningLine(amount, days, 이름, tone)`.
   - 후기 읽어 주기 `ReviewsAloud`: 모두 / 별 4개 이상만 / 읽지 않기. 건너뛴 낮은 후기는 읽은 것으로 둬서 나중에 몰아 읽지 않는다(기사 상세에는 남음). "읽지 않기"는 아무것도 읽음 처리하지 않는다.
   - 안내 음성: 탑승 인사, 하차 요금 안내 켜기/끄기.
   - 독촉·후기 낭독은 가족에 따라 공격적으로 들릴 수 있어서 둔 설정이다. "들어 보기"로 미리 듣는다. 테스트 `app SettingsTest`.
-- `ui/shell/AppShell.kt` 운행 중(`store.rideActive`)이면 운행 중 화면만, 운행 중이 아닌데 기어가 Driving이면 "주차하면 열려요"만, `store.arrival`이 있으면 도착 화면만, 그 외에는 왼쪽 사이드바 + 탭 화면. 기사가 확인할 정산 요청이 있으면 장부 탭에 "확인 N건". 탭은 `rememberSaveable`, 내비게이션 라이브러리 없음, 전환 즉시.
-- `ui/boarding/BoardingScreen.kt` 1 기사 → 2 손님 → 3 탑승 코드 숫자판. 기사를 고르면 그 기사가 아직 듣지 못한 가장 최근 후기(손님 폰에서 온 것)를 차가 읽어 준다(`store.takeUnreadReview` → `reviewLine`: "지난 손님 후기입니다. 엄마 손님, 별 세 개. 선곡 최악."). 한 후기는 한 번만(`reviewsReadAloud`, 저장됨). 손님을 고르면 밀린 돈 독촉(화면 + 음성), 기사가 그 손님에게 진 빚이 있으면 "먼저 퉁쳐요" 안내.
-- `ui/driving/DrivingScreen.kt` 다른 화면과 같은 `FaxiPage`에 카드를 내용 크기대로 쌓는다(화면을 채우려고 카드를 늘리지 않는다): 제목 줄 "운행 중" + 미터기 한 줄 / 자격증 | 손님(캐릭터, 출발 시각, 목적지, "아빠 택시 N번째 탑승이에요.") / 손님 한마디(한 줄, 높이 고정) / 요금이 붙는 옵션(넓으면 한 줄에 넷).
+- 가족 등록: 호출명(PAXI·MAXI 같은 이름)은 없다. 사람은 부르는 이름(엄마, 아빠, 첫째, 지우…)과 등급만 가진다.
+  - 첫 실행(`store.needsSetup`, 가족이 아무도 없음) → `ui/family/FamilyForms.kt` `FamilySetupScreen` "우리 집 택시를 엽니다": 가장을 첫 기사로 등록(이름만, 늘 정식 기사. `store.startFamily`, 새 가족 ID) 또는 "시연 가족으로 둘러보기"(`store.loadDemo`). 시연 준비·촬영 스크립트는 `am start ... --ez demo true`로 시연 가족을 바로 불러온다.
+  - 가족 추가: 기사 탭 오른쪽 위 "가족 추가" → `AddMemberScreen`(이름 고르기 칸/직접 쓰기 + 운전해요·아직 면허 없어요. 등급은 정식·예비 둘뿐, 운전 안 하는 어른도 정식 기사로 등록해 손님으로 탄다. 예전 장부의 명예 기사는 정식 기사로 읽는다) → `store.addMember` → 그 사람 상세(폰 연결 QR). 몇 명이든 더한다(자식이 12명이어도).
+  - 가족 색은 `Member.color`(등록 순서, 네 칸을 돌려 씀), 초대 링크 `k=`로 폰에 같이 간다. 별명이 없으면 자격증 제목은 "엄마 기사"(`cardTitle`).
+- `ui/shell/AppShell.kt` 운행 중(`store.rideActive`)이면 운행 중 화면만, 운행 중이 아닌데 기어가 Driving이면 "주차하면 열려요"만, `store.arrival`이 있으면 도착 화면만, 그 외에는 왼쪽 사이드바 + 탭 화면. 탭은 `rememberSaveable`, 내비게이션 라이브러리 없음, 전환 즉시.
+- `ui/boarding/BoardingScreen.kt` 폰 없이 차 화면만으로 된다. (1) 오늘의 기사(`DriverPick`, `store.selectDriver`): 고르기만 하면 차가 기억(`driverSignedIn`, 저장됨). "기사 바꾸기"로 다시, 운행 중에는 못 바꾼다. 고르면 그 기사가 아직 듣지 못한 가장 최근 후기(손님 폰에서 온 것)를 차가 읽어 준다(`reviewLine`, 한 번만). (2) 손님 탑승(`PassengerBoarding`): 손님 → 가족 할증·할인 → 옆자리 손님이 "제가 탈게요 · 미터기 켜기". 설정 `phoneCode`(기본 꺼짐)를 켜면 대신 손님 폰 코드(`store.verifyCode`, TOTP). 폰 연결은 덤(한마디·후기·영수증): 실제 돈이 없는 가족 놀이라 코드가 막을 일이 거의 없고, 심사위원이 차 APK 하나로 돌려 볼 수 있어야 해서 이렇게 정했다. 손님을 고르면 밀린 돈 독촉(화면 + 음성), 기사가 그 손님에게 진 빚이 있으면 "먼저 퉁쳐요" 안내.
+- `ui/driving/DrivingScreen.kt` 화면의 주인공은 옆자리 손님. 제목 "아빠 택시 운행 중" 아래로 카드를 내용 크기대로 쌓는다(화면을 채우려고 카드를 늘리지 않는다):
+  - 택시 표시등 띠(`LampBand`): 앱 아이콘과 같은 표시등(`TaxiLampIcon`) + "엄마 손님 모시는 중" + 지금 붙는 할증 꼬리표(우천·심야 = 차량 조건, 가족 할증·할인, 예비 기사면 "평생 장부에 쌓여요"). 이름만, 금액은 없다.
+  - 자격증 | 경로(`RouteCell`: 손님 캐릭터, 출발 시각, 출발지 → 목적지(내비, 없으면 "목적지 미정"), 경유지, "아빠 택시 N번째 탑승").
+  - 손님 한마디(높이 고정). 한마디를 한 번도 받지 않은 집(`store.messagesSeen`, 저장됨, 시연 가족은 true)은 한마디 칸 없이 자격증 | 경로 / 지금 붙는 요금(냉난방·엉따·와이퍼·창문, 넓으면 한 줄에 넷).
   - 금액은 운행 중 화면에 아예 없다(감춘 요금 칸도 뺐다). 하차 때 도착 화면에서 한 번에 공개한다.
   - 실시간 미터기 숫자, 흐르는 진동 파형, 경과 시간은 넣지 않는다(주행 중 움직임 금지). 볼거리는 하차 뒤 도착 화면의 정지 그래프로 보여 준다.
   - 손님 한마디 칸: 손님이 폰으로 보낸 마지막 한마디(정해진 문장 + 아이콘, `display` 한 줄)를 띄운다. 새로 올 때만 바뀌고 깜빡임·소리 없음. 온 상태는 accent 테두리로. 높이를 미리 잡아 둬서 와도 아래 칸이 밀리지 않는다.
   - 옵션 칸은 상태가 바뀔 때만 바뀐다(차 표시등과 같은 성격). 값은 Vehicle SDK(`store.cabin`).
   - 시연용 하차 버튼은 제목 줄 오른쪽(차량 값이 없는 기기에서만).
 - `ui/receipt/ArrivalScreen.kt` 도착 화면과 지난 영수증 상세. 닫기/확인 버튼은 제목 줄 오른쪽(카드 바닥에 두면 화면 밖으로 밀린다).
-  - 후기는 양쪽이 따로 쓴다. 기사가 보는 차 화면에서 손님이 기사를 평가하게 하지 않는다: 차 도착 화면은 **기사가 손님을 평가**(`store.ratePassenger`, `PassengerTags`), **기사 후기는 손님 폰**에서 영수증 QR을 찍은 뒤 쓴다.
-  - 지난 영수증 상세는 기사 후기와 손님 평가를 둘 다 보여 준다.
-- `ui/receipt/ReceiptViews.kt` 영수증 카드(머리 오른쪽 QR, 맨 위에 이번에 갚을 돈, 지난 영수증은 "그때 청구한 돈"), `RatingForm`(별 + 태그 한 줄에 셋, FlowRow는 IntrinsicSize.Min에서 키를 작게 재서 쓰지 않는다), `ReviewSummary`, `RideComfortChart`(승차감: 운행 시간을 60칸으로 나눠 칸마다 가장 큰 가감속 + 급정거 칸. `FareMeter.comfort()`가 속도 값으로 만든 진짜 값).
+  - 후기는 하나뿐: 손님이 폰에서 기사에게 쓴다(영수증 QR을 찍은 뒤). 기사가 보는 차 화면에서 손님이 기사를 평가하게 하지 않는다. 기사가 손님을 평가하는 기능은 도착 화면만 복잡하게 하고 쓰이는 곳이 없어서 뺐다.
+  - 도착 화면 = 영수증 + 승차감 + 기사 후기(오면 바로 뜬다), 오른쪽 위 "확인". 지난 영수증 상세도 같다.
+- `ui/receipt/ReceiptViews.kt` 영수증 카드(머리 오른쪽 QR, 맨 위에 이번에 갚을 돈, 지난 영수증은 "그때 청구한 돈"), `ReviewSummary`, `RideComfortChart`(승차감: 운행 시간을 60칸으로 나눠 칸마다 가장 큰 가감속 + 급정거 칸. `FareMeter.comfort()`가 속도 값으로 만든 진짜 값).
 - `ui/ledger/LedgerScreen.kt` 장부 홈(확인 기다리는 정산 → 갚을 돈 목록 → 월 정산서 → 기록) + 안쪽 화면 전환 상태. `DebtDetailScreen.kt` 두 사람 사이 상세. 탕감은 한 번 더 확인받는다.
 - `ui/roster/RosterScreen.kt` 기사 탭: 명단(자격증 카드, 평생 장부) → 카드 누르기 → `MemberDetailScreen.kt` 기사 상세(받을 돈/갚을 돈, 평생 장부, 최근 운행, 받은 후기, 캐릭터 고르기) → 빚 상세·영수증(장부 탭과 같은 화면 재사용).
   - 기사 상세는 차 화면이라 가족 모두가 본다. 나만 보는 정보는 폰 앱 몫이다.
   - 사진 대신 캐릭터(`Avatars`, 이모지). 폰 → 차 사진 전송 통로가 정해지면 `Member.photoFile`을 쓴다.
   - 평균 별점은 저장하지 않고 받은 후기로 계산한다(`store.driverRating`).
 - 빚 방향은 화살표 대신 말로 쓴다: `owesPhrase()` → "엄마가 아빠에게". 조사는 `data/Korean.kt`의 `ga()`.
-- `data/FaxiModels.kt` 가족·등급·영수증·빚·정산 요청 모델. `data/FaxiStore.kt` 화면이 보는 유일한 창구(처음 설치하면 시연 데이터로 시작). 상태는 `mutableStateOf`라 바뀌면 화면이 다시 그려진다. 하차 때 장부 반영도 여기서 한다:
+- `data/FaxiModels.kt` 가족·등급·영수증·빚·평생 장부 모델. `data/FaxiStore.kt` 화면이 보는 유일한 창구(처음 설치하면 빈 장부, 가장 등록부터). 상태는 `mutableStateOf`라 바뀌면 화면이 다시 그려진다. 하차 때 장부 반영도 여기서 한다:
   - 밀린 돈 이월(이자 없음, 영수증 "지난 미수금"에 며칠째인지만), 기사가 손님에게 진 빚과 자동 상계(영수증에 "상계" 줄), 예비 기사 손님은 청구 없이 평생 장부로.
-  - 정산 확인·"다시 확인"(코드는 `disputed`)·탕감 기록. 두 사람 사이 빚은 한 줄만 둔다.
-- 저장: `FaxiApp`(Application)이 `FaxiStore`를 하나 들고 있어서 주간/야간 전환으로 Activity가 다시 만들어져도 장부가 남는다. 값이 바뀔 때마다 `onChanged` → `FaxiStorage`가 `filesDir/faxi-ledger.json`에 통째로 저장(AtomicFile, 백그라운드 스레드). 저장 파일이 없을 때만 시연 데이터로 시작한다.
+  - 정산은 받은 사람이 "받았어요" 한 번(`store.receivePayment`, 일부만 받으면 남은 돈이 남고 연체 일수는 처음 날짜부터). 요청·확인·분쟁 단계는 없다(가족끼리는 말로 하는 일이라 뺐다). 탕감 기록. 두 사람 사이 빚은 한 줄만 둔다.
+  - 가족 고치기·빼기: 기사 상세 "고치기" → `EditMemberScreen`(이름·별명, 가족에서 빼기). 빼기는 `Member.removed`로 숨긴다(지난 영수증 이름은 남음, 그 폰 코드·한마디는 거절). 주고받을 돈이 남았거나 운행 중이면 이유를 말하고 막는다(`whyCannotRemove`). 화면 목록은 `store.family`(뺀 사람 제외), 이름 찾기는 `store.member`.
+  - 면허 땄어요: 예비 기사 상세 맨 위 → `store.graduate`(정식 기사, 평생 장부 `revealed`) → `LicenseRevealScreen` + 차가 `licenseLine`을 읽는다. 장부는 지우지 않는다(갚아 나가는 규칙은 아직 없다).
+- 저장: `FaxiApp`(Application)이 `FaxiStore`를 하나 들고 있어서 주간/야간 전환으로 Activity가 다시 만들어져도 장부가 남는다. 값이 바뀔 때마다 `onChanged` → `FaxiStorage`가 `filesDir/faxi-ledger.json`에 통째로 저장(AtomicFile, 백그라운드 스레드). 저장 파일이 없으면 빈 장부로 시작하고 화면이 가장 등록을 띄운다.
   - 저장 형식은 `data/Snapshot.kt`의 `FaxiSnapshot`(kotlinx.serialization). 필드를 추가할 땐 기본값을 줘서 예전 파일도 읽히게 한다.
   - 운행 중 손님과 닫지 않은 도착 화면도 저장해서, 앱이 꺼졌다 켜져도 이어진다.
   - 빚은 `since`(시작한 날)를 저장하고 연체 일수는 `store.daysOf(debt)`로 오늘 기준 계산한다. 일수를 숫자로 저장하지 않는다.
-  - 시연 데이터를 다시 보고 싶으면 앱 데이터를 지운다: `adb shell pm clear com.geppetto.faxi`
+  - 처음 상태로: `adb shell pm clear --user 10 com.geppetto.faxi` 뒤 첫 화면에서 가장 등록 또는 시연 가족(`tools/demo.sh`는 시연 가족으로 바로 연다)
 - `core/.../fare/` 요금 엔진(`:core` 모듈). 영수증 줄 `FareLine`도 여기 있다.
   - `Tariff.kt` 요금표(기획서 값) + `VehicleSample`(시각, 누적 주행거리 m, 속도, 냉난방, 엉따, 와이퍼, 창문). 차량에서는 Vehicle SDK 값으로 채운다. 단위는 SDK 문서를 확인하고 맞춘다.
   - `FareMeter.kt` 탑승 순간 값으로 켜고 `update(sample)`로 쌓는다. `lines()`가 영수증 줄.
     - 구간(앞 값 → 뒤 값)은 앞 값의 상태로 센다: 옵션 시간, 정차, 할증 모두.
     - 정차 = 1km/h 미만, 급정거 = 감속 3m/s² 이상(한 번 밟는 동안 한 번), 할증은 그 순간 조건(기본요금은 탑승 시각), 남는 거리·초·분은 버림.
     - 거리·대기 100원은 누적값에서 매번 다시 세어 실수 오차가 쌓이지 않게 한다.
+  - `FamilyExtra.kt` 가족 할증·할인: 지각 +20%(요금 엔진 줄 합의 20%), 짐 +500원, 대기 부탁 +1,000원, 생일·심부름 할인 −50%(여기까지 합의 절반, 맨 끝). 기사가 탑승 화면(주차 중)에서 고르고 손님 코드가 동의다. 운행 중에는 바꾸지 않는다(`store.rideExtras`, 저장됨). 운행 중 화면 표시등 띠에 꼬리표로(24sp). 하차 때 `FamilyExtra.apply`로 영수증 줄. code(L·G·A·T)는 차·폰·저장 파일의 약속이라 바꾸지 않는다.
   - `FakeTrip.kt` `TripBuilder`(1초 간격 가짜 차량 값)와 `planExample`(기획서 예시 운행). 차량 값이 없을 때(폰·폴드, 운행 중 앱 재시작) 하차 시연은 이 운행을 엔진에 돌려 영수증을 만든다.
   - 급정거는 감속 3m/s² 이상이 되는 순간 한 번 세고, 다시 속도를 올리거나 멈출 때까지는 같은 한 번이다(차에서는 속도·주행거리 값이 따로 와서 같은 속도 구간이 감속 중간에 낀다).
 - `core/src/test/.../FareMeterTest.kt` 기획서 영수증 예시(15,250원)를 줄 단위로, 거리·대기·심야·우천·급정거·옵션·경유지 규칙을 검사한다. 요금표를 바꾸면 꼭 돌린다.
 - `core/.../auth/` 탑승 인증.
   - `Totp` RFC 6238(HMAC-SHA1, 30초, 4자리), 앞뒤 30초까지 통과. `Base32`(엄격하게 디코드). 테스트는 RFC 예시 값으로 검증한다.
-  - `FaxiInvite` 초대 링크 `faxi://join?f=&m=&n=&c=&s=`(차 화면 QR에 담을 내용). 비밀 열쇠가 차 → 폰으로 가는 유일한 길.
+  - `FaxiInvite` 초대 링크 `faxi://join?f=&m=&n=&k=&s=`(차 화면 QR에 담을 내용, k = 가족 색 칸. 예전 링크의 c=호출명은 버린다). 비밀 열쇠가 차 → 폰으로 가는 유일한 길.
   - `DemoFamily` 시연 가족 고정 열쇠. 차 앱 시연 데이터와 폰 앱 "시연 가족으로 등록"이 같은 열쇠를 써서 QR 없이도 인증을 시연한다. 누구나 아는 열쇠라 실제 가족에게는 쓰지 않는다.
 - 차 앱 인증: `Member.secret`(Base32)을 장부에 저장, `store.verifyBoardingCode(손님, 코드)`. 열쇠가 없는 예전 장부는 불러올 때 채운다.
 - `core/.../qr/` QR(zxing, 인터넷·구글 서비스 없이).
   - `QrCodec` 만들기(차 화면)·읽기(폰 카메라 밝기 값). 기본 오류 정정 M.
   - `ReceiptTicket` 영수증 QR 내용: 영수증 + 그 순간 손님의 받을 돈·갚을 돈. `faxi://receipt?d=`(이름표 없는 배열 JSON → Deflate → Base64). 영수증 줄은 `FareCodes` 기호로 줄여 싣는다(대기요금/신호 7회 → W/7).
-  - **QR 크기 규칙(실측)**: 77칸짜리는 차 스크린샷에서 주변에 따라 못 읽었다. 영수증 QR은 69칸(버전 13) 이하를 `QrTest`가 지킨다. 필드를 늘리면 이 테스트가 먼저 깨진다. 새 값은 배열 끝에만 붙인다(자리를 바꾸면 예전 QR을 못 읽는다).
+  - **QR 크기 규칙(실측)**: 77칸짜리는 차 스크린샷에서 주변에 따라 못 읽었다. 영수증 QR은 69칸(버전 13) 이하를 `QrTest`가 지킨다. 필드를 늘리면 이 테스트가 먼저 깨진다. 새 값은 배열 끝에만 붙인다(자리를 바꾸면 예전 QR을 못 읽는다). 가족 할증·할인 줄은 QR에 싣지 않고 기호("LGAT")만 끝(15번)에 붙여 폰이 되살린다. 넷 다 실으면 73칸이 됐다. `QrTest`는 넷 다 켠 영수증으로 크기를 잰다.
   - 차 화면에서는 1dp ≈ 1px 안팎이라 작은 QR은 못 읽는다. 영수증 QR은 카드 안에 작게, 눌러서 화면 높이만큼 크게 띄워 찍는다. 초대 QR은 240dp.
 - 차 앱 QR: `ui/components/QrImage.kt`(밝은 종이 + 4칸 여백, 야간에도 밝게). 기사 상세 "폰 연결" 카드의 초대 QR은 눌러야 보이고(비밀 열쇠), 화면을 떠나면 숨는다. 디버그 빌드이거나 시연 가족이면 도착 때 영수증 링크를 `FaxiReceipt` 로그로 남긴다(에뮬레이터 폰으로 시험용, 비밀 없음).
 - 손님 한마디(폰 → 차, 같은 Wi-Fi). 서버 없이 차 안에서 끝난다.
@@ -113,37 +123,41 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
   - Pleos 문서(시작하기·개발 가이드·FAQ)에는 앱의 Wi-Fi/소켓 제한이 적혀 있지 않다. 실제 차에서 핫스팟으로 되는지는 아직 확인 못 했다.
   - 에뮬레이터 두 대로 시험: `adb -s emulator-5554 forward tcp:47800 tcp:47800`(차) → 폰 디버그 빌드가 10.0.2.2:47800으로 보낸다. (에뮬레이터 둘 사이에서 NSD 검색도 되는 것을 확인했다.) 테스트: `core RideMessageTest`, `app RideMessageStoreTest`.
 - `phone/` 폰 앱: 등록(초대 QR 찍기, 링크 붙여넣기, 시연 가족) → 아래 탭 넷(`PhoneHome.kt` `PhoneMain`, 탭 상태는 `PhoneActivity`의 PhoneApp이 들고 영수증을 찍으면 영수증 탭으로 옮긴다).
-  - 탑승: 탑승 코드(30초마다, 남은 시간 막대) + 기사님께 한마디. 후기를 기다리는 영수증이 있으면 맨 위에 "후기 쓰기".
+  - 한마디(첫 탭): 기사님께 한마디. 후기를 기다리는 영수증이 있으면 맨 위에 "후기 쓰기". 탑승 코드는 설정 탭에 접어 둔다("코드 보기", 차 설정에서 코드 확인을 켠 집만 쓴다) + 기사님께 한마디. 후기를 기다리는 영수증이 있으면 맨 위에 "후기 쓰기".
   - 영수증: 영수증 QR 찍기 + (후기 전이면) 기사 후기 카드 + 내 영수증(눌러서 항목 펼치기). 주 버튼은 하나: 후기 카드가 있으면 "후기 보내기". 영수증 탭에는 후기를 기다리면 점.
-  - 정산: 마지막 영수증 기준 갚을 돈·받을 돈 합계 + 사람별("다시 확인" 꼬리표). 보냈다고 알리기는 차 장부에서.
-  - 설정: 내 정보, 기사 후기 묻기/묻지 않기(`PhoneStore.askReview`), 차와 연결(근처 기기 권한 상태), 등록 해제(한 번 더 확인), 버전.
+  - 정산: 마지막 영수증 기준 갚을 돈·받을 돈 합계 + 사람별. "받았어요"는 받은 사람이 차 장부에서.
+  - 설정: 내 정보, 탑승 코드(접힘), 차와 연결(근처 기기 권한 상태), 등록 해제(한 번 더 확인), 버전.
   - 카드·보내기 부품은 `PhoneCards.kt`(한마디, 후기, 영수증 줄, 근처 기기 권한 `rememberNearbyGate`).
   - QR 찍기: `QrScanner.kt`(CameraX 미리보기 + :core QrCodec). `faxi://` 링크는 딥 링크로도 열린다(같은 `handleLink`). 초대는 확인 창을 거쳐 등록, 영수증은 내 가족·내 것만 저장.
   - 등록 정보와 영수증은 SharedPreferences(백업 끔). 폰은 차 장부를 바꾸지 못한다.
   - 에뮬레이터 카메라로는 차 화면을 못 찍는다. 시험은 딥 링크로: `adb shell "am start -a android.intent.action.VIEW -d '<링크>' com.geppetto.faxi.phone"`
-  - 폰은 손님 화면이라 차 앱의 주행 중 움직임 금지 규칙을 적용하지 않는다. 색·글자·버튼·카드는 차 앱과 같은 `:design` 것을 쓴다(Material 기본 글자 크기를 쓰지 않는다). 폰 화면 가장자리는 `space6`, 좁으니 금액 줄은 항목 쪽이 줄을 바꾼다.
+  - 폰은 손님 화면이라 차 앱의 주행 중 움직임 금지 규칙을 적용하지 않는다. 색은 밝은 종이 톤(`PhonePaperColors`), 글자·버튼·카드는 차 앱과 같은 `:design` 것을 쓴다(Material 기본 글자 크기를 쓰지 않는다). 폰 화면 가장자리는 `space6`, 좁으니 금액 줄은 항목 쪽이 줄을 바꾼다.
 - `app/src/test/.../FaxiStoreTest.kt` 하차·상계·평생 장부·정산·탕감 단위 테스트. 장부 규칙을 바꾸면 `./gradlew testDebugUnitTest`로 확인한다.
 - 내비: `data/NaviFeed.kt`(FaxiApp이 켠다) → `store.onNavi(NaviReading)`, `store.onWaypoint(WaypointChange)`. Pleos NaviHelper SDK `ai.pleos.playground:NaviHelper:3.0.5`, 권한 `pleos.car.permission.NAVI_ROUTE`(get*Info, 읽기만). 경로를 바꾸는 API(NAVI_ROUTE_SEARCH)는 쓰지 않는다.
   - 지금 위치 주소 `getCurrentLocationInfo()`를 15초마다, 목적지 `getDestinationInfo()`는 시작·경로 시작·목적지 변경 때. 도착 `onDestinationArrived`, 경유지 `onWaypointChanged`(ADD/REMOVE, index ALL).
   - 영수증 출발지 = 탑승 때 주소(`shortPlace`: 끝 두 마디), 도착지 = 운행 중 도착 알림 장소 → 내비 목적지 → 하차 때 주소. 내비 값이 한 번도 안 온 기기(폰·폴드)는 시연 장소 이름("우리집 → 이마트 성수점").
   - 경유지: 운행 중 추가 1곳 500원, 빼면 돌려준다, 모두 빼면 0. 하차 때 요금 엔진에 넣는다. 탑승 전에 넣은 경유지는 세지 않는다. 출발지·경유지 수는 저장(snapshot)해서 앱이 다시 켜져도 남는다.
-  - 운행 중 화면 손님 칸에 "목적지 가는 중", "경유지 N곳"(금액은 없음).
+  - 운행 중 화면 경로 칸에 출발지 → 목적지, "경유지 N곳"(금액은 없음).
   - 에뮬레이터 내비 앱(`ai.umos.maps.android.navigation.app`)이 응답한다. GPS는 Virtual Console 주행에 따라 움직이지 않아 출발지·도착지 주소가 같게 나온다("수정구 시흥동"). 목적지·경유지는 에뮬레이터에서 아직 못 넣어 봤다(단위 테스트 `NaviRideTest`로 확인).
 - `data/Speaker.kt` 음성 창구. `Speaker.create`: 차면 `PleosSpeaker`, 폰·폴드는 `AndroidSpeaker`(기기 TTS).
   - `PleosSpeaker`: Pleos TextToSpeech SDK `ai.pleos.playground:TextToSpeech:3.3.1`(권한 `pleos.car.permission.TTS_SERVICE`), **ON_DEVICE 모드**(차 안 엔진: 네트워크·앱 등록 없음, 이름·금액이 차 밖으로 안 나감). 새 말은 하던 말을 멈추고 읽는다.
   - 로캘은 `Locale.KOREA`(ko-KR). `Locale.KOREAN`은 엔진에 "ko-"로 가서 unsupported locale로 실패한다(에뮬레이터 로그로 확인).
   - 초기화 실패나 엔진·언어 미지원 오류면 기기 TTS로 바꾸고 방금 문장을 다시 읽는다. SDK AAR이 INTERNET 권한을 같이 선언한다(ON_DEVICE라 쓰지 않음).
+- 디자인 스타일 "밤 택시"(2026-11 정함): 차 앱 바탕은 늘 밤 남색(`FaxiTheme`은 시스템 주간/야간과 상관없이 야간 색). 폰 앱은 낮에 손에 드는 손님 화면이라 밝은 종이 톤(`FaxiTheme(paper = true)` = `PhonePaperColors`, 상태 바 아이콘은 늘 어둡게). 밝은 면은 종이 물건뿐: 기사 자격증, 영수증(`Paper`, `torn = true`면 아래가 톱니로 잘린 영수증). 종이 안은 `PaperSurface`가 `Faxi.colors`를 `PaperColors`(크림 종이 + 남색 글자, 모두 4.5:1 이상)로 바꿔 끼워서 MoneyRow 같은 부품이 그대로 쓰인다.
+  - 상자(카드)를 줄이고 간격으로 묶는다. 운행 중·도착·탑승은 카드 없이 밤 바탕 위에 바로 쌓았다(장부·기사·설정은 아직 카드, 색만 같다).
+  - 산호색은 표시등(`TaxiLampIcon`, 앱 아이콘과 같은 그림)과 그 화면의 주 버튼, 켜진 상태 표시에만.
+  - 운행 중 화면 제목 자리 = 표시등 + "엄마 손님 모시는 중" + 할증 꼬리표(`FaxiPage(leading = …)`).
 - `ui/theme/`(`:design` 모듈) 디자인 토큰. 색은 `Faxi.colors.*`, 글자는 `Faxi.type.*`, 간격·크기는 `FaxiDimens.*`로만 쓴다. 하드코딩한 색·크기를 새로 만들지 않는다. 테마 진입점은 `FaxiTheme`(야간 기본, dynamic color 안 씀).
   - 색: FAXI 디자인 시스템(https://claude.ai/artifact/13q7cCn7wsigv23nJYGwV2)의 tokens.json과 `ui/theme/Color.kt`는 같은 값이다. 한쪽을 고치면 다른 쪽도 고친다. 폰 앱도 같은 `FaxiTheme`을 쓰므로 값은 한 곳뿐이다.
   - 무드는 산호 `accent`(버튼 면) + 밤 남색 `surface`. `accent`는 면 색이라 글자로 쓰지 않는다. 글자 강조는 `accentInk`. 글자 색은 bg·surface·surfaceRaised 위에서 모두 4.5:1 이상.
   - `danger`는 산호와 밝기가 비슷하다. 늘 단어나 경고 아이콘과 함께.
-  - 가족 색 `familyPaxi/Maxi/Kixi/Naxi`(`Faxi.colors.family(호출명)`): 그 사람을 가리키는 표시(자격증 왼쪽 띠, 아바타 테두리)에만. 버튼·배경에는 쓰지 않는다.
+  - 가족 색 네 칸 `family1~4`(`Faxi.colors.family(member.color)`, 등록 순서대로 돌려 쓴다): 그 사람을 가리키는 표시(자격증 왼쪽 띠, 아바타 테두리)에만. 버튼·배경에는 쓰지 않는다.
   - QR은 `qrPaper` 위 `qrInk`(테마와 상관없이 밝게).
   - 금액은 `Faxi.type.amount` / `amountLarge`(숫자 폭 고정 tnum).
   - 모든 글자 스타일은 `localeList = ko-KR` + 어절 단위 줄바꿈(`WordBreak.Phrase`). 기기 언어가 영어인 에뮬레이터에서도 "차 화/면"처럼 글자 중간에서 끊지 않는다. 새 스타일을 만들 때도 `Faxi.type`에서 copy한다.
 - `ui/components/Layout.kt` `FaxiPage`(제목 줄 + 본문). 본문은 `row(a, b)` / `full(a)`로 줄 단위로 쌓는다. 칸(Cell)은 받은 Modifier를 카드 맨 바깥에 붙이고, 카드 안 버튼 앞에는 `Spacer(Modifier.weight(1f))`를 둬서 짝꿍 카드와 버튼 줄을 맞춘다.
 - `ui/components/Buttons.kt` `FaxiPrimaryButton`(화면당 하나), `FaxiSecondaryButton`, `FaxiIconButton`, `SelectTile`(고르면 accent 굵은 테두리 + 체크).
-- `ui/components/Cards.kt` `FaxiCard`, `SectionTitle`, `StatusTag`(단어로 상태 표시), `Avatar`/`AvatarCircle`(캐릭터 또는 호출명 첫 글자), `MoneyRow`, `BigWon`.
+- `ui/components/Cards.kt` `FaxiCard`, `SectionTitle`, `StatusTag`(단어로 상태 표시), `Avatar`/`AvatarCircle`(캐릭터 또는 이름 첫 글자), `MoneyRow`, `BigWon`.
 - `ui/components/LicenseCard.kt` `DriverLicenseCard`: 신분증 모양(맨 위 "FAXI 기사 자격증", 왼쪽 가족 색 띠, 3:4 사진 칸, 성명·등록·운행 칸). 위에 가득 찬 띠나 아래 통계 줄을 두면 티켓처럼 보이니 피한다. `large`(운행 중 화면)는 칸 글자 24sp 이상.
 - `ui/components/Icons.kt` 아이콘 라이브러리 없이 Canvas로 28×28 격자, 선 3단위. 모두 정지 그림.
 - `ui/components/Previews.kt` `@FaxiPreviews`(차량 1920dp + 폴드 900dp)와 `PreviewFrame`. 화면 파일마다 아래에 둔다.
@@ -176,15 +190,15 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
 
 ## FAXI 제품 규칙
 - 운전자는 주행 중 아무것도 만지지 않는다. 탑승·영수증·후기·정산은 주차(P) 상태에서만 연다.
-- 주행 중 차 화면은 고정된 기사 자격증 카드, 손님, 손님 한마디, 미터기 한 줄, 옵션 상태만. 금액은 보이지 않고 하차 때 한 번에 공개한다.
+- 주행 중 차 화면은 표시등 띠(손님·할증 이름), 고정된 기사 자격증 카드, 경로, 손님 한마디, 옵션 상태만. 금액은 보이지 않고 하차 때 한 번에 공개한다.
 - 손님 한마디는 정해진 문장만(자유 글 금지), 차는 읽어 주지 않는다(주행 중 말하지 않기).
 - 차는 주행 중 말하지 않는다. 말하는 때: 탑승 인사, 하차 요금 안내, 독촉, (주차 중) 후기 낭독.
 - 금액은 1원 단위, 반올림 없음, "약" 붙이지 않음.
 - 연체 이자는 없다. 하루 0.1%는 연 36.5%라 법정 최고금리(연 20%)를 넘고, 돈이 돈을 낳는 건 가족 놀이와 어울리지 않아서 뺐다. 밀린 돈은 이월과 독촉의 "N일째"로만 다룬다. 영수증 QR의 이자 자리(10번)는 비워 0을 넣는다.
-- 미터기는 다른 가족의 폰 인증(TOTP 4자리)이 있어야 켜진다. 서버 없이 차가 장부의 주인이고 가족 데이터는 차 밖으로 나가지 않는다.
+- 기사는 차 화면에서 고르고(차가 기억), 미터기는 매 운행 손님이 "제가 탈게요"로 켠다(설정에서 켜면 손님 폰 TOTP 4자리). 서버 없이 차가 장부의 주인이고 가족 데이터는 차 밖으로 나가지 않는다.
 - 면허증 사진·면허번호는 받지 않는다. 정식 기사 등록은 자기 선언 하나. 카드는 실제 면허증을 흉내 내지 않는다.
 - 용어는 "운임"보다 "가족 장부", "정산".
-- 말투: 깐깐한 요금은 놀이지만, 가족을 몰아세우는 말은 쓰지 않는다. 엇갈린 정산은 "분쟁"이 아니라 "다시 확인", 월 정산서는 "떼인 사람" 대신 "가장 많이 태워 준 사람", 독촉 칸은 경고색이 아니라 보통 칸. 소개 글에 "쪼잔·치사" 같은 말을 쓰지 않는다(앱의 목적은 차 안 대화거리). 시연 별명도 위험 운전을 놀리지 않는다.
+- 말투: 깐깐한 요금은 놀이지만, 가족을 몰아세우는 말은 쓰지 않는다. 월 정산서는 "떼인 사람" 대신 "가장 많이 태워 준 사람", 독촉 칸은 경고색이 아니라 보통 칸. 소개 글에 "쪼잔·치사" 같은 말을 쓰지 않는다(앱의 목적은 차 안 대화거리). 시연 별명도 위험 운전을 놀리지 않는다.
 - 계기판(클러스터)은 안전 정보 영역이라 건드리지 않는다. 시도하는 코드도 넣지 않는다.
 
 ## 사용할 Pleos SDK (모두 읽기 전용)

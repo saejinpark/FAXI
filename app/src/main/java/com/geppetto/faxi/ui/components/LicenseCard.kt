@@ -31,6 +31,7 @@ import com.geppetto.faxi.data.avatarOf
 import com.geppetto.faxi.data.won
 import com.geppetto.faxi.ui.theme.Faxi
 import com.geppetto.faxi.ui.theme.FaxiDimens
+import com.geppetto.faxi.ui.theme.PaperSurface
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
@@ -40,7 +41,7 @@ private val DateFormat = DateTimeFormatter.ofPattern("yyyy.MM.dd")
 /**
  * FAXI 기사 자격증. 택시 조수석 앞 자격증처럼 운행이 시작되면 차 화면에 뜬다.
  * 신분증 모양: 왼쪽 가장자리 가족 색 띠, 3:4 사진 칸, 오른쪽에 이름표처럼 칸(성명·등록·운행).
- * 실제 면허증을 흉내 내지 않는다: 면허번호 칸 없음, FAXI 로고 글자와 호출명만.
+ * 실제 면허증을 흉내 내지 않는다: 면허번호 칸 없음, FAXI 로고 글자와 이름만.
  *
  * large = true(운행 중 화면)면 주행 중에 읽히도록 칸 글자를 24sp 이상으로 키운다.
  */
@@ -52,23 +53,23 @@ fun DriverLicenseCard(
     modifier: Modifier = Modifier,
     large: Boolean = false,
     today: LocalDate = LocalDate.now(),
-) {
+) = PaperSurface {
+    // "밤 택시" 스타일: 자격증은 종이 물건이라 밤 바탕 위 크림색 종이로 그린다
     val c = Faxi.colors
     val t = Faxi.type
-    val shape = RoundedCornerShape(FaxiDimens.radiusLg)
+    val shape = RoundedCornerShape(FaxiDimens.radiusMd)
     Row(
         modifier
             .fillMaxWidth()
             .height(IntrinsicSize.Min)
             .clip(shape)
             .background(c.surface)
-            .border(FaxiDimens.borderWidth, c.lineStrong, shape)
             .semantics(mergeDescendants = true) {
-                contentDescription = "FAXI 기사 자격증, ${member.name}, ${member.callsign}, ${member.grade.label}, ${member.nickname}"
+                contentDescription = "FAXI 기사 자격증, ${member.name}, ${member.grade.label}, ${member.cardTitle}"
             },
     ) {
         // 왼쪽 띠: 그 사람의 가족 색(아빠 남색, 엄마 산호, 아이 민트, 조부모 라벤더)
-        Box(Modifier.width(if (large) 20.dp else 14.dp).fillMaxHeight().background(c.family(member.callsign)))
+        Box(Modifier.width(if (large) 20.dp else 14.dp).fillMaxHeight().background(c.family(member.color)))
         Column(
             Modifier.weight(1f).padding(FaxiDimens.space6),
             verticalArrangement = Arrangement.spacedBy(FaxiDimens.space4),
@@ -79,7 +80,6 @@ fun DriverLicenseCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text("FAXI 기사 자격증", style = if (large) t.bodyStrong else t.label, color = c.accentInk)
-                Text(member.callsign, style = if (large) t.title else t.label, color = c.ink)
             }
             Row(
                 horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space6),
@@ -88,7 +88,7 @@ fun DriverLicenseCard(
                 PhotoFrame(member, if (large) 200.dp else 120.dp)
                 Column(verticalArrangement = Arrangement.spacedBy(if (large) FaxiDimens.space3 else FaxiDimens.space2)) {
                     StatusTag(member.grade.label, gradeTone(member.grade))
-                    Text(member.nickname, style = if (large) t.headline else t.title, color = c.ink)
+                    Text(member.cardTitle, style = if (large) t.headline else t.title, color = c.ink)
                     Field("성명", member.name, large)
                     Field("등록", member.registered.format(DateFormat), large)
                     when (member.grade) {
@@ -98,10 +98,10 @@ fun DriverLicenseCard(
                             large,
                         )
                         Grade.Learner -> {
+                            // 면허 딸 날을 모르면(가족 추가 때 묻지 않는다) D-day 대신 "손님으로만 타요"
                             val dday = member.licenseEligible?.let { ChronoUnit.DAYS.between(today, it).toInt() }
-                            Field("면허까지", dday?.let { "D-${won(it)}" } ?: "-", large)
+                            if (dday != null) Field("면허까지", "D-${won(dday)}", large) else Field("운행", "손님으로만 타요", large)
                         }
-                        Grade.Honorary -> Field("태운 거리", "${won(member.drivenKm)}km", large)
                     }
                 }
             }
@@ -124,7 +124,7 @@ private fun Field(label: String, value: String, large: Boolean) {
     }
 }
 
-/** 3:4 증명사진 칸. 사진이 생기기 전에는 캐릭터, 캐릭터도 없으면 호출명 첫 글자. */
+/** 3:4 증명사진 칸. 사진이 생기기 전에는 캐릭터, 캐릭터도 없으면 이름 첫 글자. */
 @Composable
 private fun PhotoFrame(member: Member, width: Dp) {
     val c = Faxi.colors
@@ -143,7 +143,7 @@ private fun PhotoFrame(member: Member, width: Dp) {
             val fontSize = with(LocalDensity.current) { (width * 0.6f).toSp() }
             Text(emoji, fontSize = fontSize, lineHeight = fontSize)
         } else {
-            Text(member.callsign.take(1), style = Faxi.type.display, color = c.ink)
+            Text(member.name.take(1), style = Faxi.type.display, color = c.ink)
         }
     }
 }

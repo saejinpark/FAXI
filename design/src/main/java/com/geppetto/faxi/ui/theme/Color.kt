@@ -29,22 +29,21 @@ data class FaxiColors(
     val onDanger: Color,
     val ok: Color,
     val onOk: Color,
-    /** 가족 색: 그 사람을 가리키는 표시(자격증 띠, 아바타 테두리)에만. surface 위 글자로도 4.5:1. */
-    val familyPaxi: Color,
-    val familyMaxi: Color,
-    val familyKixi: Color,
-    val familyNaxi: Color,
+    /** 가족 색 네 칸: 그 사람을 가리키는 표시(자격증 띠, 아바타 테두리)에만. surface 위 글자로도 4.5:1. */
+    val family1: Color,
+    val family2: Color,
+    val family3: Color,
+    val family4: Color,
     /** QR은 테마와 상관없이 밝은 종이 위 어두운 점(폰 카메라가 읽도록) */
     val qrPaper: Color,
     val qrInk: Color,
 ) {
-    /** 호출명으로 가족 색 고르기. 시연 가족 밖의 호출명은 accentInk. */
-    fun family(callsign: String): Color = when (callsign) {
-        "PAXI" -> familyPaxi
-        "MAXI" -> familyMaxi
-        "KIXI" -> familyKixi
-        "NAXI" -> familyNaxi
-        else -> accentInk
+    /** 가족 색 네 칸. 등록한 순서대로 돌려 쓴다(가족이 다섯 명 넘으면 다시 첫 색부터). */
+    fun family(slot: Int): Color = when (Math.floorMod(slot, 4)) {
+        0 -> family1
+        1 -> family2
+        2 -> family3
+        else -> family4
     }
 }
 
@@ -65,15 +64,53 @@ val NightColors = FaxiColors(
     onDanger = Color(0xFF2A0A12),
     ok = Color(0xFF6FD3A8),
     onOk = Color(0xFF0B2A1E),
-    familyPaxi = Color(0xFF7FA3D9),
-    familyMaxi = Color(0xFFF2845F),
-    familyKixi = Color(0xFF5CC9A0),
-    familyNaxi = Color(0xFFB79CE6),
+    family1 = Color(0xFF7FA3D9),
+    family2 = Color(0xFFF2845F),
+    family3 = Color(0xFF5CC9A0),
+    family4 = Color(0xFFB79CE6),
     qrPaper = Color(0xFFFFFFFF),
     qrInk = Color(0xFF121A29),
 )
 
-/** 주간 테마 */
+/**
+ * 종이: "밤 택시" 화면에서 유일하게 밝은 면. 자격증·영수증 같은 종이 물건 안에서만 쓴다(PaperSurface가 바꿔 끼운다).
+ * 크림색 종이 위 남색 글자. 글자 색은 paper·surfaceRaised 위에서 모두 4.5:1 이상.
+ */
+val PaperColors = FaxiColors(
+    bg = Color(0xFFF4EFE6),
+    surface = Color(0xFFF4EFE6),
+    surfaceRaised = Color(0xFFE9E2D5),
+    line = Color(0xFFD9CFBE),
+    lineStrong = Color(0xFF857A69),
+    ink = Color(0xFF1F2B42),
+    inkMuted = Color(0xFF5B5446),
+    inkDisabled = Color(0xFF9A9080),
+    accent = Color(0xFFF2845F),
+    onAccent = Color(0xFF1F2B42),
+    accentInk = Color(0xFFA8401F),
+    danger = Color(0xFFB31F42),
+    onDanger = Color(0xFFFFFFFF),
+    ok = Color(0xFF17694A),
+    onOk = Color(0xFFFFFFFF),
+    family1 = Color(0xFF2F5597),
+    family2 = Color(0xFFB5472B),
+    family3 = Color(0xFF1D7F5B),
+    family4 = Color(0xFF6A4EA6),
+    qrPaper = Color(0xFFFFFFFF),
+    qrInk = Color(0xFF121A29),
+)
+
+/**
+ * 폰 앱 화면 전체: 낮에 손에 들고 보는 손님 화면이라 종이 톤으로 밝게. 바탕은 종이, 카드는 한 단 밝은 종이.
+ * 글자 색은 PaperColors와 같다(bg·surface·surfaceRaised 위 4.5:1 이상).
+ */
+val PhonePaperColors = PaperColors.copy(
+    bg = Color(0xFFF4EFE6),
+    surface = Color(0xFFFFFBF4),
+    surfaceRaised = Color(0xFFEAE3D7),
+)
+
+/** 주간 테마(예전 것, 지금은 쓰지 않는다. "밤 택시" 스타일은 늘 야간 바탕에 종이 물건만 밝다) */
 val DayColors = FaxiColors(
     bg = Color(0xFFF2F4F8),
     surface = Color(0xFFFFFFFF),
@@ -90,10 +127,10 @@ val DayColors = FaxiColors(
     onDanger = Color(0xFFFFFFFF),
     ok = Color(0xFF1B7550),
     onOk = Color(0xFFFFFFFF),
-    familyPaxi = Color(0xFF2F5597),
-    familyMaxi = Color(0xFFB5472B),
-    familyKixi = Color(0xFF1D7F5B),
-    familyNaxi = Color(0xFF6A4EA6),
+    family1 = Color(0xFF2F5597),
+    family2 = Color(0xFFB5472B),
+    family3 = Color(0xFF1D7F5B),
+    family4 = Color(0xFF6A4EA6),
     qrPaper = Color(0xFFFFFFFF),
     qrInk = Color(0xFF121A29),
 )

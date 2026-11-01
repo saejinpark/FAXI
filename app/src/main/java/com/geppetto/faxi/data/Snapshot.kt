@@ -24,15 +24,15 @@ data class FaxiSnapshot(
     val familyId: String = com.geppetto.faxi.auth.DemoFamily.FAMILY_ID,
     val members: List<Member>,
     val driverId: String,
+    /** 오늘의 기사가 정해져 있는지(차가 기억한다). 예전 장부는 정해져 있던 것으로 본다. */
+    val driverSignedIn: Boolean = true,
     val debts: List<Debt>,
     val events: List<LedgerEvent>,
     val receipts: List<Receipt>,
     val lifetime: List<LifetimeLedger>,
-    val requests: List<SettlementRequest> = emptyList(),
     val reviews: Map<String, Review> = emptyMap(),
     /** 이미 소리 내어 읽은 후기(영수증 id). 한 후기는 한 번만 읽는다 */
     val reviewsReadAloud: Set<String> = emptySet(),
-    val passengerReviews: Map<String, Review> = emptyMap(),
     /** 운행 중에 앱이 꺼졌다 켜져도 이어 가도록 */
     val ridePassengerId: String? = null,
     val rideStartedAt: LocalDateTime? = null,
@@ -40,6 +40,10 @@ data class FaxiSnapshot(
     val rideFrom: String? = null,
     /** 운행 중 경유지 수 */
     val rideWaypoints: Int = 0,
+    /** 이번 운행의 가족 할증·할인 기호(FamilyExtra.code). 탑승 때 정하고 하차 때 영수증 줄로 붙는다 */
+    val rideExtras: List<String> = emptyList(),
+    /** 이 가족에게서 손님 한마디를 한 번이라도 받았는지. 받기 전에는 운행 중 화면에 한마디 칸을 두지 않는다(폰 없는 집). */
+    val messagesSeen: Boolean = false,
     /** 도착 화면을 닫기 전에 앱이 꺼졌다 켜져도 다시 띄우도록 */
     val arrivalReceiptId: String? = null,
     val nextId: Int = 100,

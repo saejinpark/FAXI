@@ -25,7 +25,7 @@ enum class RideMessage(val code: String, val text: String) {
 
 /**
  * 한마디 한 통. 한 줄 글자로 오간다(같은 Wi-Fi의 TCP).
- * `FAXI1|가족|사람|코드|보낸시각(초)|서명` — 서명은 그 사람의 비밀 열쇠(탑승 코드와 같은 열쇠)로 만든 HMAC-SHA256 앞 16바이트.
+ * `FAXI1|가족|사람|코드|보낸시각(초)|서명` — 서명은 그 사람의 비밀 열쇠(초대 QR로 받은 것, 탑승 코드와 같은 열쇠)로 만든 HMAC-SHA256 앞 16바이트.
  * 열쇠는 차와 그 사람 폰에만 있으니, 같은 Wi-Fi의 다른 사람이 가족인 척 보낼 수 없다.
  */
 data class MessageEnvelope(

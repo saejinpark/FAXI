@@ -4,10 +4,16 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.IntrinsicSize
+import com.geppetto.faxi.fare.FamilyExtra
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -45,8 +51,10 @@ import com.geppetto.faxi.ui.theme.Faxi
 import com.geppetto.faxi.ui.theme.FaxiDimens
 
 /**
- * 탑승 (주차 상태). 기사 고르기 → "손님 누구세요?" → 손님 폰의 탑승 코드 4자리 → 미터기 켜기.
- * 미터기는 혼자 켤 수 없다: 다른 가족의 코드가 있어야 켜진다.
+ * 탑승 (주차 상태). 폰 없이 차 화면만으로 된다.
+ * 1) 오늘의 기사: 차가 기억한다. 운전하는 사람이 바뀔 때만 "기사 바꾸기"로 다시 고른다.
+ * 2) 손님: "손님 누구세요?" → (가족 할증·할인) → 옆자리 손님이 "제가 탈게요"를 누르면 미터기가 켜진다.
+ *    설정에서 "손님 폰 코드로 확인"을 켰으면 손님 폰에 뜬 4자리를 눌러야 켜진다(폰 앱 필요).
  */
 @Composable
 fun BoardingScreen(
@@ -54,30 +62,74 @@ fun BoardingScreen(
     speak: (String) -> Unit,
     onStarted: () -> Unit,
 ) {
-    var passengerId by remember { mutableStateOf<String?>(null) }
-    var code by remember { mutableStateOf("") }
-    var wrongCode by remember { mutableStateOf(false) }
+    var changingDriver by remember { mutableStateOf(false) }
+    if (!store.driverSignedIn || changingDriver) {
+        DriverPick(store, speak, onCancel = if (store.driverSignedIn) ({ changingDriver = false }) else null, onPicked = { changingDriver = false })
+    } else {
+        PassengerBoarding(store, speak, onChangeDriver = { changingDriver = true }, onStarted = onStarted)
+    }
+}
 
+/** 기사 고르기: 누르면 바로 오늘의 기사가 되고, 아직 못 들은 후기를 읽어 준다. */
+@Composable
+private fun DriverPick(store: FaxiStore, speak: (String) -> Unit, onCancel: (() -> Unit)?, onPicked: () -> Unit) {
+    FaxiPage(title = "누가 운전하나요?", trailing = { onCancel?.let { FaxiSecondaryButton("취소", onClick = it) } }) {
+        full { m ->
+            Plain(m) {
+                Text("차가 기억해요. 운전하는 사람이 바뀔 때만 다시 골라요.", style = Faxi.type.title, color = Faxi.colors.inkMuted)
+                val drivers = store.family.filter { it.canDrive }
+                if (drivers.isEmpty()) {
+                    Text("운전하는 가족이 아직 없어요. 기사 탭에서 \"가족 추가\"로 등록해 주세요.", style = Faxi.type.body, color = Faxi.colors.ink)
+                }
+                drivers.chunked(2).forEach { pair ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(FaxiDimens.targetGap)) {
+                        pair.forEach { member ->
+                            Box(Modifier.weight(1f)) {
+                                MemberTile(member, selected = member.id == store.driverId && store.driverSignedIn) {
+                                    if (store.selectDriver(member.id)) {
+                                        // 후기 낭독: 이 기사가 아직 듣지 못한 가장 최근 후기를 한 번(주차 중, 차 안 가족 모두가 듣는다)
+                                        store.takeUnreadReview(member.id)?.let { (receipt, review) ->
+                                            speak(reviewLine(store.member(receipt.passengerId).name, review.stars, review.tags))
+                                        }
+                                        onPicked()
+                                    }
+                                }
+                            }
+                        }
+                        if (pair.size == 1) Spacer(Modifier.weight(1f))
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** 손님 탑승: 오늘의 기사 택시에 탈 손님 고르기 → "제가 탈게요"(또는 손님 폰 코드) → 미터기 켜기 */
+@Composable
+private fun PassengerBoarding(store: FaxiStore, speak: (String) -> Unit, onChangeDriver: () -> Unit, onStarted: () -> Unit) {
+    var passengerId by remember { mutableStateOf<String?>(null) }
+    var extras by remember { mutableStateOf(emptySet<FamilyExtra>()) }
     val driver = store.member(store.driverId)
     val passenger = passengerId?.let(store::member)
 
     FaxiPage(title = "운행 시작") {
         row(
             { m ->
-                FaxiCard(m) {
-                    SectionTitle("1  기사")
-                    store.members.filter { it.canDrive }.forEach { member ->
-                        MemberTile(member, selected = member.id == driver.id) {
-                            store.selectDriver(member.id)
-                            if (passengerId == member.id) passengerId = null
-                            // 후기 낭독: 이 기사가 아직 듣지 못한 가장 최근 후기를 한 번 읽어 준다(주차 중, 차 안 가족 모두가 듣는다)
-                            store.takeUnreadReview(member.id)?.let { (receipt, review) ->
-                                speak(reviewLine(store.member(receipt.passengerId).name, review.stars, review.tags))
-                            }
+                Plain(m) {
+                    SectionTitle("기사")
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space4),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Avatar(driver, FaxiDimens.targetMin, Faxi.type.title)
+                        Column(Modifier.weight(1f)) {
+                            Text("${driver.name} 택시", style = Faxi.type.title, color = Faxi.colors.ink)
+                            Text("오늘의 기사", style = Faxi.type.caption, color = Faxi.colors.inkMuted)
                         }
+                        FaxiSecondaryButton("기사 바꾸기", onClick = onChangeDriver)
                     }
-                    SectionTitle("2  손님")
-                    store.members.filter { it.id != driver.id }.forEach { member ->
+                    SectionTitle("1  손님 누구세요?")
+                    store.family.filter { it.id != driver.id }.forEach { member ->
                         MemberTile(member, selected = member.id == passengerId) {
                             passengerId = member.id
                             // 밀린 돈 알림: 말투는 설정(단호하게/부드럽게/화면에만)
@@ -102,54 +154,131 @@ fun BoardingScreen(
                             )
                         }
                     }
+                    // 가족 할증·할인: 기사가 지금(주차 중) 고르고, 손님이 코드를 누르면 동의한 것. 운행 중에는 못 바꾼다.
+                    SectionTitle("가족 할증·할인")
+                    FamilyExtra.entries.chunked(2).forEach { pair ->
+                        Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(FaxiDimens.targetGap)) {
+                            pair.forEach { x ->
+                                val on = x in extras
+                                SelectTile(
+                                    selected = on,
+                                    onClick = { extras = if (on) extras - x else extras + x },
+                                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                                ) {
+                                    Column(Modifier.weight(1f)) {
+                                        Text("${x.label} ${x.tag}", style = Faxi.type.bodyStrong, color = Faxi.colors.ink)
+                                        Text(x.hint, style = Faxi.type.caption, color = Faxi.colors.inkMuted)
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             },
             { m ->
-                FaxiCard(m) {
-                    SectionTitle("3  탑승 코드")
-                    Text(
-                        if (passenger == null) "손님을 먼저 골라 주세요." else "${passenger.name} 폰에 뜬 4자리를 눌러 주세요.",
-                        style = Faxi.type.body,
-                        color = Faxi.colors.ink,
-                    )
-                    CodeBoxes(code)
-                    if (wrongCode) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space2),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            WarningIcon(Faxi.colors.danger, FaxiDimens.iconMd)
-                            Text("코드가 맞지 않아요. 폰의 새 코드를 눌러 주세요.", style = Faxi.type.body, color = Faxi.colors.danger)
-                        }
+                // 미터기 켜기: 손님이 탄다는 걸 손님이 확인한다. 기본은 차 화면 버튼, 설정에서 켜면 손님 폰 코드.
+                val start: () -> Unit = {
+                    passengerId?.let { p ->
+                        if (store.settings.greet) speak("손님, 어디로 모실까요?")
+                        store.startRide(p, extras)
+                        passengerId = null
+                        extras = emptySet()
+                        onStarted()
                     }
-                    Keypad(
-                        enabled = passenger != null,
-                        onDigit = { if (code.length < 4) code += it; wrongCode = false },
-                        onDelete = { code = code.dropLast(1); wrongCode = false },
-                    )
-                    Spacer(Modifier.weight(1f))
-                    FaxiPrimaryButton(
-                        "미터기 켜기",
-                        enabled = passenger != null && code.length == 4,
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = {
-                            val p = passengerId ?: return@FaxiPrimaryButton
-                            if (store.verifyBoardingCode(p, code)) {
-                                if (store.settings.greet) speak("손님, 어디로 모실까요?")
-                                store.startRide(p)
-                                code = ""
-                                passengerId = null
-                                onStarted()
-                            } else {
-                                wrongCode = true
-                                code = ""
-                            }
+                }
+                if (store.settings.phoneCode) {
+                    CodeCard(
+                        modifier = m,
+                        title = "2  손님 폰 코드",
+                        prompt = when {
+                            passenger == null -> "손님을 먼저 골라 주세요."
+                            extras.isEmpty() -> "${passenger.name} 폰에 뜬 4자리를 눌러 주세요."
+                            else -> "${passenger.name} 폰에 뜬 4자리를 누르면 고른 할증·할인에도 동의한 거예요."
                         },
-                    )
+                        enabled = passenger != null,
+                        action = "미터기 켜기",
+                    ) { code ->
+                        val p = passengerId ?: return@CodeCard false
+                        if (!store.verifyCode(p, code)) return@CodeCard false
+                        start()
+                        true
+                    }
+                } else {
+                    Plain(m) {
+                        SectionTitle("2  탑승")
+                        Text(
+                            when {
+                                passenger == null -> "손님을 먼저 골라 주세요."
+                                else -> "${passenger.name} 손님, ${driver.name} 택시에 타시나요?"
+                            },
+                            style = Faxi.type.headline, color = Faxi.colors.ink,
+                        )
+                        Text(
+                            if (extras.isEmpty()) "옆자리 손님이 직접 눌러 주세요." else "누르면 고른 할증·할인에도 동의한 거예요.",
+                            style = Faxi.type.title, color = Faxi.colors.inkMuted,
+                        )
+                        Spacer(Modifier.weight(1f))
+                        FaxiPrimaryButton("제가 탈게요 · 미터기 켜기", enabled = passenger != null, onClick = start, modifier = Modifier.fillMaxWidth())
+                    }
                 }
             },
         )
     }
+}
+
+/**
+ * 코드 4칸 + 숫자판 + 주 버튼. 설정에서 "손님 폰 코드로 확인"을 켰을 때 손님 탑승에 쓴다.
+ * submit이 false면 "코드가 맞지 않아요"를 띄우고 칸을 비운다. 안내 줄은 자리를 미리 잡아 버튼이 밀리지 않는다.
+ */
+@Composable
+private fun CodeCard(
+    modifier: Modifier,
+    title: String,
+    prompt: String,
+    enabled: Boolean,
+    action: String,
+    submit: (String) -> Boolean,
+) {
+    var code by remember { mutableStateOf("") }
+    var wrongCode by remember { mutableStateOf(false) }
+    Plain(modifier) {
+        SectionTitle(title)
+        Text(prompt, style = Faxi.type.body, color = Faxi.colors.ink)
+        CodeBoxes(code)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space2),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.heightIn(min = FaxiDimens.iconMd),
+        ) {
+            if (wrongCode) {
+                WarningIcon(Faxi.colors.danger, FaxiDimens.iconMd)
+                Text("코드가 맞지 않아요. 폰의 새 코드를 눌러 주세요.", style = Faxi.type.body, color = Faxi.colors.danger)
+            }
+        }
+        Keypad(
+            enabled = enabled,
+            onDigit = { if (code.length < 4) code += it; wrongCode = false },
+            onDelete = { code = code.dropLast(1); wrongCode = false },
+        )
+        Spacer(Modifier.weight(1f))
+        FaxiPrimaryButton(
+            action,
+            enabled = enabled && code.length == 4,
+            modifier = Modifier.fillMaxWidth(),
+            onClick = {
+                wrongCode = !submit(code)
+                code = ""
+            },
+        )
+    }
+}
+
+/**
+ * "밤 택시" 스타일: 상자 없이 밤 바탕 위에 바로 쌓는다. 묶음은 테두리가 아니라 간격으로 나눈다.
+ */
+@Composable
+private fun Plain(modifier: Modifier, content: @Composable ColumnScope.() -> Unit) {
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(FaxiDimens.space4), content = content)
 }
 
 @Composable
@@ -157,7 +286,7 @@ private fun MemberTile(member: Member, selected: Boolean, onClick: () -> Unit) {
     SelectTile(selected = selected, onClick = onClick, modifier = Modifier.fillMaxWidth(), wide = true) {
         Avatar(member, FaxiDimens.iconLg, Faxi.type.bodyStrong)
         Column(Modifier.weight(1f)) {
-            Text("${member.name} · ${member.callsign}", style = Faxi.type.bodyStrong, color = Faxi.colors.ink)
+            Text(member.name, style = Faxi.type.bodyStrong, color = Faxi.colors.ink)
             Text(member.grade.label, style = Faxi.type.caption, color = Faxi.colors.inkMuted)
         }
     }
@@ -237,4 +366,10 @@ private fun Keypad(enabled: Boolean, onDigit: (Char) -> Unit, onDelete: () -> Un
 @Composable
 private fun BoardingPreview() = PreviewFrame {
     BoardingScreen(FaxiStore.sample(), speak = {}, onStarted = {})
+}
+
+@FaxiPreviews
+@Composable
+private fun DriverSignInPreview() = PreviewFrame {
+    BoardingScreen(FaxiStore(FaxiStore.sampleSnapshot(java.time.LocalDate.of(2026, 10, 27)).copy(driverSignedIn = false)), speak = {}, onStarted = {})
 }
