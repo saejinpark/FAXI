@@ -16,7 +16,7 @@ class QrTest {
         // 가장 긴 영수증: 기획서 예시 운행 + 가족 할증·할인 넷 모두(QR 크기 규칙을 이 경우로 지킨다)
         val lines = FamilyExtra.apply(meter.lines(), FamilyExtra.entries.toSet())
         return ReceiptTicket(
-            familyId = DemoFamily.FAMILY_ID, id = "r100", passengerId = "mom", passenger = "엄마",
+            familyId = DemoFamily.FAMILY_ID, id = "r100-t3k9zqa", passengerId = "mom", passenger = "엄마",
             driver = "아빠", route = "우리집 → 이마트 성수점", endedAt = "2026-10-27T11:07",
             lines = lines, fareTotal = lines.sumOf { it.amount }, billed = 18_370, carriedOver = 3_120,
             balances = listOf(Balance("아빠", owedToMe = false, amount = 18_370), Balance("할머니", owedToMe = true, amount = 9_300, disputed = true)),

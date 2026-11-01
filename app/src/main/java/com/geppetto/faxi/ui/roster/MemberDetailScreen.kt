@@ -218,6 +218,11 @@ private fun AvatarPicker(store: FaxiStore, memberId: String, modifier: Modifier)
     val current = store.member(memberId).avatar
     FaxiCard(modifier) {
         SectionTitle("사진 대신 캐릭터")
+        Text(
+            if (store.member(memberId).photo != null) "${store.name(memberId)} 폰에서 보낸 사진을 쓰고 있어요. 캐릭터는 사진이 없을 때 보여요."
+            else "사진은 ${store.name(memberId)} 폰의 FAXI 앱 설정에서 찍어 보내요.",
+            style = Faxi.type.caption, color = c.inkMuted,
+        )
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(FaxiDimens.targetGap),
             verticalArrangement = Arrangement.spacedBy(FaxiDimens.targetGap),

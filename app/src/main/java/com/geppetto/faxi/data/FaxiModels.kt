@@ -43,8 +43,10 @@ data class Member(
     val licenseEligible: LocalDate? = null,
     /** 사진 대신 쓰는 캐릭터(Avatars의 key). null이면 이름 첫 글자를 보여 준다. */
     val avatar: String? = null,
-    /** 자격증 사진 파일 이름(차 내부 저장소). 폰 → 차 사진 전송 통로가 정해지면 쓴다. */
+    /** 자격증 사진 파일 이름(예전 자리, 쓰지 않는다) */
     val photoFile: String? = null,
+    /** 자격증 사진: 그 사람 폰 프로필에서 동기화로 온 240×320 JPEG(Base64). 있으면 캐릭터 대신 쓴다. */
+    val photo: String? = null,
     /**
      * 탑승 인증 비밀 열쇠(Base32). 가족 등록 때 차가 만들고 초대 QR로 그 사람 폰에 한 번 건넨다.
      * 차 밖으로는 그 QR 말고 나가지 않는다.

@@ -77,7 +77,7 @@ enum class PhoneTab(val label: String, val icon: @Composable (Color, Dp) -> Unit
  * - 한마디: 기사님께 한마디. 차에 타서 여는 화면.
  * - 영수증: 영수증 QR 찍기, 방금 찍은 영수증의 기사 후기, 내 영수증 목록.
  * - 정산: 마지막 영수증 기준 받을 돈·갚을 돈.
- * - 설정: 내 정보, 탑승 코드(차 설정에서 코드 확인을 켠 집만), 차와 연결, 등록 해제.
+ * - 설정: 내 프로필(사진·자격증 별명, 차와 맞추기), 탑승 코드(차 설정에서 코드 확인을 켠 집만), 차와 연결, 등록 해제.
  */
 @Composable
 internal fun PhoneMain(
@@ -90,13 +90,15 @@ internal fun PhoneMain(
 ) {
     val context = LocalContext.current
     val sender = remember { MessageSender(context.applicationContext) }
+    // 앱이 앞에 있는 동안 차와 저절로 맞춘다(프로필 보내기, 내 정산·영수증 받기)
+    AutoSync(me, store, sender)
     Column(Modifier.fillMaxSize()) {
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when (tab) {
                 PhoneTab.Ride -> RideTab(me, store, sender, onReview = { onTab(PhoneTab.Receipts) })
                 PhoneTab.Receipts -> ReceiptsTab(me, store, sender, onScanReceipt, onNotice)
                 PhoneTab.Balance -> BalanceTab(store)
-                PhoneTab.Settings -> SettingsTab(me, store)
+                PhoneTab.Settings -> SettingsTab(me, store, sender)
             }
         }
         BottomTabs(tab, reviewWaiting = store.pendingReview != null, onTab = onTab)
@@ -241,15 +243,17 @@ private fun ReceiptsTab(me: FaxiInvite, store: PhoneStore, sender: MessageSender
 private fun BalanceTab(store: PhoneStore) {
     val c = Faxi.colors
     val latest = store.receipts.firstOrNull()
+    // 차와 맞춘 정산이 있으면 그것(지금 장부), 없으면 마지막 영수증을 찍은 때의 사본
+    val balances = store.syncedBalances ?: latest?.balances
     PhonePage("정산") {
-        if (latest == null) {
+        if (balances == null) {
             FaxiCard {
-                Text("영수증을 찍으면 받을 돈과 갚을 돈이 보여요.", style = Faxi.type.body, color = c.ink)
+                Text("차와 맞추거나 영수증을 찍으면 받을 돈과 갚을 돈이 보여요.", style = Faxi.type.body, color = c.ink)
             }
             return@PhonePage
         }
-        val owe = latest.balances.filter { !it.owedToMe }
-        val get = latest.balances.filter { it.owedToMe }
+        val owe = balances.filter { !it.owedToMe }
+        val get = balances.filter { it.owedToMe }
         // 합계 두 칸. 폰은 좁아서 큰 금액(BigWon) 대신 금액 글자로 한 줄에 둔다
         FaxiCard {
             Row(Modifier.height(IntrinsicSize.Min)) {
@@ -260,13 +264,16 @@ private fun BalanceTab(store: PhoneStore) {
         }
         FaxiCard {
             SectionTitle("사람별")
-            if (latest.balances.isEmpty()) Text("주고받을 돈이 없어요.", style = Faxi.type.body, color = c.ink)
-            latest.balances.forEach { b ->
+            if (balances.isEmpty()) Text("주고받을 돈이 없어요.", style = Faxi.type.body, color = c.ink)
+            balances.forEach { b ->
                 MoneyRow(if (b.owedToMe) "${b.other}에게 받을 돈" else "${b.other}에게 갚을 돈", b.amount)
             }
         }
         Text(
-            "${when_(latest.endedAt)} 영수증을 찍은 때 기준이에요. 받은 돈은 받는 사람이 차 화면 장부에 적어요.",
+            when {
+                store.syncedAt != null -> "${java.time.Instant.ofEpochSecond(store.syncedAt!!).atZone(java.time.ZoneId.systemDefault()).toLocalDateTime().let { when_(it.toString()) }} 차와 맞춘 장부예요. 받은 돈은 받는 사람이 차 화면 장부에 적어요."
+                else -> "${when_(latest!!.endedAt)} 영수증을 찍은 때 기준이에요. 받은 돈은 받는 사람이 차 화면 장부에 적어요."
+            },
             style = Faxi.type.caption, color = c.inkMuted,
         )
     }
@@ -282,21 +289,13 @@ private fun Total(label: String, amount: Int, modifier: Modifier) {
 
 /** 설정: 내 정보, 탑승 코드(접어 둠), 차와 연결(근처 기기 권한), 등록 해제(한 번 더 묻는다), 버전 */
 @Composable
-private fun SettingsTab(me: FaxiInvite, store: PhoneStore) {
+private fun SettingsTab(me: FaxiInvite, store: PhoneStore, sender: MessageSender) {
     val c = Faxi.colors
     val t = Faxi.type
     val context = LocalContext.current
     var confirmLeave by remember { mutableStateOf(false) }
     PhonePage("설정") {
-        FaxiCard {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space4)) {
-                AvatarCircle(null, me.name.take(1), FaxiDimens.targetMin, t.title, c.family(me.color))
-                Column {
-                    Text(me.name, style = t.headline, color = c.ink)
-                    Text(if (me.familyId == DemoFamily.FAMILY_ID) "시연 가족으로 등록됨" else "가족 차에 등록됨", style = t.caption, color = c.inkMuted)
-                }
-            }
-        }
+        ProfileCard(me, store, sender)
         BoardingCodeCard(me)
         FaxiCard {
             SectionTitle("차와 연결")

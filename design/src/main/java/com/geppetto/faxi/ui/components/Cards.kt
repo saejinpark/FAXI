@@ -19,6 +19,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.Image
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -138,6 +144,8 @@ fun AvatarCircle(
     size: Dp,
     style: TextStyle = Faxi.type.title,
     ring: Color = Faxi.colors.lineStrong,
+    /** 프로필 사진(있으면 캐릭터·글자 대신) */
+    photo: ImageBitmap? = null,
 ) {
     val c = Faxi.colors
     Box(
@@ -148,7 +156,9 @@ fun AvatarCircle(
             .clearAndSetSemantics { },
         contentAlignment = Alignment.Center,
     ) {
-        if (emoji != null) {
+        if (photo != null) {
+            Image(photo, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.size(size).clip(CircleShape))
+        } else if (emoji != null) {
             val fontSize = with(LocalDensity.current) { (size * 0.55f).toSp() }
             Text(emoji, fontSize = fontSize, lineHeight = fontSize)
         } else {
@@ -205,3 +215,14 @@ fun BigWon(amount: Int, color: Color = Faxi.colors.ink) {
 
 /** 1원 단위 금액 글자: 18379 → "18,379". 반올림하지 않는다. 차 앱 data.won()과 같은 모양. */
 internal fun won(value: Int): String = "%,d".format(value)
+
+/** Base64 JPEG(프로필 사진)를 그림으로. 없거나 깨졌으면 null. 같은 글자면 다시 풀지 않는다. */
+@Composable
+fun rememberPhoto(base64: String?): ImageBitmap? = remember(base64) {
+    base64?.let {
+        runCatching {
+            val bytes = java.util.Base64.getDecoder().decode(it)
+            android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
+        }.getOrNull()
+    }
+}
