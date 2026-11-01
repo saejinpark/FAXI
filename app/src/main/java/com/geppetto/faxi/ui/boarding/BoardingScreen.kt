@@ -25,6 +25,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import com.geppetto.faxi.data.Dunning
@@ -141,17 +142,21 @@ private fun PassengerBoarding(store: FaxiStore, speak: (String) -> Unit, onChang
                             }
                         }
                     }
-                    if (passenger != null) {
-                        val debt = store.debt(passenger.id, driver.id)
-                        val owedBack = store.debt(driver.id, passenger.id)
-                        when {
-                            debt != null -> DebtReminder(dunningLine(debt.amount, store.daysOf(debt), passenger.name, store.settings.dunning))
-                            passenger.grade == Grade.Learner ->
-                                Text("예비 기사 요금은 평생 장부에 쌓여요.", style = Faxi.type.body, color = Faxi.colors.inkMuted)
-                            owedBack != null -> Text(
-                                "이번 요금은 ${owesPhrase(driver.name, passenger.name)} 진 빚 ${won(owedBack.amount)}원과 먼저 퉁쳐요.",
-                                style = Faxi.type.body, color = Faxi.colors.inkMuted,
-                            )
+                    // 손님 안내 줄(밀린 돈·평생 장부·퉁치기)은 자리를 미리 잡아 둔다.
+                    // 손님을 고를 때 이 줄이 생겼다 사라지면 아래 할증 칸이 손가락 밑에서 움직인다.
+                    Box(Modifier.fillMaxWidth().heightIn(min = NoticeHeight), contentAlignment = Alignment.CenterStart) {
+                        if (passenger != null) {
+                            val debt = store.debt(passenger.id, driver.id)
+                            val owedBack = store.debt(driver.id, passenger.id)
+                            when {
+                                debt != null -> DebtReminder(dunningLine(debt.amount, store.daysOf(debt), passenger.name, store.settings.dunning))
+                                passenger.grade == Grade.Learner ->
+                                    Text("예비 기사 요금은 평생 장부에 쌓여요.", style = Faxi.type.body, color = Faxi.colors.inkMuted)
+                                owedBack != null -> Text(
+                                    "이번 요금은 ${owesPhrase(driver.name, passenger.name)} 진 빚 ${won(owedBack.amount)}원과 먼저 퉁쳐요.",
+                                    style = Faxi.type.body, color = Faxi.colors.inkMuted,
+                                )
+                            }
                         }
                     }
                     // 가족 할증·할인: 기사가 지금(주차 중) 고르고, 손님이 코드를 누르면 동의한 것. 운행 중에는 못 바꾼다.
@@ -291,6 +296,9 @@ private fun MemberTile(member: Member, selected: Boolean, onClick: () -> Unit) {
         }
     }
 }
+
+/** 손님 안내 줄 자리: 밀린 돈 칸(안쪽 여백 + 굵은 글자 한 줄)이 들어가는 높이 */
+private val NoticeHeight = 72.dp
 
 @Composable
 private fun DebtReminder(text: String) {
