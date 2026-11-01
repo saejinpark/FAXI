@@ -24,9 +24,9 @@ Pleos Connect 에뮬레이터(왼쪽)와 폰 에뮬레이터(오른쪽)를 같�
 | --- | --- | --- |
 | ![탑승](docs/screenshots/01-boarding.png) | ![운행 중](docs/screenshots/03-driving.png) | ![도착](docs/screenshots/04-arrival.png) |
 
-| 기사 명단 | 가족 장부 | 폰 앱 |
+| 면허 따는 날 | 가족 장부 | 폰 앱 |
 | --- | --- | --- |
-| ![기사](docs/screenshots/02-roster.png) | ![장부](docs/screenshots/05-ledger.png) | ![폰](docs/screenshots/06-phone-receipt.png) |
+| ![면허](docs/screenshots/02-license.png) | ![장부](docs/screenshots/05-ledger.png) | ![폰](docs/screenshots/06-phone-receipt.png) |
 
 ## 요금표
 
