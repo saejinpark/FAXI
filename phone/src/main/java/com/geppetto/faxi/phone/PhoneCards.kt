@@ -267,7 +267,8 @@ internal fun ReceiptItem(t: ReceiptTicket) {
         // 폰은 좁아서 이름·시각·금액을 한 줄에 몰지 않고 세로로 쌓는다
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(FaxiDimens.space1)) {
-                Text("${t.driver} 택시", style = Faxi.type.bodyStrong, color = c.ink)
+                // 예전 영수증은 "아빠 · PAXI"처럼 호출명이 붙어 있다
+                Text("${t.driver.substringBefore(" · ")} 택시", style = Faxi.type.bodyStrong, color = c.ink)
                 Text("${when_(t.endedAt)} · ${t.route}", style = Faxi.type.caption, color = c.inkMuted)
                 Text(
                     "${"%,d".format(if (t.toLifetime) t.fareTotal else t.billed)}원",

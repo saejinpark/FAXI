@@ -35,7 +35,7 @@ data class ReceiptTicket(
     /** 이 영수증의 손님. 폰은 자기 영수증만 받는다. */
     @SerialName("pm") val passengerId: String,
     @SerialName("p") val passenger: String,
-    /** "아빠 · PAXI" */
+    /** 기사 이름 "아빠" */
     @SerialName("d") val driver: String,
     /** "우리집 → 이마트 성수점" */
     @SerialName("r") val route: String,

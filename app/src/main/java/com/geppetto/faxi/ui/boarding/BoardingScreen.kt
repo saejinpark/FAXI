@@ -227,7 +227,7 @@ private fun PassengerBoarding(store: FaxiStore, speak: (String) -> Unit, onChang
 }
 
 /**
- * 코드 4칸 + 숫자판 + 주 버튼. 기사 로그인과 손님 탑승이 같이 쓴다.
+ * 코드 4칸 + 숫자판 + 주 버튼. 설정에서 "손님 폰 코드로 확인"을 켰을 때 손님 탑승에 쓴다.
  * submit이 false면 "코드가 맞지 않아요"를 띄우고 칸을 비운다. 안내 줄은 자리를 미리 잡아 버튼이 밀리지 않는다.
  */
 @Composable

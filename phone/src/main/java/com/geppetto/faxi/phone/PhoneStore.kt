@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.geppetto.faxi.auth.DemoFamily
 import com.geppetto.faxi.auth.FaxiInvite
 import com.geppetto.faxi.qr.ReceiptTicket
 import kotlinx.serialization.builtins.ListSerializer
@@ -19,7 +20,7 @@ import kotlinx.serialization.json.Json
 class PhoneStore(context: Context) {
     private val prefs = context.getSharedPreferences("faxi-phone", Context.MODE_PRIVATE)
 
-    var me by mutableStateOf(prefs.getString(KEY_INVITE, null)?.let(FaxiInvite::parse))
+    var me by mutableStateOf(prefs.getString(KEY_INVITE, null)?.let(FaxiInvite::parse)?.let(::withDemoColor))
         private set
 
     /** 최신이 앞 */
@@ -88,3 +89,8 @@ class PhoneStore(context: Context) {
         val LinkList = ListSerializer(String.serializer())
     }
 }
+
+/** 예전 시연 가족 링크(c=호출명)에는 가족 색이 없다: 시연 가족이면 차와 같은 색을 채운다 */
+private fun withDemoColor(i: FaxiInvite): FaxiInvite =
+    if (i.familyId != DemoFamily.FAMILY_ID) i
+    else DemoFamily.people.firstOrNull { it.memberId == i.memberId }?.let { i.copy(color = it.color) } ?: i

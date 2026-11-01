@@ -41,7 +41,7 @@ private val DateFormat = DateTimeFormatter.ofPattern("yyyy.MM.dd")
 /**
  * FAXI 기사 자격증. 택시 조수석 앞 자격증처럼 운행이 시작되면 차 화면에 뜬다.
  * 신분증 모양: 왼쪽 가장자리 가족 색 띠, 3:4 사진 칸, 오른쪽에 이름표처럼 칸(성명·등록·운행).
- * 실제 면허증을 흉내 내지 않는다: 면허번호 칸 없음, FAXI 로고 글자와 호출명만.
+ * 실제 면허증을 흉내 내지 않는다: 면허번호 칸 없음, FAXI 로고 글자와 이름만.
  *
  * large = true(운행 중 화면)면 주행 중에 읽히도록 칸 글자를 24sp 이상으로 키운다.
  */
@@ -124,7 +124,7 @@ private fun Field(label: String, value: String, large: Boolean) {
     }
 }
 
-/** 3:4 증명사진 칸. 사진이 생기기 전에는 캐릭터, 캐릭터도 없으면 호출명 첫 글자. */
+/** 3:4 증명사진 칸. 사진이 생기기 전에는 캐릭터, 캐릭터도 없으면 이름 첫 글자. */
 @Composable
 private fun PhotoFrame(member: Member, width: Dp) {
     val c = Faxi.colors

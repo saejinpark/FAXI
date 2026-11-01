@@ -12,11 +12,11 @@ import com.geppetto.faxi.ui.theme.Faxi
 
 /**
  * 사진 자리. 폰 → 차 사진 전송이 정해지기 전까지는 고른 캐릭터를,
- * 캐릭터도 없으면 호출명 첫 글자를 보여 준다.
+ * 캐릭터도 없으면 이름 첫 글자를 보여 준다.
  */
 @Composable
 fun Avatar(member: Member, size: Dp, style: TextStyle = Faxi.type.title) {
-    // 테두리는 그 사람의 가족 색: 누구인지 색으로도 한 번 더 알린다(이름·호출명과 함께)
+    // 테두리는 그 사람의 가족 색: 누구인지 색으로도 한 번 더 알린다(이름과 함께)
     AvatarCircle(avatarOf(member.avatar)?.emoji, member.name.take(1), size, style, Faxi.colors.family(member.color))
 }
 
