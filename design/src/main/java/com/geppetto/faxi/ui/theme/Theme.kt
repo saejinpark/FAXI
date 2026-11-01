@@ -1,6 +1,5 @@
 package com.geppetto.faxi.ui.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -47,12 +46,12 @@ object Faxi {
 }
 
 /**
- * 야간이 기본. 차량은 조명 상태에 따라 시스템이 다크/라이트를 바꾸므로
- * isSystemInDarkTheme()를 따른다. 기기 배경화면 색(dynamic color)은 쓰지 않는다.
+ * "밤 택시" 스타일: 바탕은 늘 밤 남색이고, 밝은 면은 종이 물건(자격증·영수증)뿐이다(PaperSurface).
+ * 그래서 시스템 주간/야간과 상관없이 야간 색을 쓴다. 기기 배경화면 색(dynamic color)은 쓰지 않는다.
  */
 @Composable
 fun FaxiTheme(
-    night: Boolean = isSystemInDarkTheme(),
+    night: Boolean = true,
     content: @Composable () -> Unit,
 ) {
     val colors = if (night) NightColors else DayColors
@@ -70,4 +69,13 @@ fun FaxiTheme(
     ) {
         MaterialTheme(colorScheme = material, typography = MaterialTypography, content = content)
     }
+}
+
+/**
+ * 종이 물건 안: Faxi.colors를 종이 색(PaperColors)으로 바꿔 끼운다.
+ * 안에 둔 MoneyRow·StatusTag·BigWon 같은 부품이 그대로 종이 위 색으로 그려진다.
+ */
+@Composable
+fun PaperSurface(content: @Composable () -> Unit) {
+    CompositionLocalProvider(LocalFaxiColors provides PaperColors, content = content)
 }

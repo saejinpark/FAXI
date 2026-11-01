@@ -1,6 +1,10 @@
 package com.geppetto.faxi.ui.components
 
 import androidx.compose.foundation.background
+import com.geppetto.faxi.ui.theme.PaperSurface
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Path
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -44,6 +48,48 @@ fun FaxiCard(
         content = content,
     )
 }
+
+/**
+ * 종이 물건("밤 택시" 스타일에서 유일하게 밝은 면): 자격증·영수증. 안쪽은 종이 색(PaperSurface)이라
+ * MoneyRow·StatusTag 같은 부품이 그대로 종이 위 색으로 그려진다.
+ * torn이면 아래 가장자리를 톱니로 잘라 영수증처럼 보이게 한다(정지 그림).
+ */
+@Composable
+fun Paper(
+    modifier: Modifier = Modifier,
+    torn: Boolean = false,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    PaperSurface {
+        val paper = Faxi.colors.surface
+        val shape = if (torn) RoundedCornerShape(topStart = FaxiDimens.radiusMd, topEnd = FaxiDimens.radiusMd) else RoundedCornerShape(FaxiDimens.radiusMd)
+        Column(modifier.fillMaxWidth()) {
+            Column(
+                Modifier.fillMaxWidth().background(paper, shape).padding(FaxiDimens.space6),
+                verticalArrangement = Arrangement.spacedBy(FaxiDimens.space4),
+                content = content,
+            )
+            if (torn) {
+                Canvas(Modifier.fillMaxWidth().height(TornEdge)) {
+                    val tooth = TornEdge.toPx() * 2
+                    val teeth = (size.width / tooth).toInt().coerceAtLeast(1)
+                    val w = size.width / teeth
+                    val path = Path().apply {
+                        moveTo(0f, 0f)
+                        for (i in 0 until teeth) {
+                            lineTo(i * w + w / 2, size.height)
+                            lineTo((i + 1) * w, 0f)
+                        }
+                        close()
+                    }
+                    drawPath(path, paper)
+                }
+            }
+        }
+    }
+}
+
+private val TornEdge = 14.dp
 
 @Composable
 fun SectionTitle(text: String, modifier: Modifier = Modifier) {

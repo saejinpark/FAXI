@@ -72,7 +72,35 @@ val NightColors = FaxiColors(
     qrInk = Color(0xFF121A29),
 )
 
-/** 주간 테마 */
+/**
+ * 종이: "밤 택시" 화면에서 유일하게 밝은 면. 자격증·영수증 같은 종이 물건 안에서만 쓴다(PaperSurface가 바꿔 끼운다).
+ * 크림색 종이 위 남색 글자. 글자 색은 paper·surfaceRaised 위에서 모두 4.5:1 이상.
+ */
+val PaperColors = FaxiColors(
+    bg = Color(0xFFF4EFE6),
+    surface = Color(0xFFF4EFE6),
+    surfaceRaised = Color(0xFFE9E2D5),
+    line = Color(0xFFD9CFBE),
+    lineStrong = Color(0xFF857A69),
+    ink = Color(0xFF1F2B42),
+    inkMuted = Color(0xFF5B5446),
+    inkDisabled = Color(0xFF9A9080),
+    accent = Color(0xFFF2845F),
+    onAccent = Color(0xFF1F2B42),
+    accentInk = Color(0xFFA8401F),
+    danger = Color(0xFFB31F42),
+    onDanger = Color(0xFFFFFFFF),
+    ok = Color(0xFF17694A),
+    onOk = Color(0xFFFFFFFF),
+    family1 = Color(0xFF2F5597),
+    family2 = Color(0xFFB5472B),
+    family3 = Color(0xFF1D7F5B),
+    family4 = Color(0xFF6A4EA6),
+    qrPaper = Color(0xFFFFFFFF),
+    qrInk = Color(0xFF121A29),
+)
+
+/** 주간 테마(예전 것, 지금은 쓰지 않는다. "밤 택시" 스타일은 늘 야간 바탕에 종이 물건만 밝다) */
 val DayColors = FaxiColors(
     bg = Color(0xFFF2F4F8),
     surface = Color(0xFFFFFFFF),

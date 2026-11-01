@@ -144,6 +144,10 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
   - `PleosSpeaker`: Pleos TextToSpeech SDK `ai.pleos.playground:TextToSpeech:3.3.1`(권한 `pleos.car.permission.TTS_SERVICE`), **ON_DEVICE 모드**(차 안 엔진: 네트워크·앱 등록 없음, 이름·금액이 차 밖으로 안 나감). 새 말은 하던 말을 멈추고 읽는다.
   - 로캘은 `Locale.KOREA`(ko-KR). `Locale.KOREAN`은 엔진에 "ko-"로 가서 unsupported locale로 실패한다(에뮬레이터 로그로 확인).
   - 초기화 실패나 엔진·언어 미지원 오류면 기기 TTS로 바꾸고 방금 문장을 다시 읽는다. SDK AAR이 INTERNET 권한을 같이 선언한다(ON_DEVICE라 쓰지 않음).
+- 디자인 스타일 "밤 택시"(2026-11 정함): 바탕은 늘 밤 남색(`FaxiTheme`은 시스템 주간/야간과 상관없이 야간 색). 밝은 면은 종이 물건뿐: 기사 자격증, 영수증(`Paper`, `torn = true`면 아래가 톱니로 잘린 영수증). 종이 안은 `PaperSurface`가 `Faxi.colors`를 `PaperColors`(크림 종이 + 남색 글자, 모두 4.5:1 이상)로 바꿔 끼워서 MoneyRow 같은 부품이 그대로 쓰인다.
+  - 상자(카드)를 줄이고 간격으로 묶는다. 운행 중·도착·탑승은 카드 없이 밤 바탕 위에 바로 쌓았다(장부·기사·설정은 아직 카드, 색만 같다).
+  - 산호색은 표시등(`TaxiLampIcon`, 앱 아이콘과 같은 그림)과 그 화면의 주 버튼, 켜진 상태 표시에만.
+  - 운행 중 화면 제목 자리 = 표시등 + "엄마 손님 모시는 중" + 할증 꼬리표(`FaxiPage(leading = …)`).
 - `ui/theme/`(`:design` 모듈) 디자인 토큰. 색은 `Faxi.colors.*`, 글자는 `Faxi.type.*`, 간격·크기는 `FaxiDimens.*`로만 쓴다. 하드코딩한 색·크기를 새로 만들지 않는다. 테마 진입점은 `FaxiTheme`(야간 기본, dynamic color 안 씀).
   - 색: FAXI 디자인 시스템(https://claude.ai/artifact/13q7cCn7wsigv23nJYGwV2)의 tokens.json과 `ui/theme/Color.kt`는 같은 값이다. 한쪽을 고치면 다른 쪽도 고친다. 폰 앱도 같은 `FaxiTheme`을 쓰므로 값은 한 곳뿐이다.
   - 무드는 산호 `accent`(버튼 면) + 밤 남색 `surface`. `accent`는 면 색이라 글자로 쓰지 않는다. 글자 강조는 `accentInk`. 글자 색은 bg·surface·surfaceRaised 위에서 모두 4.5:1 이상.

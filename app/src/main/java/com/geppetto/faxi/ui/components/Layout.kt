@@ -59,6 +59,8 @@ fun FaxiPage(
     modifier: Modifier = Modifier,
     /** 상세 화면이면 제목 왼쪽에 뒤로 버튼 */
     onBack: (() -> Unit)? = null,
+    /** 제목 앞 그림(운행 중 화면의 택시 표시등) */
+    leading: (@Composable () -> Unit)? = null,
     trailing: @Composable () -> Unit = {},
     content: PageBuilder.() -> Unit,
 ) {
@@ -82,6 +84,7 @@ fun FaxiPage(
                 if (onBack != null) {
                     FaxiIconButton("뒤로", onClick = onBack) { BackIcon(Faxi.colors.ink, FaxiDimens.iconMd) }
                 }
+                leading?.invoke()
                 Text(
                     title,
                     style = Faxi.type.headline,

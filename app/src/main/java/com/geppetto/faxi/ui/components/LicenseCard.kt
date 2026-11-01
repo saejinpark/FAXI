@@ -31,6 +31,7 @@ import com.geppetto.faxi.data.avatarOf
 import com.geppetto.faxi.data.won
 import com.geppetto.faxi.ui.theme.Faxi
 import com.geppetto.faxi.ui.theme.FaxiDimens
+import com.geppetto.faxi.ui.theme.PaperSurface
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
@@ -52,17 +53,17 @@ fun DriverLicenseCard(
     modifier: Modifier = Modifier,
     large: Boolean = false,
     today: LocalDate = LocalDate.now(),
-) {
+) = PaperSurface {
+    // "밤 택시" 스타일: 자격증은 종이 물건이라 밤 바탕 위 크림색 종이로 그린다
     val c = Faxi.colors
     val t = Faxi.type
-    val shape = RoundedCornerShape(FaxiDimens.radiusLg)
+    val shape = RoundedCornerShape(FaxiDimens.radiusMd)
     Row(
         modifier
             .fillMaxWidth()
             .height(IntrinsicSize.Min)
             .clip(shape)
             .background(c.surface)
-            .border(FaxiDimens.borderWidth, c.lineStrong, shape)
             .semantics(mergeDescendants = true) {
                 contentDescription = "FAXI 기사 자격증, ${member.name}, ${member.grade.label}, ${member.cardTitle}"
             },

@@ -6,6 +6,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.geppetto.faxi.ui.theme.FaxiDimens
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
 import com.geppetto.faxi.auth.DemoFamily
 import com.geppetto.faxi.data.FaxiStore
 import com.geppetto.faxi.data.Receipt
@@ -43,7 +46,8 @@ fun ArrivalScreen(store: FaxiStore, receipt: Receipt, onClose: () -> Unit) {
         row(
             { m -> ReceiptCard(store, receipt, m) },
             { m ->
-                FaxiCard(m) {
+                // 밤 바탕 위에 상자 없이: 승차감 그래프와 기사 후기
+                Column(m, verticalArrangement = Arrangement.spacedBy(FaxiDimens.space8)) {
                     RideComfortChart(receipt)
                     ReviewSummary("$driver 기사 후기", store.reviews[receipt.id], empty = "$passenger 폰에서 영수증 QR을 찍은 뒤 남겨요.")
                 }
@@ -61,7 +65,7 @@ fun ReceiptDetailScreen(store: FaxiStore, receipt: Receipt, onBack: () -> Unit) 
         row(
             { m -> ReceiptCard(store, receipt, m, past = true) },
             { m ->
-                FaxiCard(m) {
+                Column(m, verticalArrangement = Arrangement.spacedBy(FaxiDimens.space8)) {
                     RideComfortChart(receipt)
                     ReviewSummary("$driver 기사 후기", store.reviews[receipt.id], empty = "$passenger 폰에서 아직 안 남겼어요.")
                 }

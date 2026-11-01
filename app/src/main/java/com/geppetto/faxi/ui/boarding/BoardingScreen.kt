@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.IntrinsicSize
 import com.geppetto.faxi.fare.FamilyExtra
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -79,7 +80,7 @@ private fun DriverSignIn(store: FaxiStore, speak: (String) -> Unit, onCancel: ((
     FaxiPage(title = "기사 로그인", trailing = { onCancel?.let { FaxiSecondaryButton("취소", onClick = it) } }) {
         row(
             { m ->
-                FaxiCard(m) {
+                Plain(m) {
                     SectionTitle("1  누가 운전하나요?")
                     Text("한 번 로그인하면 차가 기억해요. 운전하는 사람이 바뀔 때만 다시 해요.", style = Faxi.type.body, color = Faxi.colors.inkMuted)
                     val drivers = store.family.filter { it.canDrive }
@@ -126,7 +127,7 @@ private fun PassengerBoarding(store: FaxiStore, speak: (String) -> Unit, onChang
     FaxiPage(title = "운행 시작") {
         row(
             { m ->
-                FaxiCard(m) {
+                Plain(m) {
                     SectionTitle("기사")
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space4),
@@ -227,7 +228,7 @@ private fun CodeCard(
 ) {
     var code by remember { mutableStateOf("") }
     var wrongCode by remember { mutableStateOf(false) }
-    FaxiCard(modifier) {
+    Plain(modifier) {
         SectionTitle(title)
         Text(prompt, style = Faxi.type.body, color = Faxi.colors.ink)
         CodeBoxes(code)
@@ -257,6 +258,14 @@ private fun CodeCard(
             },
         )
     }
+}
+
+/**
+ * "밤 택시" 스타일: 상자 없이 밤 바탕 위에 바로 쌓는다. 묶음은 테두리가 아니라 간격으로 나눈다.
+ */
+@Composable
+private fun Plain(modifier: Modifier, content: @Composable ColumnScope.() -> Unit) {
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(FaxiDimens.space4), content = content)
 }
 
 @Composable
