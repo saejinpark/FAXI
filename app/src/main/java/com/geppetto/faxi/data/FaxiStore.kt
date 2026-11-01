@@ -97,6 +97,9 @@ class FaxiStore(
     /** 이번 운행의 가족 할증·할인(탑승 때 기사가 고르고 손님 코드로 동의). 운행 중에는 바꾸지 않는다. */
     var rideExtras by mutableStateOf(snapshot.rideExtras.mapNotNull(FamilyExtra::of).toSet())
         private set
+    /** 손님 한마디를 한 번이라도 받았는지(폰을 쓰는 집). 받기 전에는 운행 중 화면에 한마디 칸을 숨긴다. */
+    var messagesSeen by mutableStateOf(snapshot.messagesSeen)
+        private set
     /** 이번 운행 중에 내비가 도착을 알린 장소 */
     private var rideArrivedAt: String? = null
 
@@ -222,6 +225,7 @@ class FaxiStore(
         rideFrom = next.rideFrom
         rideWaypoints = next.rideWaypoints
         rideExtras = next.rideExtras.mapNotNull(FamilyExtra::of).toSet()
+        messagesSeen = next.messagesSeen
         liveMeter = null
         resetRideDistance()
         debts.clear(); debts.addAll(next.debts)
@@ -271,6 +275,7 @@ class FaxiStore(
         rideFrom = rideFrom,
         rideWaypoints = rideWaypoints,
         rideExtras = FamilyExtra.entries.filter { it in rideExtras }.map { it.code },
+        messagesSeen = messagesSeen,
         arrivalReceiptId = arrival?.id,
         nextId = nextId,
         settings = settings,
@@ -386,6 +391,7 @@ class FaxiStore(
         if (last != null && envelope.sentAt - last < MessageWire.MIN_INTERVAL_SECONDS) return MessageReply.TooSoon
         lastMessageAt[m.id] = envelope.sentAt
         passengerMessage = PassengerMessage(envelope.message, clock().withNano(0))
+        if (!messagesSeen) { messagesSeen = true; changed() }
         return MessageReply.Shown
     }
 
@@ -721,6 +727,8 @@ class FaxiStore(
                 ),
             )
             return FaxiSnapshot(
+                // 시연 가족은 엄마 폰으로 한마디를 보내 봤다(운행 중 화면에 한마디 칸이 보인다)
+                messagesSeen = true,
                 members = listOf(dad, mom, kid, grandma),
                 driverId = "dad",
                 debts = listOf(

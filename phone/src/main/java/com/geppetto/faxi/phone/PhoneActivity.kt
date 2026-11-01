@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -52,7 +53,7 @@ import kotlinx.coroutines.launch
  * - 등록 뒤: 아래 탭 넷(PhoneMain). 탑승(코드·한마디), 영수증(찍기·후기·목록), 정산, 설정
  * QR을 찍거나 faxi:// 링크를 열면(딥 링크) 같은 곳(handleLink)으로 온다.
  * 폰은 손님이 보는 화면이라 차 앱의 주행 중 규칙(움직임 금지)은 적용하지 않는다.
- * 색·글자·버튼은 차 앱과 같은 :design(FaxiTheme)을 쓴다. 폰이라고 따로 만들지 않는다.
+ * 색·글자·버튼은 차 앱과 같은 :design(FaxiTheme)을 쓴다. 다만 폰은 낮에 손에 들고 보는 손님 화면이라 밝은 종이 톤(paper = true).
  */
 class PhoneActivity : ComponentActivity() {
     /** 딥 링크로 들어온 링크. 화면이 꺼내 쓰고 비운다. */
@@ -60,10 +61,14 @@ class PhoneActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        // 화면이 늘 밝은 종이라, 시스템이 다크 모드여도 상태 바 아이콘은 어둡게
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT),
+        )
         val store = PhoneStore(applicationContext)
         incoming.value = intent?.dataString
-        setContent { FaxiTheme { PhoneApp(store, incoming) } }
+        setContent { FaxiTheme(paper = true) { PhoneApp(store, incoming) } }
     }
 
     override fun onNewIntent(intent: Intent) {

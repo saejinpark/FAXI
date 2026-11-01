@@ -67,7 +67,7 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
 - `ui/driving/DrivingScreen.kt` 화면의 주인공은 옆자리 손님. 제목 "아빠 택시 운행 중" 아래로 카드를 내용 크기대로 쌓는다(화면을 채우려고 카드를 늘리지 않는다):
   - 택시 표시등 띠(`LampBand`): 앱 아이콘과 같은 표시등(`TaxiLampIcon`) + "엄마 손님 모시는 중" + 지금 붙는 할증 꼬리표(우천·심야 = 차량 조건, 가족 할증·할인, 예비 기사면 "평생 장부에 쌓여요"). 이름만, 금액은 없다.
   - 자격증 | 경로(`RouteCell`: 손님 캐릭터, 출발 시각, 출발지 → 목적지(내비, 없으면 "목적지 미정"), 경유지, "아빠 택시 N번째 탑승").
-  - 손님 한마디(한 줄, 높이 고정) / 지금 붙는 요금(냉난방·엉따·와이퍼·창문, 넓으면 한 줄에 넷).
+  - 손님 한마디(높이 고정). 한마디를 한 번도 받지 않은 집(`store.messagesSeen`, 저장됨, 시연 가족은 true)은 한마디 칸 없이 자격증 | 경로 / 지금 붙는 요금(냉난방·엉따·와이퍼·창문, 넓으면 한 줄에 넷).
   - 금액은 운행 중 화면에 아예 없다(감춘 요금 칸도 뺐다). 하차 때 도착 화면에서 한 번에 공개한다.
   - 실시간 미터기 숫자, 흐르는 진동 파형, 경과 시간은 넣지 않는다(주행 중 움직임 금지). 볼거리는 하차 뒤 도착 화면의 정지 그래프로 보여 준다.
   - 손님 한마디 칸: 손님이 폰으로 보낸 마지막 한마디(정해진 문장 + 아이콘, `display` 한 줄)를 띄운다. 새로 올 때만 바뀌고 깜빡임·소리 없음. 온 상태는 accent 테두리로. 높이를 미리 잡아 둬서 와도 아래 칸이 밀리지 않는다.
@@ -131,7 +131,7 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
   - QR 찍기: `QrScanner.kt`(CameraX 미리보기 + :core QrCodec). `faxi://` 링크는 딥 링크로도 열린다(같은 `handleLink`). 초대는 확인 창을 거쳐 등록, 영수증은 내 가족·내 것만 저장.
   - 등록 정보와 영수증은 SharedPreferences(백업 끔). 폰은 차 장부를 바꾸지 못한다.
   - 에뮬레이터 카메라로는 차 화면을 못 찍는다. 시험은 딥 링크로: `adb shell "am start -a android.intent.action.VIEW -d '<링크>' com.geppetto.faxi.phone"`
-  - 폰은 손님 화면이라 차 앱의 주행 중 움직임 금지 규칙을 적용하지 않는다. 색·글자·버튼·카드는 차 앱과 같은 `:design` 것을 쓴다(Material 기본 글자 크기를 쓰지 않는다). 폰 화면 가장자리는 `space6`, 좁으니 금액 줄은 항목 쪽이 줄을 바꾼다.
+  - 폰은 손님 화면이라 차 앱의 주행 중 움직임 금지 규칙을 적용하지 않는다. 색은 밝은 종이 톤(`PhonePaperColors`), 글자·버튼·카드는 차 앱과 같은 `:design` 것을 쓴다(Material 기본 글자 크기를 쓰지 않는다). 폰 화면 가장자리는 `space6`, 좁으니 금액 줄은 항목 쪽이 줄을 바꾼다.
 - `app/src/test/.../FaxiStoreTest.kt` 하차·상계·평생 장부·정산·탕감 단위 테스트. 장부 규칙을 바꾸면 `./gradlew testDebugUnitTest`로 확인한다.
 - 내비: `data/NaviFeed.kt`(FaxiApp이 켠다) → `store.onNavi(NaviReading)`, `store.onWaypoint(WaypointChange)`. Pleos NaviHelper SDK `ai.pleos.playground:NaviHelper:3.0.5`, 권한 `pleos.car.permission.NAVI_ROUTE`(get*Info, 읽기만). 경로를 바꾸는 API(NAVI_ROUTE_SEARCH)는 쓰지 않는다.
   - 지금 위치 주소 `getCurrentLocationInfo()`를 15초마다, 목적지 `getDestinationInfo()`는 시작·경로 시작·목적지 변경 때. 도착 `onDestinationArrived`, 경유지 `onWaypointChanged`(ADD/REMOVE, index ALL).
@@ -143,7 +143,7 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
   - `PleosSpeaker`: Pleos TextToSpeech SDK `ai.pleos.playground:TextToSpeech:3.3.1`(권한 `pleos.car.permission.TTS_SERVICE`), **ON_DEVICE 모드**(차 안 엔진: 네트워크·앱 등록 없음, 이름·금액이 차 밖으로 안 나감). 새 말은 하던 말을 멈추고 읽는다.
   - 로캘은 `Locale.KOREA`(ko-KR). `Locale.KOREAN`은 엔진에 "ko-"로 가서 unsupported locale로 실패한다(에뮬레이터 로그로 확인).
   - 초기화 실패나 엔진·언어 미지원 오류면 기기 TTS로 바꾸고 방금 문장을 다시 읽는다. SDK AAR이 INTERNET 권한을 같이 선언한다(ON_DEVICE라 쓰지 않음).
-- 디자인 스타일 "밤 택시"(2026-11 정함): 바탕은 늘 밤 남색(`FaxiTheme`은 시스템 주간/야간과 상관없이 야간 색). 밝은 면은 종이 물건뿐: 기사 자격증, 영수증(`Paper`, `torn = true`면 아래가 톱니로 잘린 영수증). 종이 안은 `PaperSurface`가 `Faxi.colors`를 `PaperColors`(크림 종이 + 남색 글자, 모두 4.5:1 이상)로 바꿔 끼워서 MoneyRow 같은 부품이 그대로 쓰인다.
+- 디자인 스타일 "밤 택시"(2026-11 정함): 차 앱 바탕은 늘 밤 남색(`FaxiTheme`은 시스템 주간/야간과 상관없이 야간 색). 폰 앱은 낮에 손에 드는 손님 화면이라 밝은 종이 톤(`FaxiTheme(paper = true)` = `PhonePaperColors`, 상태 바 아이콘은 늘 어둡게). 밝은 면은 종이 물건뿐: 기사 자격증, 영수증(`Paper`, `torn = true`면 아래가 톱니로 잘린 영수증). 종이 안은 `PaperSurface`가 `Faxi.colors`를 `PaperColors`(크림 종이 + 남색 글자, 모두 4.5:1 이상)로 바꿔 끼워서 MoneyRow 같은 부품이 그대로 쓰인다.
   - 상자(카드)를 줄이고 간격으로 묶는다. 운행 중·도착·탑승은 카드 없이 밤 바탕 위에 바로 쌓았다(장부·기사·설정은 아직 카드, 색만 같다).
   - 산호색은 표시등(`TaxiLampIcon`, 앱 아이콘과 같은 그림)과 그 화면의 주 버튼, 켜진 상태 표시에만.
   - 운행 중 화면 제목 자리 = 표시등 + "엄마 손님 모시는 중" + 할증 꼬리표(`FaxiPage(leading = …)`).

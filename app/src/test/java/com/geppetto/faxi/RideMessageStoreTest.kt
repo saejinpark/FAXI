@@ -2,6 +2,8 @@ package com.geppetto.faxi
 
 import com.geppetto.faxi.auth.Base32
 import com.geppetto.faxi.data.FaxiStore
+import com.geppetto.faxi.data.faxiSnapshotFromJson
+import com.geppetto.faxi.data.toJson
 import com.geppetto.faxi.message.MessageEnvelope
 import com.geppetto.faxi.message.MessageReply
 import com.geppetto.faxi.message.RideMessage
@@ -69,5 +71,19 @@ class RideMessageStoreTest {
         store.receiveMessage(from("mom", RideMessage.Thanks))
         store.endRide()
         assertNull(store.passengerMessage)
+    }
+
+    @Test
+    fun 한마디를_처음_받으면_그때부터_한마디_칸이_생긴다() {
+        val s = FaxiStore(FaxiStore.emptySnapshot(), { now })
+        val head = s.startFamily("아빠")
+        val mom = s.addMember("엄마", com.geppetto.faxi.data.Grade.Full)
+        assertEquals(false, s.messagesSeen)
+        s.startRide(mom.id)
+        val env = MessageEnvelope.create(s.familyId, mom.id, RideMessage.Slow, Base32.decode(mom.secret)!!, epoch())
+        assertEquals(MessageReply.Shown, s.receiveMessage(env))
+        assertEquals(true, s.messagesSeen)
+        assertEquals(true, faxiSnapshotFromJson(s.snapshot().toJson()).messagesSeen)
+        assertEquals(head.id, s.driverId)
     }
 }

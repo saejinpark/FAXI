@@ -100,6 +100,16 @@ val PaperColors = FaxiColors(
     qrInk = Color(0xFF121A29),
 )
 
+/**
+ * 폰 앱 화면 전체: 낮에 손에 들고 보는 손님 화면이라 종이 톤으로 밝게. 바탕은 종이, 카드는 한 단 밝은 종이.
+ * 글자 색은 PaperColors와 같다(bg·surface·surfaceRaised 위 4.5:1 이상).
+ */
+val PhonePaperColors = PaperColors.copy(
+    bg = Color(0xFFF4EFE6),
+    surface = Color(0xFFFFFBF4),
+    surfaceRaised = Color(0xFFEAE3D7),
+)
+
 /** 주간 테마(예전 것, 지금은 쓰지 않는다. "밤 택시" 스타일은 늘 야간 바탕에 종이 물건만 밝다) */
 val DayColors = FaxiColors(
     bg = Color(0xFFF2F4F8),

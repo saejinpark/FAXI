@@ -52,10 +52,16 @@ object Faxi {
 @Composable
 fun FaxiTheme(
     night: Boolean = true,
+    /** 폰 앱: 밝은 종이 톤(PhonePaperColors). 차 앱은 늘 밤 바탕. */
+    paper: Boolean = false,
     content: @Composable () -> Unit,
 ) {
-    val colors = if (night) NightColors else DayColors
-    val base = if (night) darkColorScheme() else lightColorScheme()
+    val colors = when {
+        paper -> PhonePaperColors
+        night -> NightColors
+        else -> DayColors
+    }
+    val base = if (night && !paper) darkColorScheme() else lightColorScheme()
     val material = base.copy(
         primary = colors.accent, onPrimary = colors.onAccent,
         background = colors.bg, onBackground = colors.ink,

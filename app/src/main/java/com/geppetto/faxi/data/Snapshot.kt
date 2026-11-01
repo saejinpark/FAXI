@@ -42,6 +42,8 @@ data class FaxiSnapshot(
     val rideWaypoints: Int = 0,
     /** 이번 운행의 가족 할증·할인 기호(FamilyExtra.code). 탑승 때 정하고 하차 때 영수증 줄로 붙는다 */
     val rideExtras: List<String> = emptyList(),
+    /** 이 가족에게서 손님 한마디를 한 번이라도 받았는지. 받기 전에는 운행 중 화면에 한마디 칸을 두지 않는다(폰 없는 집). */
+    val messagesSeen: Boolean = false,
     /** 도착 화면을 닫기 전에 앱이 꺼졌다 켜져도 다시 띄우도록 */
     val arrivalReceiptId: String? = null,
     val nextId: Int = 100,

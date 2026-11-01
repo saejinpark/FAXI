@@ -62,6 +62,7 @@ private val StartFormat = DateTimeFormatter.ofPattern("HH:mm")
  * 운행 중 (주행). "밤 택시" 스타일: 밤 바탕 위에 상자 없이, 종이 물건은 기사 자격증 하나.
  * 화면의 주인공은 옆자리 손님이다. 위에서부터:
  * 표시등 + "엄마 손님 모시는 중" + 지금 붙는 할증 꼬리표 / 경로 한 줄 / 자격증(종이) | 손님 한마디 / 지금 붙는 요금.
+ * 한마디를 한 번도 받지 않은 집은 한마디 칸 없이 자격증 | 경로.
  * - 모두 정지 표시다. 금액은 화면에 없다: 하차 때 도착 화면에서 한 번에 공개한다.
  *   움직이는 숫자·흐르는 그래프·경과 시간은 넣지 않는다(Pleos 주행 중 화면 규칙).
  * - 할증 꼬리표·한마디·옵션은 바뀔 때만 바뀐다(차의 표시등과 같은 성격). 한마디 칸은 높이를 미리 잡아 둬서 와도 아래가 밀리지 않는다.
@@ -83,11 +84,19 @@ fun DrivingScreen(store: FaxiStore, onDemoPark: (() -> Unit)?) {
             }
         },
     ) {
-        full { m -> RouteLine(store, m) }
-        row(
-            { m -> DriverLicenseCard(driver, store.driverRating(driver.id), m, large = true) },
-            { m -> MessageCell(store, m) },
-        )
+        // 한마디를 받은 적 없는 집(폰을 안 쓰는 집)은 한마디 칸 대신 경로를 자격증 옆에 크게
+        if (store.messagesSeen) {
+            full { m -> RouteLine(store, m) }
+            row(
+                { m -> DriverLicenseCard(driver, store.driverRating(driver.id), m, large = true) },
+                { m -> MessageCell(store, m) },
+            )
+        } else {
+            row(
+                { m -> DriverLicenseCard(driver, store.driverRating(driver.id), m, large = true) },
+                { m -> RouteLine(store, m.padding(vertical = FaxiDimens.space4)) },
+            )
+        }
         full { m -> OptionsCell(store.cabin, m) }
     }
 }
@@ -129,7 +138,7 @@ private fun RouteLine(store: FaxiStore, modifier: Modifier) {
     val nth = store.ridesTogether(driver.id, p.id) + 1
     val dest = store.navi.destination ?: "목적지 미정"
     Column(modifier, verticalArrangement = Arrangement.spacedBy(FaxiDimens.space1)) {
-        Text("${store.rideFrom ?: "여기"} → $dest", style = t.headline, color = c.ink, maxLines = 1)
+        Text("${store.rideFrom ?: "여기"} → $dest", style = t.headline, color = c.ink, maxLines = 2)
         Text(
             listOfNotNull(
                 store.rideStartedAt?.let { "${it.format(StartFormat)} 출발" },
