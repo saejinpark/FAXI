@@ -1,9 +1,11 @@
 package com.geppetto.faxi
 
 import com.geppetto.faxi.data.CabinState
+import com.geppetto.faxi.data.CabinWindow
 import com.geppetto.faxi.data.FaxiStore
 import com.geppetto.faxi.data.Gear
 import com.geppetto.faxi.data.VehicleReading
+import com.geppetto.faxi.data.WiperLevel
 import com.geppetto.faxi.data.hvacMode
 import com.geppetto.faxi.fare.Hvac
 import java.time.LocalDateTime
@@ -119,7 +121,7 @@ class VehicleRideTest {
         hold(60)
         option { it.copy(hvacPower = false, passengerSeatTemp = 2) } // 공조 끔, 조수석 열선 2단 3분
         hold(180)
-        option { it.copy(passengerSeatTemp = -1, windowPercent = mapOf("ROW_2_LEFT" to 30)) } // 통풍은 공짜, 뒷창 1분
+        option { it.copy(passengerSeatTemp = -1, windowPercent = mapOf(CabinWindow.RearLeft to 30)) } // 통풍은 공짜, 뒷창 1분
         hold(60)
         feed(gear = Gear.Parked)
 
@@ -129,6 +131,24 @@ class VehicleRideTest {
         assertEquals(30, amount("난방 옵션"))
         assertEquals(60, amount("엉따 옵션"))
         assertEquals(10, amount("환기 서비스"))
+    }
+
+    @Test
+    fun 화면용_정도_값은_요금과_따로_전해진다() {
+        feed(gear = Gear.Parked)
+        option {
+            it.copy(
+                hvacPower = true, ac = true, targetTempC = 20f, cabinTempC = 27f, passengerSeatTemp = 3,
+                wiperOn = true, wiperSwitch = WiperLevel.Intermittent(2), windowPercent = mapOf(CabinWindow.FrontRight to 40),
+            )
+        }
+        val cabin = store.cabin
+        assertEquals(20f, cabin.targetTempC)
+        assertEquals(27f, cabin.cabinTempC)
+        assertEquals(3, cabin.seatLevel)
+        assertEquals(WiperLevel.Intermittent(2), cabin.wiperLevel)
+        assertEquals(mapOf(CabinWindow.FrontRight to 40), cabin.windows)
+        assertTrue(cabin.seatHeat && cabin.wiper && cabin.windowOpen)
     }
 
     @Test

@@ -126,7 +126,8 @@ data class LifetimeLedger(
 )
 
 /**
- * 요금이 붙는 차량 옵션의 지금 상태. 운행 중 화면에 켜짐/꺼짐으로 보여 준다(바뀔 때만 바뀌는 정지 표시).
+ * 요금이 붙는 차량 옵션의 지금 상태. 요금은 켜짐/꺼짐(hvac·seatHeat·wiper·windowOpen)으로만 매기고,
+ * 운행 중 화면은 정도(설정 온도, 열선 단계, 와이퍼 단, 창문마다 열린 %)까지 게이지로 보여 준다(바뀔 때만 바뀌는 정지 표시).
  * 차에서는 VehicleFeed가 Vehicle SDK의 HVAC·Seat·Wiper·Window 값으로 채운다. 차량 값이 없으면(폰·폴드) 시연용 기본값.
  */
 data class CabinState(
@@ -134,11 +135,35 @@ data class CabinState(
     val seatHeat: Boolean,
     val wiper: Boolean,
     val windowOpen: Boolean,
+    /** 설정 온도·실내 온도(°C). 모르면 null */
+    val targetTempC: Float? = null,
+    val cabinTempC: Float? = null,
+    /** 조수석 시트 단계. 양수 열선(1~3), 음수 통풍, 0 꺼짐 */
+    val seatLevel: Int = 0,
+    /** 와이퍼 스위치. 모르면 null(그때는 wiper 켜짐/꺼짐만) */
+    val wiperLevel: WiperLevel? = null,
+    /** 창마다 열린 정도(%) */
+    val windows: Map<CabinWindow, Int> = emptyMap(),
 ) {
     companion object {
         /** 시연 운행(기획서 예시)과 같은 상태: 냉방·엉따 켜짐 */
-        val Demo = CabinState(Hvac.Cool, seatHeat = true, wiper = false, windowOpen = false)
+        val Demo = CabinState(
+            Hvac.Cool, seatHeat = true, wiper = false, windowOpen = false,
+            targetTempC = 21f, cabinTempC = 26f, seatLevel = 2,
+        )
     }
+}
+
+/** 손님이 열 수 있는 창(1·2열) */
+enum class CabinWindow(val label: String) { FrontLeft("운전석"), FrontRight("조수석"), RearLeft("뒤 왼쪽"), RearRight("뒤 오른쪽") }
+
+/** 와이퍼 스위치 위치(Vehicle SDK WiperSwitch를 화면용으로 줄인 것). step은 1~5 */
+sealed interface WiperLevel {
+    data object Off : WiperLevel
+    data object Mist : WiperLevel
+    data object Auto : WiperLevel
+    data class Intermittent(val step: Int) : WiperLevel
+    data class Continuous(val step: Int) : WiperLevel
 }
 
 /** 운행 중 손님이 보낸 한마디와 받은 시각 */

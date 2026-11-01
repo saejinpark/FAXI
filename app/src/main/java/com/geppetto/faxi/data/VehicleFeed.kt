@@ -17,6 +17,7 @@ import ai.pleos.playground.vehicle.constant.area.SeatValue
 import ai.pleos.playground.vehicle.constant.area.WindowValue
 import ai.pleos.playground.vehicle.constant.control.VehicleGear
 import ai.pleos.playground.vehicle.constant.control.WiperState
+import ai.pleos.playground.vehicle.constant.control.WiperSwitch
 import ai.pleos.playground.vehicle.listener.DistanceDrivenListener
 import ai.pleos.playground.vehicle.listener.GearSelectionListener
 import ai.pleos.playground.vehicle.listener.HvacAcStateListener
@@ -105,16 +106,29 @@ class VehicleFeed(private val context: Context, private val onUpdate: (VehicleRe
     private val wiper = object : WiperStateListener {
         override fun onWiperStateUpdated(state: WiperState?) {
             post { reading.copy(wiperOn = state?.let { it == WiperState.ON }) }
+            readWiperSwitch()
         }
         override fun onFailed(e: Exception) = warn("와이퍼", e)
     }
-    private val windows = Windows.associateWith { w ->
-        object : WindowPositionListener {
+    private val windows = Windows.entries.associate { (w, place) ->
+        w to object : WindowPositionListener {
             override fun onWindowPositionUpdated(percent: Int?) {
-                post { reading.copy(windowPercent = reading.windowPercent + (w.name to (percent ?: 0))) }
+                post { reading.copy(windowPercent = reading.windowPercent + (place to (percent ?: 0).coerceIn(0, 100))) }
             }
             override fun onFailed(e: Exception) = warn("창문 ${w.name}", e)
         }
+    }
+
+    /** 와이퍼 단은 등록(listener) API가 없어서, 와이퍼 상태가 바뀔 때마다 지금 스위치 위치를 한 번 읽는다(화면 표시용) */
+    private fun readWiperSwitch() {
+        val v = vehicle ?: return
+        runCatching {
+            v.getWiper().getCurrentWiperSwitch(
+                WindowArea(WindowValue.FRONT_WINDSHIELD),
+                { sw -> post { reading.copy(wiperSwitch = sw?.toLevel()) } },
+                { e -> warn("와이퍼 스위치", e) },
+            )
+        }.onFailure { warn("와이퍼 스위치", it) }
     }
 
     private val speed = object : CarPropertyManager.CarPropertyEventCallback {
@@ -192,6 +206,7 @@ class VehicleFeed(private val context: Context, private val onUpdate: (VehicleRe
         }
         attach("시트 온도", { v.getSeat().registerHvacSeatTemperature(passenger, seat) }) { it.getSeat().unregisterHvacSeatTemperature(passenger, seat) }
         attach("와이퍼", { v.getWiper().registerWiperState(front, wiper) }) { it.getWiper().unregisterWiperState(front, wiper) }
+        readWiperSwitch()
         windows.forEach { (w, l) ->
             val area = WindowArea(w)
             attach("창문 ${w.name}", { v.getWindow().registerWindowPosition(area, l) }) { it.getWindow().unregisterWindowPosition(area, l) }
@@ -238,8 +253,30 @@ class VehicleFeed(private val context: Context, private val onUpdate: (VehicleRe
     private companion object {
         const val TAG = "FaxiVehicle"
         /** 손님이 열 수 있는 창(1·2열). 지붕·앞뒤 유리는 뺀다. */
-        val Windows = listOf(WindowValue.ROW_1_LEFT, WindowValue.ROW_1_RIGHT, WindowValue.ROW_2_LEFT, WindowValue.ROW_2_RIGHT)
+        val Windows = mapOf(
+            WindowValue.ROW_1_LEFT to CabinWindow.FrontLeft,
+            WindowValue.ROW_1_RIGHT to CabinWindow.FrontRight,
+            WindowValue.ROW_2_LEFT to CabinWindow.RearLeft,
+            WindowValue.ROW_2_RIGHT to CabinWindow.RearRight,
+        )
     }
+}
+
+private fun WiperSwitch.toLevel(): WiperLevel? = when (this) {
+    WiperSwitch.OFF -> WiperLevel.Off
+    WiperSwitch.MIST -> WiperLevel.Mist
+    WiperSwitch.AUTO -> WiperLevel.Auto
+    WiperSwitch.INTERMITTENT_LEVEL_1 -> WiperLevel.Intermittent(1)
+    WiperSwitch.INTERMITTENT_LEVEL_2 -> WiperLevel.Intermittent(2)
+    WiperSwitch.INTERMITTENT_LEVEL_3 -> WiperLevel.Intermittent(3)
+    WiperSwitch.INTERMITTENT_LEVEL_4 -> WiperLevel.Intermittent(4)
+    WiperSwitch.INTERMITTENT_LEVEL_5 -> WiperLevel.Intermittent(5)
+    WiperSwitch.CONTINUOUS_LEVEL_1 -> WiperLevel.Continuous(1)
+    WiperSwitch.CONTINUOUS_LEVEL_2 -> WiperLevel.Continuous(2)
+    WiperSwitch.CONTINUOUS_LEVEL_3 -> WiperLevel.Continuous(3)
+    WiperSwitch.CONTINUOUS_LEVEL_4 -> WiperLevel.Continuous(4)
+    WiperSwitch.CONTINUOUS_LEVEL_5 -> WiperLevel.Continuous(5)
+    else -> null // OTHER, SERVICE: 화면은 켜짐/꺼짐만
 }
 
 /** 지금 차량 값. 아직 안 온 값은 null(요금 엔진은 속도가 와야 쓴다). */
@@ -254,8 +291,10 @@ data class VehicleReading(
     /** 조수석 시트 온도 단계. 양수 열선, 음수 통풍, 0 꺼짐 */
     val passengerSeatTemp: Int? = null,
     val wiperOn: Boolean? = null,
-    /** 창 이름 → 열린 정도(%) */
-    val windowPercent: Map<String, Int> = emptyMap(),
+    /** 와이퍼 스위치 단(화면 표시용). 상태 값이 올 때마다 다시 읽는다 */
+    val wiperSwitch: WiperLevel? = null,
+    /** 창마다 열린 정도(%) */
+    val windowPercent: Map<CabinWindow, Int> = emptyMap(),
     /** 플랫폼 주행 규제: 주행 중 최적화(DO) 화면만 보여야 하는 상태 */
     val uxRestricted: Boolean = false,
 ) {
@@ -268,6 +307,11 @@ data class VehicleReading(
             seatHeat = (passengerSeatTemp ?: 0) > 0,
             wiper = wiperOn == true,
             windowOpen = windowPercent.values.any { it > 0 },
+            targetTempC = targetTempC,
+            cabinTempC = cabinTempC,
+            seatLevel = passengerSeatTemp ?: 0,
+            wiperLevel = wiperSwitch,
+            windows = windowPercent,
         )
     }
 }
