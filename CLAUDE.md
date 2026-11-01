@@ -138,7 +138,7 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
   - 영수증 출발지 = 탑승 때 주소(`shortPlace`: 끝 두 마디), 도착지 = 운행 중 도착 알림 장소 → 내비 목적지 → 하차 때 주소. 내비 값이 한 번도 안 온 기기(폰·폴드)는 시연 장소 이름("우리집 → 이마트 성수점").
   - 경유지: 운행 중 추가 1곳 500원, 빼면 돌려준다, 모두 빼면 0. 하차 때 요금 엔진에 넣는다. 탑승 전에 넣은 경유지는 세지 않는다. 출발지·경유지 수는 저장(snapshot)해서 앱이 다시 켜져도 남는다.
   - 운행 중 화면 경로 칸에 출발지 → 목적지, "경유지 N곳"(금액은 없음).
-  - 에뮬레이터 내비 앱(`ai.umos.maps.android.navigation.app`)이 응답한다. GPS는 Virtual Console 주행에 따라 움직이지 않아 출발지·도착지 주소가 같게 나온다("수정구 시흥동"). 목적지·경유지는 에뮬레이터에서 아직 못 넣어 봤다(단위 테스트 `NaviRideTest`로 확인).
+  - 에뮬레이터 내비 앱(`ai.umos.maps.android.navigation.app`)이 응답한다. GPS는 Virtual Console 주행에 따라 움직이지 않아 출발지·도착지 주소가 같게 나온다("수정구 시흥동"). 목적지는 에뮬레이터 내비에서 검색("이마트") → 안내 시작으로 넣으면 운행 중 화면 경로와 영수증 도착지에 "이마트 성남점"으로 나오는 것을 확인했다(2026-11-01). 지도 타일은 비어 보여도 검색·경로는 된다. 경유지는 아직 에뮬레이터로 못 넣어 봤다(단위 테스트 `NaviRideTest`로 확인).
 - `data/Speaker.kt` 음성 창구. `Speaker.create`: 차면 `PleosSpeaker`, 폰·폴드는 `AndroidSpeaker`(기기 TTS).
   - `PleosSpeaker`: Pleos TextToSpeech SDK `ai.pleos.playground:TextToSpeech:3.3.1`(권한 `pleos.car.permission.TTS_SERVICE`), **ON_DEVICE 모드**(차 안 엔진: 네트워크·앱 등록 없음, 이름·금액이 차 밖으로 안 나감). 새 말은 하던 말을 멈추고 읽는다.
   - 로캘은 `Locale.KOREA`(ko-KR). `Locale.KOREAN`은 엔진에 "ko-"로 가서 unsupported locale로 실패한다(에뮬레이터 로그로 확인).
