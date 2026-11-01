@@ -517,7 +517,9 @@ class FaxiStore(
         val (from, to) = rideRoute()
         val comfort = meter.comfort()
         val base = Receipt(
-            id = "r${nextId++}", driverId = driverId, passengerId = passenger,
+            // 하차 시각(초, 36진수)을 붙인다: 장부를 지우고 다시 시작해도 폰에 남은 예전 영수증과 번호가 겹치지 않게
+            id = "r${nextId++}-${clock().atZone(ZoneId.systemDefault()).toEpochSecond().toString(36)}",
+            driverId = driverId, passengerId = passenger,
             from = from, to = to, km = (meter.distanceM / 1000).roundToInt(),
             endedAt = clock().withSecond(0).withNano(0), lines = FamilyExtra.apply(meter.lines(), rideExtras),
             shake = comfort.shake,
