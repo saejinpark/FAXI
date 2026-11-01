@@ -13,6 +13,9 @@ import com.geppetto.faxi.message.MessageReply
 import com.geppetto.faxi.message.MessageWire
 import com.geppetto.faxi.message.ReviewEnvelope
 import com.geppetto.faxi.message.RideMessage
+import com.geppetto.faxi.message.SyncEnvelope
+import com.geppetto.faxi.message.SyncPayload
+import com.geppetto.faxi.message.SyncReply
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.Socket
@@ -43,9 +46,23 @@ class MessageSender(private val context: Context) {
         return deliver(me.familyId, ReviewEnvelope.create(me.familyId, me.memberId, receiptId, stars, tags, secret, now()).toLine())
     }
 
+    /**
+     * 동기화: 바뀐 프로필(별명·사진)을 싣고 보내고, 차가 돌려준 내 정산·영수증을 받는다.
+     * 차를 못 찾거나 답이 틀리면 null.
+     */
+    suspend fun sync(me: FaxiInvite, nickname: String?, photo: ByteArray?): SyncPayload? {
+        val secret = Base32.decode(me.secret) ?: return null
+        val line = SyncEnvelope.create(me.familyId, me.memberId, nickname, photo, secret, now()).toLine()
+        return deliverRaw(me.familyId, line)?.let(SyncReply::decode)
+    }
+
     private fun now() = System.currentTimeMillis() / 1000
 
-    private suspend fun deliver(familyId: String, line: String): MessageReply? = withContext(Dispatchers.IO) {
+    private suspend fun deliver(familyId: String, line: String): MessageReply? =
+        deliverRaw(familyId, line)?.let(MessageReply::of)
+
+    /** 차를 찾아 한 줄 보내고 답 한 줄을 그대로 받는다 */
+    private suspend fun deliverRaw(familyId: String, line: String): String? = withContext(Dispatchers.IO) {
         val targets = listOfNotNull(car) + listOfNotNull(discover(familyId)) + listOfNotNull(emulatorHost(familyId))
         for (target in targets.distinct()) {
             val reply = runCatching { exchange(target, line) }.getOrNull() ?: continue
@@ -56,12 +73,12 @@ class MessageSender(private val context: Context) {
         null
     }
 
-    private fun exchange(target: InetSocketAddress, line: String): MessageReply? = Socket().use { s ->
+    private fun exchange(target: InetSocketAddress, line: String): String? = Socket().use { s ->
         s.connect(target, 2_000)
-        s.soTimeout = 3_000
+        s.soTimeout = 5_000
         s.getOutputStream().write((line + "\n").toByteArray())
         s.getOutputStream().flush()
-        s.getInputStream().bufferedReader().readLine()?.let(MessageReply::of)
+        s.getInputStream().bufferedReader().readLine()
     }
 
     /**

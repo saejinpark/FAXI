@@ -10,6 +10,8 @@ import com.geppetto.faxi.message.MessageEnvelope
 import com.geppetto.faxi.message.MessageReply
 import com.geppetto.faxi.message.MessageWire
 import com.geppetto.faxi.message.ReviewEnvelope
+import com.geppetto.faxi.message.SyncReply
+import com.geppetto.faxi.message.SyncEnvelope
 import java.net.ServerSocket
 import java.net.Socket
 import java.util.concurrent.CompletableFuture
@@ -62,17 +64,26 @@ class MessageServer(private val context: Context, private val store: FaxiStore) 
     }
 
     private fun handle(client: Socket) = client.use {
-        it.soTimeout = 3_000
+        it.soTimeout = 5_000 // 사진이 실린 동기화 한 줄은 수십 KB
         val line = runCatching { it.getInputStream().bufferedReader().readLine() }.getOrNull()
         // 한 줄은 한마디(운행 중) 아니면 기사 후기(하차 뒤). 앞머리로 가른다.
         val message = line?.let(MessageEnvelope::parse)
         val review = line?.let(ReviewEnvelope::parse)
+        val sync = line?.let(SyncEnvelope::parse)
         val reply = when {
-            message != null -> onMain { store.receiveMessage(message) }
-            review != null -> onMain { store.receiveReview(review) }
-            else -> MessageReply.Rejected
+            message != null -> onMain { store.receiveMessage(message) }.wire
+            review != null -> onMain { store.receiveReview(review) }.wire
+            // 동기화: 프로필을 받고 그 사람의 정산·영수증을 한 줄로 돌려준다
+            sync != null -> onMainAny { store.receiveSync(sync) }?.let(SyncReply::encode) ?: MessageReply.Rejected.wire
+            else -> MessageReply.Rejected.wire
         }
-        runCatching { it.getOutputStream().write((reply.wire + "\n").toByteArray()) }
+        runCatching { it.getOutputStream().write((reply + "\n").toByteArray()) }
+    }
+
+    private fun <T> onMainAny(block: () -> T?): T? {
+        val result = CompletableFuture<T?>()
+        main.post { result.complete(runCatching(block).getOrNull()) }
+        return runCatching { result.get(2, TimeUnit.SECONDS) }.getOrNull()
     }
 
     private fun onMain(block: () -> MessageReply): MessageReply {

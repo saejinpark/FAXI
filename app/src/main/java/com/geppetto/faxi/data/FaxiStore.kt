@@ -12,6 +12,8 @@ import com.geppetto.faxi.message.MessageEnvelope
 import com.geppetto.faxi.message.MessageReply
 import com.geppetto.faxi.message.MessageWire
 import com.geppetto.faxi.message.ReviewEnvelope
+import com.geppetto.faxi.message.SyncPayload
+import com.geppetto.faxi.message.SyncEnvelope
 import com.geppetto.faxi.qr.Balance
 import com.geppetto.faxi.qr.ReceiptTicket
 import com.geppetto.faxi.auth.Totp
@@ -329,16 +331,19 @@ class FaxiStore(
     }
 
     /** 영수증 QR에 담을 내용: 영수증 + 지금 이 손님의 받을 돈·갚을 돈 */
+    /** 그 사람의 지금 정산 현황(받을 돈·갚을 돈). 영수증 QR과 동기화 답에 싣는다 */
+    fun balancesOf(memberId: String): List<Balance> = debts.mapNotNull { d ->
+        when (memberId) {
+            d.debtorId -> Balance(name(d.creditorId), owedToMe = false, amount = d.amount)
+            d.creditorId -> Balance(name(d.debtorId), owedToMe = true, amount = d.amount)
+            else -> null
+        }
+    }
+
     fun ticketFor(r: Receipt): ReceiptTicket {
         val p = r.passengerId
         val driver = member(r.driverId)
-        val balances = debts.mapNotNull { d ->
-            when (p) {
-                d.debtorId -> Balance(name(d.creditorId), owedToMe = false, amount = d.amount)
-                d.creditorId -> Balance(name(d.debtorId), owedToMe = true, amount = d.amount)
-                else -> null
-            }
-        }
+        val balances = balancesOf(p)
         return ReceiptTicket(
             familyId = familyId, id = r.id, passengerId = p, passenger = name(p),
             driver = driver.name, route = "${r.from} → ${r.to}",
@@ -599,6 +604,35 @@ class FaxiStore(
         next?.let { reviewsReadAloud += it.first.id }
         changed()
         return next
+    }
+
+    /**
+     * 동기화(폰 → 차): 그 사람 폰의 프로필(자격증 별명, 사진)을 받고, 답으로 그 사람의 정산 현황과 최근 영수증을 돌려준다.
+     * 우리 가족·그 사람 서명·1분 안이어야 한다. 그 사람이 지금 운행 중이면 프로필은 반영하지 않는다(운행 중 화면의 자격증이
+     * 달리는 동안 바뀌지 않게). 폰은 profileApplied가 false면 다음에 다시 보낸다. 틀린 통이면 null.
+     */
+    fun receiveSync(envelope: SyncEnvelope): SyncPayload? {
+        if (envelope.familyId != familyId) return null
+        val m = family.firstOrNull { it.id == envelope.memberId } ?: return null
+        val secret = Base32.decode(m.secret) ?: return null
+        val now = clock().atZone(ZoneId.systemDefault()).toEpochSecond()
+        if (!envelope.verify(secret, now)) return null
+        val riding = rideActive && (passengerId == m.id || driverId == m.id)
+        val wantsChange = envelope.nickname != null || envelope.photo != null
+        if (wantsChange && !riding) {
+            val i = members.indexOfFirst { it.id == m.id }
+            members[i] = members[i].copy(
+                nickname = envelope.nickname?.trim() ?: members[i].nickname,
+                photo = envelope.photo?.let { java.util.Base64.getEncoder().encodeToString(it) } ?: members[i].photo,
+            )
+            changed()
+        }
+        return SyncPayload(
+            riding = riding,
+            profileApplied = !riding,
+            balances = balancesOf(m.id),
+            receipts = receipts.filter { it.passengerId == m.id }.take(10).map { ticketFor(it).toLink() },
+        )
     }
 
     /**

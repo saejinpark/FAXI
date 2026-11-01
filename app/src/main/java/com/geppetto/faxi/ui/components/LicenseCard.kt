@@ -16,6 +16,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.foundation.Image
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -124,7 +127,7 @@ private fun Field(label: String, value: String, large: Boolean) {
     }
 }
 
-/** 3:4 증명사진 칸. 사진이 생기기 전에는 캐릭터, 캐릭터도 없으면 이름 첫 글자. */
+/** 3:4 증명사진 칸: 폰 프로필 사진, 없으면 캐릭터, 캐릭터도 없으면 이름 첫 글자. */
 @Composable
 private fun PhotoFrame(member: Member, width: Dp) {
     val c = Faxi.colors
@@ -139,7 +142,10 @@ private fun PhotoFrame(member: Member, width: Dp) {
         contentAlignment = Alignment.Center,
     ) {
         val emoji = avatarOf(member.avatar)?.emoji
-        if (emoji != null) {
+        val photo = rememberPhoto(member.photo)
+        if (photo != null) {
+            Image(photo, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().clip(shape))
+        } else if (emoji != null) {
             val fontSize = with(LocalDensity.current) { (width * 0.6f).toSp() }
             Text(emoji, fontSize = fontSize, lineHeight = fontSize)
         } else {
