@@ -65,6 +65,55 @@ class VehicleRideTest {
     }
 
     @Test
+    fun 브레이크만_밟고_멈춘_채_문이_열리면_하차() {
+        board()
+        feed(gear = Gear.Driving)
+        feed(speedKmh = 36.0)
+        hold(30)
+        feed(speedKmh = 0.0) // D 그대로 브레이크
+        hold(2)
+        option { it.copy(doorPercent = mapOf("ROW_1_RIGHT" to 100)) }
+
+        assertNull(store.passengerId)
+        assertTrue(store.arrival!!.km >= 0)
+        // 손님이 문을 닫고 다시 열어도 다음 운행이 없으니 아무 일 없다
+        option { it.copy(doorPercent = mapOf("ROW_1_RIGHT" to 0)) }
+        option { it.copy(doorPercent = mapOf("ROW_1_RIGHT" to 100)) }
+        assertEquals(1, store.receipts.count { it.endedAt == store.arrival!!.endedAt && it.passengerId == "mom" })
+    }
+
+    @Test
+    fun 출발_전에_문이_열리거나_달리는_중에는_하차가_아니다() {
+        board()
+        option { it.copy(doorPercent = mapOf("ROW_1_RIGHT" to 100)) } // 타면서 문을 닫는 중
+        option { it.copy(doorPercent = mapOf("ROW_1_RIGHT" to 0)) }
+        feed(gear = Gear.Driving)
+        option { it.copy(doorPercent = mapOf("ROW_2_LEFT" to 30)) } // D에 넣었지만 아직 안 굴렀다
+        assertEquals("mom", store.passengerId)
+        option { it.copy(doorPercent = emptyMap()) }
+        feed(speedKmh = 20.0)
+        option { it.copy(doorPercent = mapOf("ROW_2_LEFT" to 10)) } // 달리는 중(그럴 일은 없지만)
+        assertEquals("mom", store.passengerId)
+    }
+
+    @Test
+    fun 출발_전에는_요금_없이_탑승을_취소한다() {
+        board()
+        val before = store.receipts.size
+        assertTrue(store.canCancelRide)
+        store.cancelRide()
+        assertNull(store.passengerId)
+        assertNull(store.arrival)
+        assertEquals(before, store.receipts.size)
+
+        board()
+        feed(gear = Gear.Driving)
+        assertTrue(!store.canCancelRide) // 기어를 넣으면 취소 버튼은 사라진다
+        store.cancelRide()
+        assertEquals("mom", store.passengerId)
+    }
+
+    @Test
     fun 주행거리계가_더_많이_가면_그_값을_쓴다() {
         board()
         feed(gear = Gear.Driving)

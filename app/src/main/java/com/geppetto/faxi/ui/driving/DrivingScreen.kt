@@ -42,7 +42,8 @@ private val StartFormat = DateTimeFormatter.ofPattern("HH:mm")
  *   움직이는 숫자·흐르는 그래프·경과 시간은 넣지 않는다(Pleos 주행 중 화면 규칙).
  * - 할증 꼬리표·한마디·옵션은 바뀔 때만 바뀐다(차의 표시등과 같은 성격). 한마디 칸은 높이를 미리 잡아 둬서 와도 아래가 밀리지 않는다.
  * - 운전자가 만질 것은 없다. 글자는 24sp 이상.
- * - onDemoPark는 차량 값이 없는 기기(폰·폴드) 시연에서만 넘긴다. 차에서는 기어 P가 하차다.
+ * - onDemoPark는 차량 값이 없는 기기(폰·폴드) 시연에서만 넘긴다. 차에서는 기어 P, 또는 멈춘 상태에서 문 열림이 하차다.
+ * - 출발 전(기어를 넣기 전)에는 "탑승 취소"가 보인다. 요금 없이 운행을 없앤다.
  */
 @Composable
 fun DrivingScreen(store: FaxiStore, onDemoPark: (() -> Unit)?) {
@@ -53,8 +54,16 @@ fun DrivingScreen(store: FaxiStore, onDemoPark: (() -> Unit)?) {
         title = "${p?.name ?: "손님"} 손님 모시는 중",
         leading = { TaxiLampIcon(c.accent, c.bg, 72.dp) },
         trailing = {
-            Row(horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space3), verticalAlignment = Alignment.CenterVertically) {
+            // 버튼 높이를 늘 잡아 둔다: 기어를 넣어 "탑승 취소"가 사라져도 아래 내용이 움직이지 않게
+            Row(
+                Modifier.heightIn(min = FaxiDimens.controlHeight),
+                horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space3),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 surchargeTags(store).forEach { LampTag(it) }
+                // 출발 전(기어를 넣기 전)에만: 손님을 잘못 골랐거나 실수로 켰을 때. 요금·영수증 없이 끝난다.
+                // 기어를 넣는 순간 사라진다(주행 중에는 만질 것이 없다)
+                if (store.canCancelRide) FaxiSecondaryButton("탑승 취소", onClick = store::cancelRide)
                 if (onDemoPark != null) FaxiSecondaryButton("시연: 주차(P)", onClick = onDemoPark)
             }
         },
