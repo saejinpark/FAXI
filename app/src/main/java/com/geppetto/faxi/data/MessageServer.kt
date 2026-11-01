@@ -44,6 +44,16 @@ class MessageServer(private val context: Context, private val store: FaxiStore) 
         advertise()
     }
 
+    /**
+     * 가족 ID가 바뀌었을 때(가장 등록, 시연 가족 불러오기): 소켓은 그대로 두고 NSD 이름("FAXI-가족ID")만 다시 알린다.
+     * 소켓을 닫았다 바로 다시 열면 포트가 아직 비지 않아 실패할 수 있다(시연 녹화에서 한마디가 안 들어간 원인).
+     */
+    fun readvertise() {
+        nsdListener?.let { runCatching { nsd().unregisterService(it) } }
+        nsdListener = null
+        if (server != null) advertise()
+    }
+
     fun stop() {
         nsdListener?.let { runCatching { nsd().unregisterService(it) } }
         nsdListener = null
