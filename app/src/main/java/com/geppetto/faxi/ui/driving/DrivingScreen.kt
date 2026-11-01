@@ -1,56 +1,31 @@
 package com.geppetto.faxi.ui.driving
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import com.geppetto.faxi.ui.components.FaxiPage
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.geppetto.faxi.data.CabinState
 import com.geppetto.faxi.data.FaxiStore
 import com.geppetto.faxi.data.Grade
-import com.geppetto.faxi.fare.Hvac
 import com.geppetto.faxi.ui.components.TaxiLampIcon
 import com.geppetto.faxi.fare.Tariff
-import com.geppetto.faxi.ui.components.Avatar
 import com.geppetto.faxi.ui.components.ChatIcon
 import com.geppetto.faxi.ui.components.DriverLicenseCard
-import com.geppetto.faxi.ui.components.FaxiCard
 import com.geppetto.faxi.ui.components.FaxiPreviews
 import com.geppetto.faxi.ui.components.FaxiSecondaryButton
 import com.geppetto.faxi.ui.components.MessageIcon
-import com.geppetto.faxi.ui.components.MeterIcon
 import com.geppetto.faxi.ui.components.PreviewFrame
-import com.geppetto.faxi.ui.components.SeatHeatIcon
-import com.geppetto.faxi.ui.components.SectionTitle
 import com.geppetto.faxi.fare.FamilyExtra
-import com.geppetto.faxi.ui.components.SnowflakeIcon
-import com.geppetto.faxi.ui.components.SunIcon
-import com.geppetto.faxi.ui.components.TwoColumnMin
-import com.geppetto.faxi.ui.components.WindowIcon
-import com.geppetto.faxi.ui.components.WiperIcon
 import com.geppetto.faxi.ui.theme.Faxi
 import com.geppetto.faxi.ui.theme.FaxiDimens
 import java.time.LocalDateTime
@@ -61,7 +36,7 @@ private val StartFormat = DateTimeFormatter.ofPattern("HH:mm")
 /**
  * 운행 중 (주행). "밤 택시" 스타일: 밤 바탕 위에 상자 없이, 종이 물건은 기사 자격증 하나.
  * 화면의 주인공은 옆자리 손님이다. 위에서부터:
- * 표시등 + "엄마 손님 모시는 중" + 지금 붙는 할증 꼬리표 / 경로 한 줄 / 자격증(종이) | 손님 한마디 / 지금 붙는 요금.
+ * 표시등 + "엄마 손님 모시는 중" + 지금 붙는 할증 꼬리표 / 경로 한 줄 / 자격증(종이) | 손님 한마디 / 옵션 게이지(CabinGauges).
  * 한마디를 한 번도 받지 않은 집은 한마디 칸 없이 자격증 | 경로.
  * - 모두 정지 표시다. 금액은 화면에 없다: 하차 때 도착 화면에서 한 번에 공개한다.
  *   움직이는 숫자·흐르는 그래프·경과 시간은 넣지 않는다(Pleos 주행 중 화면 규칙).
@@ -97,7 +72,7 @@ fun DrivingScreen(store: FaxiStore, onDemoPark: (() -> Unit)?) {
                 { m -> RouteLine(store, m.padding(vertical = FaxiDimens.space4)) },
             )
         }
-        full { m -> OptionsCell(store.cabin, m) }
+        full { m -> CabinGauges(store.cabin, m) }
     }
 }
 
@@ -190,64 +165,6 @@ private fun MessageCell(store: FaxiStore, modifier: Modifier) {
 
 /** 한마디 칸 높이: 한마디가 와도 아래 옵션 칸이 밀리지 않게 큰 글자 한 줄 높이로 미리 잡는다 */
 private val MessageHeight = 200.dp
-
-/** 지금 붙는 요금: 차량 옵션 4개의 켜짐/꺼짐(상자 없이 윗줄로). 색과 함께 단어로 알린다. */
-@Composable
-private fun OptionsCell(cabin: CabinState, modifier: Modifier) {
-    BoxWithConstraints(modifier) {
-        val perRow = if (maxWidth >= TwoColumnMin) 4 else 2
-        val chips: List<@Composable (Modifier) -> Unit> = listOf(
-            { m ->
-                OptionChip(
-                    "냉난방", "분당 30원", cabin.hvac != Hvac.Off, m,
-                    onWord = if (cabin.hvac == Hvac.Heat) "난방" else "냉방",
-                ) { col, s -> if (cabin.hvac == Hvac.Heat) SunIcon(col, s) else SnowflakeIcon(col, s) }
-            },
-            { m -> OptionChip("엉따", "분당 20원", cabin.seatHeat, m) { col, s -> SeatHeatIcon(col, s) } },
-            { m -> OptionChip("와이퍼", "할증 10%", cabin.wiper, m) { col, s -> WiperIcon(col, s) } },
-            { m ->
-                OptionChip("창문", "분당 10원", cabin.windowOpen, m, onWord = "열림", offWord = "닫힘") { col, s -> WindowIcon(col, s) }
-            },
-        )
-        Column(verticalArrangement = Arrangement.spacedBy(FaxiDimens.space6)) {
-            chips.chunked(perRow).forEach { line ->
-                Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space6)) {
-                    line.forEach { chip -> chip(Modifier.weight(1f).fillMaxHeight()) }
-                }
-            }
-        }
-    }
-}
-
-/** 옵션 하나: 윗줄(켜지면 산호, 두껍게) + 아이콘 + 이름·요금 + 켜짐/꺼짐 단어 */
-@Composable
-private fun OptionChip(
-    name: String,
-    rate: String,
-    on: Boolean,
-    modifier: Modifier,
-    onWord: String = "켜짐",
-    offWord: String = "꺼짐",
-    icon: @Composable (Color, Dp) -> Unit,
-) {
-    val c = Faxi.colors
-    val t = Faxi.type
-    val ink = if (on) c.accentInk else c.inkMuted
-    Column(
-        modifier.semantics(mergeDescendants = true) { contentDescription = "$name ${if (on) onWord else offWord}, $rate" },
-        verticalArrangement = Arrangement.spacedBy(FaxiDimens.space3),
-    ) {
-        Box(Modifier.fillMaxWidth().height(if (on) 6.dp else 2.dp).background(if (on) c.accent else c.line, RoundedCornerShape(3.dp)))
-        Row(horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space3), verticalAlignment = Alignment.CenterVertically) {
-            icon(ink, 56.dp)
-            Column(Modifier.weight(1f)) {
-                Text(name, style = t.title, color = c.ink)
-                Text(rate, style = t.title, color = c.inkMuted)
-            }
-            Text(if (on) onWord else offWord, style = t.title, color = ink)
-        }
-    }
-}
 
 @FaxiPreviews
 @Composable
