@@ -162,18 +162,18 @@ class FaxiStore(
     }
 
     /** 가족 한 사람 더하기. 색은 등록 순서대로 네 칸을 돌려 쓴다. 폰 연결(초대 QR)은 그 사람 상세에서 한다. */
-    fun addMember(name: String, grade: Grade): Member {
-        val m = newMember(name, grade, color = members.size)
+    fun addMember(name: String, grade: Grade, prefs: RidePrefs = RidePrefs()): Member {
+        val m = newMember(name, grade, color = members.size).copy(prefs = prefs)
         members += m
         changed()
         return m
     }
 
-    /** 이름·별명 고치기 */
-    fun updateMember(id: String, name: String, nickname: String) {
+    /** 이름·별명·손님 취향 고치기 */
+    fun updateMember(id: String, name: String, nickname: String, prefs: RidePrefs = member(id).prefs) {
         val i = members.indexOfFirst { it.id == id }
         if (i < 0 || name.isBlank()) return
-        members[i] = members[i].copy(name = name.trim(), nickname = nickname.trim())
+        members[i] = members[i].copy(name = name.trim(), nickname = nickname.trim(), prefs = prefs)
         changed()
     }
 
@@ -757,15 +757,18 @@ class FaxiStore(
             val mom = Member(
                 "mom", "엄마", "주차 장인 박기사", Grade.Full,
                 LocalDate.of(2026, 10, 1), drivenKm = 962, avatar = "fox", color = 1,
+                prefs = RidePrefs(pace = Pace.Gentle, climate = Climate.Cool),
             )
             val kid = Member(
                 "kid", "지우", "뒷좌석 과자왕", Grade.Learner,
                 LocalDate.of(2026, 10, 1), drivenKm = 0, avatar = "rabbit",
                 licenseEligible = LocalDate.of(2029, 3, 14), color = 2,
+                prefs = RidePrefs(talk = Talk.Chatty, music = Music.Mine),
             )
             val grandma = Member(
                 "grandma", "할머니", "40년 무사고", Grade.Full,
                 LocalDate.of(2026, 10, 3), drivenKm = 412_000, avatar = "turtle", color = 3,
+                prefs = RidePrefs(pace = Pace.Gentle, climate = Climate.Warm, talk = Talk.Quiet, music = Music.Off),
             )
             val receipts = listOf(
                 Receipt(

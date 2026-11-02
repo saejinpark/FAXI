@@ -13,11 +13,18 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.geppetto.faxi.data.FaxiStore
+import com.geppetto.faxi.data.Climate
 import com.geppetto.faxi.data.Grade
+import com.geppetto.faxi.data.Music
+import com.geppetto.faxi.data.Pace
+import com.geppetto.faxi.data.PrefChoice
+import com.geppetto.faxi.data.RidePrefs
+import com.geppetto.faxi.data.Talk
 import com.geppetto.faxi.data.eul
 import com.geppetto.faxi.ui.components.FaxiCard
 import com.geppetto.faxi.ui.components.FaxiPage
@@ -77,17 +84,21 @@ fun FamilySetupScreen(store: FaxiStore) {
     }
 }
 
-/** 기사 탭 "가족 추가": 한 사람씩 더한다. 더하면 그 사람 상세(폰 연결 QR)로 간다. */
+/** 기사 탭 "가족 추가": 한 사람씩 더한다(이름·운전 | 손님 취향). 더하면 그 사람 상세(폰 연결 QR)로 간다. */
 @Composable
 fun AddMemberScreen(store: FaxiStore, onBack: () -> Unit, onAdded: (String) -> Unit) {
+    var prefs by rememberSaveable(stateSaver = PrefsSaver) { mutableStateOf(RidePrefs()) }
     FaxiPage(title = "가족 추가", onBack = onBack) {
-        full { m ->
-            MemberForm(
-                modifier = m,
-                title = "부르는 이름",
-                action = "가족으로 등록",
-            ) { name, grade -> onAdded(store.addMember(name, grade).id) }
-        }
+        row(
+            { m ->
+                MemberForm(
+                    modifier = m,
+                    title = "부르는 이름",
+                    action = "가족으로 등록",
+                ) { name, grade -> onAdded(store.addMember(name, grade, prefs).id) }
+            },
+            { m -> PrefsCard(prefs, m) { prefs = it } },
+        )
     }
 }
 
@@ -99,6 +110,7 @@ fun EditMemberScreen(store: FaxiStore, memberId: String, onBack: () -> Unit, onR
     val member = store.member(memberId)
     var name by rememberSaveable(memberId) { mutableStateOf(member.name) }
     var nickname by rememberSaveable(memberId) { mutableStateOf(member.nickname) }
+    var prefs by rememberSaveable(memberId, stateSaver = PrefsSaver) { mutableStateOf(member.prefs) }
     var confirmRemove by rememberSaveable(memberId) { mutableStateOf(false) }
     val blocked = store.whyCannotRemove(memberId)
     FaxiPage(title = "${member.name} 고치기", onBack = onBack) {
@@ -114,30 +126,63 @@ fun EditMemberScreen(store: FaxiStore, memberId: String, onBack: () -> Unit, onR
                         "저장",
                         enabled = name.isNotBlank(),
                         modifier = Modifier.fillMaxWidth(),
-                        onClick = { store.updateMember(memberId, name, nickname); onBack() },
+                        onClick = { store.updateMember(memberId, name, nickname, prefs); onBack() },
                     )
                 }
             },
-            { m ->
-                FaxiCard(m) {
-                    SectionTitle("가족에서 빼기")
-                    Text(
-                        blocked ?: "지난 영수증과 기록에는 이름이 남아요. ${member.name} 폰의 코드와 한마디는 더 받지 않아요.",
-                        style = t.body, color = if (blocked != null) c.ink else c.inkMuted,
-                    )
-                    Spacer(Modifier.weight(1f))
-                    if (!confirmRemove) {
-                        FaxiSecondaryButton("가족에서 빼기", enabled = blocked == null, onClick = { confirmRemove = true }, modifier = Modifier.fillMaxWidth())
-                    } else {
-                        Text("${member.name.eul()} 정말 뺄까요?", style = t.bodyStrong, color = c.ink)
-                        Row(horizontalArrangement = Arrangement.spacedBy(FaxiDimens.targetGap)) {
-                            FaxiSecondaryButton("취소", onClick = { confirmRemove = false }, modifier = Modifier.weight(1f))
-                            FaxiSecondaryButton("빼기", onClick = { if (store.removeMember(memberId)) onRemoved() }, modifier = Modifier.weight(1f))
-                        }
+            { m -> PrefsCard(prefs, m) { prefs = it } },
+        )
+        full { m ->
+            FaxiCard(m) {
+                SectionTitle("가족에서 빼기")
+                Text(
+                    blocked ?: "지난 영수증과 기록에는 이름이 남아요. ${member.name} 폰의 코드와 한마디는 더 받지 않아요.",
+                    style = t.body, color = if (blocked != null) c.ink else c.inkMuted,
+                )
+                if (!confirmRemove) {
+                    FaxiSecondaryButton("가족에서 빼기", enabled = blocked == null, onClick = { confirmRemove = true }, modifier = Modifier.fillMaxWidth())
+                } else {
+                    Text("${member.name.eul()} 정말 뺄까요?", style = t.bodyStrong, color = c.ink)
+                    Row(horizontalArrangement = Arrangement.spacedBy(FaxiDimens.targetGap)) {
+                        FaxiSecondaryButton("취소", onClick = { confirmRemove = false }, modifier = Modifier.weight(1f))
+                        FaxiSecondaryButton("빼기", onClick = { if (store.removeMember(memberId)) onRemoved() }, modifier = Modifier.weight(1f))
                     }
                 }
-            },
-        )
+            }
+        }
+    }
+}
+
+/** 화면이 다시 만들어져도(주간/야간 전환) 고르던 취향이 남게 */
+private val PrefsSaver = listSaver<RidePrefs, Int>(
+    save = { listOf(it.pace.ordinal, it.climate.ordinal, it.talk.ordinal, it.music.ordinal) },
+    restore = { RidePrefs(Pace.entries[it[0]], Climate.entries[it[1]], Talk.entries[it[2]], Music.entries[it[3]]) },
+)
+
+/** 손님 취향 네 가지(각각 셋 중 하나). 탑승 화면에서 기사에게 한 줄로 보인다. */
+@Composable
+private fun PrefsCard(prefs: RidePrefs, modifier: Modifier, onChange: (RidePrefs) -> Unit) {
+    FaxiCard(modifier) {
+        SectionTitle("손님으로 탈 때")
+        Text("손님을 고르면 탑승 화면에서 기사에게 보여 줘요. 요금과는 상관없어요.", style = Faxi.type.body, color = Faxi.colors.inkMuted)
+        PrefRow("운전 스타일", Pace.entries, prefs.pace) { onChange(prefs.copy(pace = it)) }
+        PrefRow("실내 온도", Climate.entries, prefs.climate) { onChange(prefs.copy(climate = it)) }
+        PrefRow("차 안에서", Talk.entries, prefs.talk) { onChange(prefs.copy(talk = it)) }
+        PrefRow("음악", Music.entries, prefs.music) { onChange(prefs.copy(music = it)) }
+    }
+}
+
+@Composable
+private fun <T : PrefChoice> PrefRow(title: String, choices: List<T>, selected: T, onPick: (T) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(FaxiDimens.space3)) {
+        SectionTitle(title)
+        Row(horizontalArrangement = Arrangement.spacedBy(FaxiDimens.targetGap)) {
+            choices.forEach { choice ->
+                SelectTile(selected = choice == selected, onClick = { onPick(choice) }, modifier = Modifier.weight(1f)) {
+                    Text(choice.label, style = Faxi.type.label, color = Faxi.colors.ink)
+                }
+            }
+        }
     }
 }
 

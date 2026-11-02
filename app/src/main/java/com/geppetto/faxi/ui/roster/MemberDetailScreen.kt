@@ -128,6 +128,16 @@ fun MemberDetailScreen(
                 }
             },
         )
+        full { m ->
+            FaxiCard(m) {
+                SectionTitle("손님으로 탈 때")
+                val prefs = member.prefs.summary
+                Text(
+                    if (prefs.isEmpty()) "따로 바라는 건 없어요." else prefs.joinToString(" · "),
+                    style = t.body, color = if (prefs.isEmpty()) c.inkMuted else c.ink,
+                )
+            }
+        }
         full { m -> PhoneLinkCard(store, memberId, m) }
         full { m -> AvatarPicker(store, memberId, m) }
     }

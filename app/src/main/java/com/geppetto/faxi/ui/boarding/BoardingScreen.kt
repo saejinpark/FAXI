@@ -159,6 +159,16 @@ private fun PassengerBoarding(store: FaxiStore, speak: (String) -> Unit, onChang
                             }
                         }
                     }
+                    // 손님 취향(가족 추가·고치기에서 고른 것): 단골 손님을 기억하는 택시처럼. 이 줄도 자리를 미리 잡아 둔다.
+                    Box(Modifier.fillMaxWidth().heightIn(min = PrefsHeight), contentAlignment = Alignment.CenterStart) {
+                        val prefs = passenger?.prefs?.summary.orEmpty()
+                        if (passenger != null && prefs.isNotEmpty()) {
+                            Text(
+                                "${passenger.name} 손님 취향: ${prefs.joinToString(" · ")}",
+                                style = Faxi.type.bodyStrong, color = Faxi.colors.ink,
+                            )
+                        }
+                    }
                     // 가족 할증·할인: 기사가 지금(주차 중) 고르고, 손님이 코드를 누르면 동의한 것. 운행 중에는 못 바꾼다.
                     SectionTitle("가족 할증·할인")
                     FamilyExtra.entries.chunked(2).forEach { pair ->
@@ -299,6 +309,8 @@ private fun MemberTile(member: Member, selected: Boolean, onClick: () -> Unit) {
 
 /** 손님 안내 줄 자리: 밀린 돈 칸(안쪽 여백 + 굵은 글자 한 줄)이 들어가는 높이 */
 private val NoticeHeight = 72.dp
+/** 손님 취향 한 줄(넷 다 고르면 두 줄) 자리 */
+private val PrefsHeight = 64.dp
 
 @Composable
 private fun DebtReminder(text: String) {
