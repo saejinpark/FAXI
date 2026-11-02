@@ -1,7 +1,9 @@
 package com.geppetto.faxi
 
+import android.Manifest
 import android.car.Car
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -16,6 +18,15 @@ class MainActivity : ComponentActivity() {
     private lateinit var speaker: Speaker
     private val askSpeed = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) (application as FaxiApp).vehicleFeed.startSpeed()
+        askNotifications()
+    }
+    // 후기 알림(ReviewNotice). 거절해도 후기는 도착 화면·기사 상세·낭독으로 그대로 본다
+    private val askNotify = registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
+
+    private fun askNotifications() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) askNotify.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -39,6 +50,8 @@ class MainActivity : ComponentActivity() {
         // 속도(CAR_SPEED)는 dangerous 권한이라 처음 한 번 묻는다. 허용하면 바로 속도를 받기 시작한다.
         if (!app.vehicleFeed.startSpeed() && packageManager.hasSystemFeature(PackageManager.FEATURE_AUTOMOTIVE)) {
             askSpeed.launch(Car.PERMISSION_SPEED)
+        } else {
+            askNotifications()
         }
         setContent {
             FaxiTheme {

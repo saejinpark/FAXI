@@ -40,10 +40,10 @@ class MessageSender(private val context: Context) {
         return deliver(me.familyId, MessageEnvelope.create(me.familyId, me.memberId, message, secret, now()).toLine())
     }
 
-    /** 운행이 끝난 뒤 기사 후기를 보낸다. 같은 통로, 같은 열쇠 */
-    suspend fun sendReview(me: FaxiInvite, receiptId: String, stars: Int, tags: List<DriverTag>): MessageReply? {
+    /** 운행이 끝난 뒤 기사 후기(별 + 직접 쓴 글)를 보낸다. 같은 통로, 같은 열쇠 */
+    suspend fun sendReview(me: FaxiInvite, receiptId: String, stars: Int, text: String): MessageReply? {
         val secret = Base32.decode(me.secret) ?: return MessageReply.Rejected
-        return deliver(me.familyId, ReviewEnvelope.create(me.familyId, me.memberId, receiptId, stars, tags, secret, now()).toLine())
+        return deliver(me.familyId, ReviewEnvelope.create(me.familyId, me.memberId, receiptId, stars, emptyList(), secret, now(), text).toLine())
     }
 
     /**

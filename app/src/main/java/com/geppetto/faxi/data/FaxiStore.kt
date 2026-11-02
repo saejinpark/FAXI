@@ -666,6 +666,9 @@ class FaxiStore(
         )
     }
 
+    /** 후기가 들어왔을 때(차 알림). FaxiApp이 단다 */
+    var onReview: ((Receipt, Review) -> Unit)? = null
+
     /**
      * 손님 폰에서 온 기사 후기(MessageServer가 넘겨준다). 운행 하나에 한 번만 받는다.
      * 우리 가족·그 사람 서명·1분 안, 그리고 그 사람이 손님이었던 운행이어야 한다.
@@ -679,8 +682,10 @@ class FaxiStore(
         val receipt = receipt(envelope.receiptId)
         if (receipt == null || receipt.passengerId != m.id) return MessageReply.UnknownRide
         if (receipt.id in reviews) return MessageReply.AlreadyReviewed
-        reviews[receipt.id] = Review(envelope.stars, envelope.tags.map { it.text }.toSet())
+        val review = Review(envelope.stars, envelope.tags.map { it.text }.toSet(), envelope.text.orEmpty())
+        reviews[receipt.id] = review
         changed()
+        onReview?.invoke(receipt, review)
         return MessageReply.Shown
     }
 
@@ -810,9 +815,9 @@ class FaxiStore(
                 receipts = receipts,
                 lifetime = listOf(LifetimeLedger("kid", sinceYear = 2017, rides = 2_140, km = 18_204, amount = 14_502_310)),
                 reviews = mapOf(
-                    "r1" to Review(3, setOf("선곡 최악")),
-                    "r2" to Review(5, setOf("길 잘 앎", "또 탈게요")),
-                    "r3" to Review(2, setOf("말 많음")),
+                    "r1" to Review(3, emptySet(), "아침부터 노래 크게 트는 건 좀…"),
+                    "r2" to Review(5, emptySet(), "병원 앞에 딱 맞춰 세워 줘서 고마워"),
+                    "r3" to Review(2, emptySet(), "학원 가는 길에 잔소리가 너무 많아요"),
                 ),
             )
         }

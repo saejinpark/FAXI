@@ -90,7 +90,7 @@ private fun DriverPick(store: FaxiStore, speak: (String) -> Unit, onCancel: (() 
                                     if (store.selectDriver(member.id)) {
                                         // 후기 낭독: 이 기사가 아직 듣지 못한 가장 최근 후기를 한 번(주차 중, 차 안 가족 모두가 듣는다)
                                         store.takeUnreadReview(member.id)?.let { (receipt, review) ->
-                                            speak(reviewLine(store.member(receipt.passengerId).name, review.stars, review.tags))
+                                            speak(reviewLine(store.member(receipt.passengerId).name, review.stars, review.tags, review.text))
                                         }
                                         onPicked()
                                     }

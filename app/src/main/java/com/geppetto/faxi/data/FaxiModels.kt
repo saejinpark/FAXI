@@ -212,8 +212,9 @@ sealed interface WiperLevel {
 /** 운행 중 손님이 보낸 한마디와 받은 시각 */
 data class PassengerMessage(val message: RideMessage, val at: LocalDateTime)
 
+/** 손님이 폰에서 남긴 기사 후기: 별, (예전 폰의) 태그, 직접 쓴 글 */
 @Serializable
-data class Review(val stars: Int, val tags: Set<String>)
+data class Review(val stars: Int, val tags: Set<String>, val text: String = "")
 
 /** 사진 대신 고르는 캐릭터. key는 저장용, label은 TalkBack이 읽는다. */
 data class AvatarChoice(val key: String, val emoji: String, val label: String)

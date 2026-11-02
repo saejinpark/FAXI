@@ -58,6 +58,7 @@ import kotlinx.coroutines.launch
 class PhoneActivity : ComponentActivity() {
     /** 딥 링크로 들어온 링크. 화면이 꺼내 쓰고 비운다. */
     private val incoming = mutableStateOf<String?>(null)
+    private lateinit var store: PhoneStore
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -66,14 +67,26 @@ class PhoneActivity : ComponentActivity() {
             statusBarStyle = SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT),
         )
-        val store = PhoneStore(applicationContext)
+        store = PhoneStore(applicationContext)
         incoming.value = intent?.dataString
+        intent?.let(::takeReviewDraft)
         setContent { FaxiTheme(paper = true) { PhoneApp(store, incoming) } }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         incoming.value = intent.dataString
+        takeReviewDraft(intent)
+    }
+
+    /**
+     * 시험·촬영용: `am start ... --es reviewDraft "글"`로 후기 칸을 미리 채운다(adb input은 한글을 못 친다).
+     * 디버그 빌드이거나 시연 가족일 때만. 실제 가족의 release 앱은 무시한다.
+     */
+    private fun takeReviewDraft(intent: Intent) {
+        val draft = intent.getStringExtra("reviewDraft") ?: return
+        val debuggable = applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0
+        if (debuggable || store.me?.familyId == DemoFamily.FAMILY_ID) store.reviewDraft = draft
     }
 }
 

@@ -29,6 +29,8 @@
     <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
 
     <!-- 운행 중 앱이 뒤로 가도 요금 엔진이 살아 있게(RideService) -->
+    <!-- 손님 후기가 오면 차 알림(ReviewNotice). Android 13부터 실행 중에 묻는다 -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 

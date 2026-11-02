@@ -28,6 +28,8 @@ class FaxiApp : Application() {
         if (snapshot == null) storage.save(store.snapshot())
         // 운행 중에는 포그라운드 서비스로 프로세스를 살려 둔다(내비가 앞에 있어도 요금 엔진이 계속 돈다)
         store.onRideChanged = { name -> if (name != null) RideService.start(this, "미터기 작동 중 · ${name} 손님") else RideService.stop(this) }
+        // 손님 폰에서 후기가 오면 차 알림(글은 싣지 않는다)
+        store.onReview = { r, review -> ReviewNotice.post(this, store.name(r.passengerId), store.name(r.driverId), review.stars) }
         store.passengerId?.let { RideService.start(this, "미터기 작동 중 · ${store.member(it).name} 손님") }
         // 손님 폰의 한마디를 받는 창구(같은 Wi-Fi). 앱 프로세스가 사는 동안 연다.
         val server = MessageServer(this, store).also { it.start() }

@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -37,7 +39,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.core.content.ContextCompat
 import com.geppetto.faxi.auth.FaxiInvite
-import com.geppetto.faxi.message.DriverTag
+import com.geppetto.faxi.message.ReviewEnvelope
 import com.geppetto.faxi.message.MessageReply
 import com.geppetto.faxi.message.RideMessage
 import com.geppetto.faxi.qr.ReceiptTicket
@@ -148,16 +150,16 @@ internal fun MessageCard(me: FaxiInvite, sender: MessageSender) {
 }
 
 /**
- * 기사 후기: 가장 최근에 찍은 영수증의 기사에게 별점과 태그를 보낸다(같은 Wi-Fi로 차에, 서명해서).
- * 차는 다음에 그 기사를 고를 때 소리 내어 읽어 준다. 보내거나 건너뛰면 카드가 사라진다.
+ * 기사 후기: 가장 최근에 찍은 영수증의 기사에게 별점과 직접 쓴 글을 보낸다(같은 Wi-Fi로 차에, 서명해서).
+ * 차는 알림으로 후기가 왔다고 알리고, 다음에 그 기사를 고를 때 소리 내어 읽어 준다. 보내거나 건너뛰면 카드가 사라진다.
  */
 @Composable
-internal fun ReviewCard(me: FaxiInvite, ticket: ReceiptTicket, sender: MessageSender, onDone: (String) -> Unit) {
+internal fun ReviewCard(me: FaxiInvite, ticket: ReceiptTicket, sender: MessageSender, draft: String = "", onDone: (String) -> Unit) {
     val c = Faxi.colors
     val t = Faxi.type
     val scope = rememberCoroutineScope()
     var stars by remember(ticket.id) { mutableIntStateOf(0) }
-    var tags by remember(ticket.id) { mutableStateOf(emptyList<DriverTag>()) }
+    var text by remember(ticket.id, draft) { mutableStateOf(draft.take(ReviewEnvelope.MAX_TEXT)) }
     var sending by remember { mutableStateOf(false) }
     var status by remember(ticket.id) { mutableStateOf("기사님은 다음 운행 때 차가 읽어 주는 후기로 들어요.") }
     var failed by remember { mutableStateOf(false) }
@@ -170,7 +172,7 @@ internal fun ReviewCard(me: FaxiInvite, ticket: ReceiptTicket, sender: MessageSe
         failed = false
         status = "보내는 중이에요."
         scope.launch {
-            val reply = sender.sendReview(me, ticket.id, stars, tags)
+            val reply = sender.sendReview(me, ticket.id, stars, text)
             sending = false
             when (reply) {
                 MessageReply.Shown -> onDone("$driverName 기사님께 후기를 보냈어요.")
@@ -207,20 +209,24 @@ internal fun ReviewCard(me: FaxiInvite, ticket: ReceiptTicket, sender: MessageSe
                 }
             }
         }
-        DriverTag.entries.chunked(2).forEach { pair ->
-            Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space3)) {
-                pair.forEach { tag ->
-                    val on = tag in tags
-                    SelectTile(
-                        selected = on,
-                        onClick = { tags = if (on) tags - tag else tags + tag },
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
-                    ) {
-                        Text(tag.text, style = t.label, color = c.ink)
-                    }
-                }
-            }
-        }
+        // 기사님께 직접 쓰는 한두 줄. 차가 그대로 읽어 주니 짧게(최대 80자)
+        OutlinedTextField(
+            value = text,
+            onValueChange = { text = it.replace('\n', ' ').take(ReviewEnvelope.MAX_TEXT) },
+            modifier = Modifier.fillMaxWidth().heightIn(min = FaxiDimens.controlHeight + FaxiDimens.space6),
+            textStyle = t.body,
+            minLines = 2,
+            maxLines = 3,
+            label = { Text("기사님께 한 줄", style = t.caption) },
+            placeholder = { Text("예: 병원 앞에 딱 맞춰 세워 줘서 고마워요", style = t.body, color = c.inkMuted) },
+            supportingText = { Text("${text.length}/${ReviewEnvelope.MAX_TEXT}", style = t.caption, color = c.inkMuted) },
+            shape = RoundedCornerShape(FaxiDimens.radiusSm),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = c.ink, unfocusedTextColor = c.ink,
+                focusedBorderColor = c.accent, unfocusedBorderColor = c.lineStrong, cursorColor = c.accentInk,
+                focusedLabelColor = c.accentInk, unfocusedLabelColor = c.inkMuted,
+            ),
+        )
         FaxiPrimaryButton("후기 보내기", enabled = stars > 0 && !sending, onClick = { gate { send() } }, modifier = Modifier.fillMaxWidth())
         FaxiSecondaryButton("안 남길래요", enabled = !sending, onClick = { onDone("후기는 건너뛰었어요.") }, modifier = Modifier.fillMaxWidth())
         StatusLine(status, failed)
