@@ -85,8 +85,6 @@ fun AddMemberScreen(store: FaxiStore, onBack: () -> Unit, onAdded: (String) -> U
             MemberForm(
                 modifier = m,
                 title = "부르는 이름",
-                // 이미 있는 이름은 빼고 보여 준다
-                suggestions = listOf("엄마", "아빠", "첫째", "둘째", "할머니", "할아버지").filter { n -> store.family.none { it.name == n } },
                 action = "가족으로 등록",
             ) { name, grade -> onAdded(store.addMember(name, grade).id) }
         }
@@ -161,12 +159,15 @@ private fun NameField(value: String, placeholder: String, onChange: (String) -> 
     )
 }
 
-/** 이름(빠른 고르기 칸 + 직접 쓰기)과 (askDriving이면) 운전 여부. 이름이 비어 있으면 주 버튼이 꺼져 있다. */
+/**
+ * 이름(suggestions가 있으면 빠른 고르기 칸 + 직접 쓰기)과 (askDriving이면) 운전 여부. 이름이 비어 있으면 주 버튼이 꺼져 있다.
+ * 가족 추가는 직접 쓰기만: 집마다 부르는 이름이 달라서 정해 둔 칸이 오히려 방해였다.
+ */
 @Composable
 private fun MemberForm(
     modifier: Modifier,
     title: String,
-    suggestions: List<String>,
+    suggestions: List<String> = emptyList(),
     action: String,
     askDriving: Boolean = true,
     onSubmit: (name: String, grade: Grade) -> Unit,
@@ -177,12 +178,14 @@ private fun MemberForm(
     var driving by rememberSaveable { mutableStateOf(Driving.Yes) }
     FaxiCard(modifier) {
         SectionTitle(title)
-        Row(horizontalArrangement = Arrangement.spacedBy(FaxiDimens.targetGap)) {
-            suggestions.forEach { s ->
-                SelectTile(selected = name == s, onClick = { name = s }) { Text(s, style = t.label, color = c.ink) }
+        if (suggestions.isNotEmpty()) {
+            Row(horizontalArrangement = Arrangement.spacedBy(FaxiDimens.targetGap)) {
+                suggestions.forEach { s ->
+                    SelectTile(selected = name == s, onClick = { name = s }) { Text(s, style = t.label, color = c.ink) }
+                }
             }
         }
-        NameField(name, "직접 쓰기: 지우, 막내, 큰엄마…") { name = it.take(10) }
+        NameField(name, if (suggestions.isEmpty()) "예: 엄마, 지우, 막내" else "직접 쓰기: 지우, 막내, 큰엄마…") { name = it.take(10) }
         if (askDriving) DrivingChoice(driving) { driving = it }
         Spacer(Modifier.weight(1f))
         FaxiPrimaryButton(
