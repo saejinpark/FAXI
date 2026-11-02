@@ -19,6 +19,8 @@
     <uses-permission android:name="pleos.car.permission.CAR_CLIMATE" />
     <uses-permission android:name="pleos.car.permission.CAR_SEATS" />
     <uses-permission android:name="pleos.car.permission.CAR_WINDOWS" />
+    <!-- 문 열림: 멈춘 상태에서 문이 열리면 하차 -->
+    <uses-permission android:name="pleos.car.permission.CAR_DOORS" />
     <!-- 속도: Android Car API PERF_VEHICLE_SPEED. dangerous 권한이라 실행 중에 묻는다 -->
     <uses-permission android:name="android.car.permission.CAR_SPEED" />
     <!-- 손님 한마디: 같은 Wi-Fi 안에서 폰 → 차 TCP 한 줄(인터넷 서버는 쓰지 않는다) -->

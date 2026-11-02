@@ -11,14 +11,17 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import ai.pleos.playground.vehicle.Vehicle
+import ai.pleos.playground.vehicle.api.model.area.DoorArea
 import ai.pleos.playground.vehicle.api.model.area.SeatArea
 import ai.pleos.playground.vehicle.api.model.area.WindowArea
+import ai.pleos.playground.vehicle.constant.area.DoorValue
 import ai.pleos.playground.vehicle.constant.area.SeatValue
 import ai.pleos.playground.vehicle.constant.area.WindowValue
 import ai.pleos.playground.vehicle.constant.control.VehicleGear
 import ai.pleos.playground.vehicle.constant.control.WiperState
 import ai.pleos.playground.vehicle.constant.control.WiperSwitch
 import ai.pleos.playground.vehicle.listener.DistanceDrivenListener
+import ai.pleos.playground.vehicle.listener.DoorPositionListener
 import ai.pleos.playground.vehicle.listener.GearSelectionListener
 import ai.pleos.playground.vehicle.listener.HvacAcStateListener
 import ai.pleos.playground.vehicle.listener.HvacPowerStateListener
@@ -39,6 +42,7 @@ import com.geppetto.faxi.fare.Hvac
  *   - 엉따: `Seat.registerHvacSeatTemperature` 조수석(손님 자리) 값이 0보다 크면 열선 (CAR_SEATS). 음수는 통풍.
  *   - 와이퍼: `Wiper.registerWiperState` 앞유리 ON (CAR_WINDOWS)
  *   - 창문: `Window.registerWindowPosition` 1·2열 네 창 중 하나라도 0%보다 열리면 (CAR_WINDOWS)
+ * - 문: `Door.registerDoorPosition` 1·2열 네 문 (CAR_DOORS). 멈춘 상태에서 문이 열리면 하차(브레이크만 밟고 내려 주는 경우).
  * - 주행 규제(CarUxRestrictions): Pleos 주행 규제 개발 가이드대로 플랫폼이 "주행 중 최적화 필요"라고 하면 그 상태를 그대로 넘긴다.
  *   기어와 따로 본다(기어는 하차 판정, 규제는 화면 잠금). 권한은 필요 없다.
  * 권한·지원 여부는 칸마다 다를 수 있어서 하나가 실패해도 나머지는 계속 붙인다.
@@ -116,6 +120,15 @@ class VehicleFeed(private val context: Context, private val onUpdate: (VehicleRe
                 post { reading.copy(windowPercent = reading.windowPercent + (place to (percent ?: 0).coerceIn(0, 100))) }
             }
             override fun onFailed(e: Exception) = warn("창문 ${w.name}", e)
+        }
+    }
+
+    private val doors = Doors.associateWith { d ->
+        object : DoorPositionListener {
+            override fun onPositionUpdated(percent: Int?) {
+                post { reading.copy(doorPercent = reading.doorPercent + (d.name to (percent ?: 0))) }
+            }
+            override fun onFailed(e: Exception) = warn("문 ${d.name}", e)
         }
     }
 
@@ -211,6 +224,10 @@ class VehicleFeed(private val context: Context, private val onUpdate: (VehicleRe
             val area = WindowArea(w)
             attach("창문 ${w.name}", { v.getWindow().registerWindowPosition(area, l) }) { it.getWindow().unregisterWindowPosition(area, l) }
         }
+        doors.forEach { (d, l) ->
+            val area = DoorArea(d)
+            attach("문 ${d.name}", { v.getDoor().registerDoorPosition(area, l) }) { it.getDoor().unregisterDoorPosition(area, l) }
+        }
     }
 
     fun stop() {
@@ -252,6 +269,8 @@ class VehicleFeed(private val context: Context, private val onUpdate: (VehicleRe
 
     private companion object {
         const val TAG = "FaxiVehicle"
+        /** 사람이 타고 내리는 문(1·2열). 보닛·트렁크는 뺀다 */
+        val Doors = listOf(DoorValue.ROW_1_LEFT, DoorValue.ROW_1_RIGHT, DoorValue.ROW_2_LEFT, DoorValue.ROW_2_RIGHT)
         /** 손님이 열 수 있는 창(1·2열). 지붕·앞뒤 유리는 뺀다. */
         val Windows = mapOf(
             WindowValue.ROW_1_LEFT to CabinWindow.FrontLeft,
@@ -295,9 +314,14 @@ data class VehicleReading(
     val wiperSwitch: WiperLevel? = null,
     /** 창마다 열린 정도(%) */
     val windowPercent: Map<CabinWindow, Int> = emptyMap(),
+    /** 1·2열 문마다 열린 정도(%). 하차 판정(멈춘 상태에서 문 열림)에 쓴다 */
+    val doorPercent: Map<String, Int> = emptyMap(),
     /** 플랫폼 주행 규제: 주행 중 최적화(DO) 화면만 보여야 하는 상태 */
     val uxRestricted: Boolean = false,
 ) {
+    /** 문이 하나라도 열려 있다 */
+    val doorOpen: Boolean get() = doorPercent.values.any { it > 0 }
+
     /** 옵션 상태가 하나도 안 왔으면 null(그때는 시연 기본값을 그대로 둔다). 안 온 칸은 꺼짐으로 본다. */
     fun cabin(): CabinState? {
         val none = hvacPower == null && ac == null && passengerSeatTemp == null && wiperOn == null && windowPercent.isEmpty()

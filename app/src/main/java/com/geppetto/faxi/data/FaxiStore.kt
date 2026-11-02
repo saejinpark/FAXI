@@ -76,7 +76,13 @@ class FaxiStore(
     /** 실제 차량 값으로 도는 요금 엔진. 운행 중이고 거리·속도가 들어올 때만 있다. 저장하지 않는다(앱이 꺼지면 시연 운행으로 대신). */
     private var liveMeter: FareMeter? = null
     /** 이번 운행에서 차가 움직였는지. 움직인 뒤 P로 돌아오면 하차로 본다. */
-    private var movedThisRide = false
+    /** 이번 운행에서 기어를 D·R·N에 넣었거나 움직였다. 그 전에는 P가 하차가 아니고, 탑승 취소를 할 수 있다 */
+    var movedThisRide by mutableStateOf(false)
+        private set
+    /** 이번 운행에서 실제로 굴러갔다(1km/h 이상). 문 열림 하차는 이게 있어야 센다 */
+    private var rolledThisRide = false
+    /** 바로 앞 차량 값에서 문이 열려 있었는지(문이 "열리는 순간"을 잡으려고) */
+    private var doorWasOpen = false
     /**
      * 이번 운행 거리(m) 두 가지. 요금에는 큰 쪽을 쓴다.
      * - 주행거리계 차이: 정확하지만 단위가 굵다(차량 0.1km, 에뮬레이터 Virtual Console은 1km이고 주행 시뮬레이션에 안 따라 움직인다).
@@ -419,10 +425,13 @@ class FaxiStore(
     /**
      * 차량 값이 바뀔 때마다(VehicleFeed, 메인 스레드). 운행 중이면 요금 엔진에 한 칸 쌓는다.
      * 엔진은 구간을 앞 값의 상태로 세므로 값이 바뀔 때만 넣어도 정차 시간·거리가 맞다(하차 때 마지막 값을 한 번 더 넣는다).
-     * 움직였다가 P에 들어가면 하차.
+     * 하차: 움직였다가 P에 들어가거나, 굴러간 뒤 멈춘 상태(1km/h 미만)에서 문이 열리면.
+     * 뒤쪽은 브레이크만 밟고 "여기서 내려" 하는 경우다(D 그대로). 문 열림은 열리는 순간 한 번만 본다.
      */
     fun onVehicle(reading: VehicleReading) {
         vehicle = reading
+        val doorOpened = reading.doorOpen && !doorWasOpen
+        doorWasOpen = reading.doorOpen
         // 옵션 상태가 하나라도 들어오면 차량 값으로(안 온 칸은 꺼짐). 요금 엔진은 바뀐 순간의 값을 다음 구간에 쓴다.
         reading.cabin()?.let { cabin = it }
         if (!rideActive) return
@@ -430,12 +439,28 @@ class FaxiStore(
         val sample = sampleNow() ?: return
         val meter = liveMeter
         if (meter == null) liveMeter = FareMeter(sample) else meter.update(sample)
-        if (reading.gear == Gear.Driving || (reading.speedKmh ?: 0.0) >= 1.0) movedThisRide = true
-        if (reading.gear == Gear.Parked && movedThisRide) endRide()
+        val speed = reading.speedKmh ?: 0.0
+        if (reading.gear == Gear.Driving || speed >= 1.0) movedThisRide = true
+        if (speed >= 1.0) rolledThisRide = true
+        when {
+            reading.gear == Gear.Parked && movedThisRide -> endRide()
+            doorOpened && rolledThisRide && speed < 1.0 -> endRide()
+        }
+    }
+
+    /** 출발 전(기어를 넣거나 움직이기 전)이면 요금·영수증 없이 운행을 없앤다. 손님을 잘못 골랐거나 실수로 켰을 때 */
+    val canCancelRide: Boolean get() = rideActive && !movedThisRide
+
+    fun cancelRide() {
+        if (!canCancelRide) return
+        clearRide()
+        changed()
+        onRideChanged?.invoke(null)
     }
 
     private fun resetRideDistance() {
         movedThisRide = false
+        rolledThisRide = false
         rideStartOdometerKm = vehicle.odometerKm
         integratedM = 0.0
         lastSpeedAt = vehicle.speedKmh?.let { clock() }
@@ -533,6 +558,14 @@ class FaxiStore(
         }
         receipts.add(0, receipt)
         arrival = receipt
+        clearRide()
+        changed()
+        onRideChanged?.invoke(null)
+        onArrival?.invoke(receipt)
+        return receipt
+    }
+
+    private fun clearRide() {
         passengerId = null
         passengerMessage = null
         rideStartedAt = null
@@ -542,10 +575,6 @@ class FaxiStore(
         rideWaypoints = 0
         rideExtras = emptySet()
         rideArrivedAt = null
-        changed()
-        onRideChanged?.invoke(null)
-        onArrival?.invoke(receipt)
-        return receipt
     }
 
     private fun settleRide(base: Receipt): Receipt {
