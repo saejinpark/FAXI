@@ -47,6 +47,8 @@ class PhoneStore(context: Context) {
         private set
     /** 프로필 사진(240×320 JPEG, Base64). 바꾸면 다음 동기화 때 차로 간다 */
     var photo by mutableStateOf(prefs.getString(KEY_PHOTO, null))
+    /** 차가 알려 준 내 캐릭터(이모지). 사진이 없을 때 프로필 원에 보인다 */
+    var avatar by mutableStateOf(prefs.getString(KEY_AVATAR, null))
         private set
     /** 아직 차에 반영되지 않은 프로필이 있는지 */
     var profileDirty by mutableStateOf(prefs.getBoolean(KEY_DIRTY, false))
@@ -77,7 +79,9 @@ class PhoneStore(context: Context) {
         syncedBalances = p.balances
         syncedAt = atEpoch
         if (p.profileApplied) profileDirty = false
+        p.avatar?.let { avatar = it }
         prefs.edit()
+            .putString(KEY_AVATAR, avatar)
             .putString(KEY_BALANCES, Json.encodeToString(BalanceList, p.balances))
             .putLong(KEY_SYNCED_AT, atEpoch)
             .putBoolean(KEY_DIRTY, profileDirty)
@@ -109,7 +113,7 @@ class PhoneStore(context: Context) {
 
     fun unregister() {
         prefs.edit().clear().apply()
-        nickname = ""; photo = null; profileDirty = false; syncedBalances = null; syncedAt = null
+        nickname = ""; photo = null; avatar = null; profileDirty = false; syncedBalances = null; syncedAt = null
         receipts.clear()
         reviewed = emptySet()
         me = null
@@ -140,6 +144,7 @@ class PhoneStore(context: Context) {
         const val KEY_REVIEWED = "reviewed"
         const val KEY_NICK = "nickname"
         const val KEY_PHOTO = "photo"
+        const val KEY_AVATAR = "avatar"
         const val KEY_DIRTY = "profile-dirty"
         const val KEY_BALANCES = "synced-balances"
         const val KEY_SYNCED_AT = "synced-at"

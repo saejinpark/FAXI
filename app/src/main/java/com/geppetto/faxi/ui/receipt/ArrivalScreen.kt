@@ -49,7 +49,7 @@ fun ArrivalScreen(store: FaxiStore, receipt: Receipt, onClose: () -> Unit) {
                 // 밤 바탕 위에 상자 없이: 승차감 그래프와 기사 후기
                 Column(m, verticalArrangement = Arrangement.spacedBy(FaxiDimens.space8)) {
                     RideComfortChart(receipt)
-                    ReviewSummary("$driver 기사 후기", store.reviews[receipt.id], empty = "$passenger 폰에서 영수증 QR을 찍은 뒤 남겨요.")
+                    ReviewSummary("$driver 기사 후기", store.reviews[receipt.id], empty = "$passenger 폰에서 후기를 쓰면 여기 떠요.")
                 }
             },
         )

@@ -54,4 +54,12 @@ class ProfileSyncStoreTest {
         val forged = SyncEnvelope.create(store.familyId, "mom", "가짜", null, Base32.decode(store.member("dad").secret)!!, epoch)
         assertNull(store.receiveSync(forged))
     }
+
+    @Test
+    fun 차_자격증의_캐릭터를_폰에도_알려_준다() {
+        // 시연 가족 엄마는 여우, 답을 거쳐도(Deflate + Base64) 그대로
+        val p = store.receiveSync(env("mom"))!!
+        assertEquals("🦊", p.avatar)
+        assertEquals("🦊", com.geppetto.faxi.message.SyncReply.decode(com.geppetto.faxi.message.SyncReply.encode(p))!!.avatar)
+    }
 }

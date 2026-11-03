@@ -120,7 +120,7 @@ fun ReceiptCard(
     }
 }
 
-/** 남긴 후기 한 줄: "아빠 기사 후기" + 별 + 태그. 없으면 [empty]를 흐리게. */
+/** 남긴 후기: "아빠 기사 후기" + 별 + 손님이 쓴 글(예전 후기는 태그). 없으면 [empty]를 흐리게. */
 @Composable
 fun ReviewSummary(title: String, review: Review?, empty: String) {
     val c = Faxi.colors

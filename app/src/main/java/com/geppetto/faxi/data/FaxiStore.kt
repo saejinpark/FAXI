@@ -663,6 +663,7 @@ class FaxiStore(
             profileApplied = !riding,
             balances = balancesOf(m.id),
             receipts = receipts.filter { it.passengerId == m.id }.take(10).map { ticketFor(it).toLink() },
+            avatar = avatarOf(members.first { it.id == m.id }.avatar)?.emoji,
         )
     }
 
