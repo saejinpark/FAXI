@@ -1,6 +1,12 @@
 package com.geppetto.faxi
 
+import com.geppetto.faxi.data.Climate
 import com.geppetto.faxi.data.FaxiStore
+import com.geppetto.faxi.data.Grade
+import com.geppetto.faxi.data.Music
+import com.geppetto.faxi.data.Pace
+import com.geppetto.faxi.data.RidePrefs
+import com.geppetto.faxi.data.Talk
 import com.geppetto.faxi.data.faxiSnapshotFromJson
 import com.geppetto.faxi.data.toJson
 import java.time.LocalDateTime
@@ -139,5 +145,20 @@ class FaxiStoreTest {
         assertEquals(15_250 + 3_050 + 500, r.fareTotal)
         assertEquals(listOf("지각 할증", "짐 할증"), r.lines.takeLast(2).map { it.label })
         assertTrue(reopened.rideExtras.isEmpty())
+    }
+
+    @Test
+    fun 손님_취향은_저장되고_고칠_수_있다() {
+        val s = FaxiStore.sample(clock)
+        val m = s.addMember("막내", Grade.Full, RidePrefs(pace = Pace.Gentle, music = Music.Off))
+        assertEquals(listOf("부드럽게 운전", "음악 없이"), s.member(m.id).prefs.summary)
+        s.updateMember(m.id, "막내", "", RidePrefs(climate = Climate.Warm, talk = Talk.Chatty))
+        val reopened = FaxiStore(faxiSnapshotFromJson(s.snapshot().toJson()), clock)
+        assertEquals(listOf("따뜻하게", "이야기 좋아요"), reopened.member(m.id).prefs.summary)
+        // 이름만 고치면 취향은 그대로
+        reopened.updateMember(m.id, "막둥이", "")
+        assertEquals(Climate.Warm, reopened.member(m.id).prefs.climate)
+        // 고르지 않으면 요약이 비어 있다(탑승 화면에 줄이 없다)
+        assertTrue(RidePrefs().summary.isEmpty())
     }
 }

@@ -32,6 +32,8 @@ class PhoneStore(context: Context) {
     }
 
     /** 기사 후기를 보냈거나 건너뛴 영수증 id. 후기 카드는 이 안에 없는 가장 최근 영수증에만 뜬다. */
+    /** 후기 칸에 미리 채울 글(시험·촬영용, 저장하지 않음). PhoneActivity가 디버그 빌드나 시연 가족일 때만 넣는다 */
+    var reviewDraft by mutableStateOf("")
     var reviewed by mutableStateOf(prefs.getStringSet(KEY_REVIEWED, emptySet())!!.toSet())
         private set
 

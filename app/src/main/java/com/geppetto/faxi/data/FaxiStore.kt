@@ -162,18 +162,18 @@ class FaxiStore(
     }
 
     /** 가족 한 사람 더하기. 색은 등록 순서대로 네 칸을 돌려 쓴다. 폰 연결(초대 QR)은 그 사람 상세에서 한다. */
-    fun addMember(name: String, grade: Grade): Member {
-        val m = newMember(name, grade, color = members.size)
+    fun addMember(name: String, grade: Grade, prefs: RidePrefs = RidePrefs()): Member {
+        val m = newMember(name, grade, color = members.size).copy(prefs = prefs)
         members += m
         changed()
         return m
     }
 
-    /** 이름·별명 고치기 */
-    fun updateMember(id: String, name: String, nickname: String) {
+    /** 이름·별명·손님 취향 고치기 */
+    fun updateMember(id: String, name: String, nickname: String, prefs: RidePrefs = member(id).prefs) {
         val i = members.indexOfFirst { it.id == id }
         if (i < 0 || name.isBlank()) return
-        members[i] = members[i].copy(name = name.trim(), nickname = nickname.trim())
+        members[i] = members[i].copy(name = name.trim(), nickname = nickname.trim(), prefs = prefs)
         changed()
     }
 
@@ -666,6 +666,9 @@ class FaxiStore(
         )
     }
 
+    /** 후기가 들어왔을 때(차 알림). FaxiApp이 단다 */
+    var onReview: ((Receipt, Review) -> Unit)? = null
+
     /**
      * 손님 폰에서 온 기사 후기(MessageServer가 넘겨준다). 운행 하나에 한 번만 받는다.
      * 우리 가족·그 사람 서명·1분 안, 그리고 그 사람이 손님이었던 운행이어야 한다.
@@ -679,8 +682,10 @@ class FaxiStore(
         val receipt = receipt(envelope.receiptId)
         if (receipt == null || receipt.passengerId != m.id) return MessageReply.UnknownRide
         if (receipt.id in reviews) return MessageReply.AlreadyReviewed
-        reviews[receipt.id] = Review(envelope.stars, envelope.tags.map { it.text }.toSet())
+        val review = Review(envelope.stars, envelope.tags.map { it.text }.toSet(), envelope.text.orEmpty())
+        reviews[receipt.id] = review
         changed()
+        onReview?.invoke(receipt, review)
         return MessageReply.Shown
     }
 
@@ -757,15 +762,18 @@ class FaxiStore(
             val mom = Member(
                 "mom", "엄마", "주차 장인 박기사", Grade.Full,
                 LocalDate.of(2026, 10, 1), drivenKm = 962, avatar = "fox", color = 1,
+                prefs = RidePrefs(pace = Pace.Gentle, climate = Climate.Cool),
             )
             val kid = Member(
                 "kid", "지우", "뒷좌석 과자왕", Grade.Learner,
                 LocalDate.of(2026, 10, 1), drivenKm = 0, avatar = "rabbit",
                 licenseEligible = LocalDate.of(2029, 3, 14), color = 2,
+                prefs = RidePrefs(talk = Talk.Chatty, music = Music.Mine),
             )
             val grandma = Member(
                 "grandma", "할머니", "40년 무사고", Grade.Full,
                 LocalDate.of(2026, 10, 3), drivenKm = 412_000, avatar = "turtle", color = 3,
+                prefs = RidePrefs(pace = Pace.Gentle, climate = Climate.Warm, talk = Talk.Quiet, music = Music.Off),
             )
             val receipts = listOf(
                 Receipt(
@@ -807,9 +815,9 @@ class FaxiStore(
                 receipts = receipts,
                 lifetime = listOf(LifetimeLedger("kid", sinceYear = 2017, rides = 2_140, km = 18_204, amount = 14_502_310)),
                 reviews = mapOf(
-                    "r1" to Review(3, setOf("선곡 최악")),
-                    "r2" to Review(5, setOf("길 잘 앎", "또 탈게요")),
-                    "r3" to Review(2, setOf("말 많음")),
+                    "r1" to Review(3, emptySet(), "아침부터 노래 크게 트는 건 좀…"),
+                    "r2" to Review(5, emptySet(), "병원 앞에 딱 맞춰 세워 줘서 고마워"),
+                    "r3" to Review(2, emptySet(), "학원 가는 길에 잔소리가 너무 많아요"),
                 ),
             )
         }

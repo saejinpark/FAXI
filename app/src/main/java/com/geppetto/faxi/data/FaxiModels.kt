@@ -56,10 +56,53 @@ data class Member(
     val color: Int = 0,
     /** 가족에서 뺀 사람. 지난 영수증·기록의 이름은 남기고, 명단·탑승·폰 연결에서는 사라진다. */
     val removed: Boolean = false,
+    /** 손님으로 탈 때 바라는 것(가족 추가·고치기에서 고른다) */
+    val prefs: RidePrefs = RidePrefs(),
 ) {
     val canDrive: Boolean get() = grade == Grade.Full
     /** 자격증 제목: 별명, 없으면 "엄마 기사" */
     val cardTitle: String get() = nickname.ifBlank { "$name 기사" }
+}
+
+/**
+ * 손님 취향: 가족 추가·고치기에서 고르고, 탑승 화면에서 기사에게 한 줄로 보여 준다. 요금과는 상관없다.
+ * 아빠를 "전문 기사"로 부리는 놀이라, 단골 손님 취향을 기억하는 택시처럼 보이게 하는 장치다.
+ * 각 칸의 short가 null이면 기본값이라 요약 줄에서 뺀다.
+ */
+@Serializable
+data class RidePrefs(
+    val pace: Pace = Pace.Usual,
+    val climate: Climate = Climate.NoPref,
+    val talk: Talk = Talk.NoPref,
+    val music: Music = Music.Driver,
+) {
+    /** 탑승 화면 한 줄: "부드럽게 운전 · 시원하게 · 조용히". 모두 기본값이면 빈 목록 */
+    val summary: List<String> get() = listOfNotNull(pace.short, climate.short, talk.short, music.short)
+}
+
+interface PrefChoice {
+    val label: String
+    val short: String?
+}
+
+@Serializable
+enum class Pace(override val label: String, override val short: String?) : PrefChoice {
+    Gentle("부드럽게", "부드럽게 운전"), Usual("평소대로", null), Fastest("빠른 길로", "빠른 길로"),
+}
+
+@Serializable
+enum class Climate(override val label: String, override val short: String?) : PrefChoice {
+    Cool("시원하게", "시원하게"), NoPref("상관없어요", null), Warm("따뜻하게", "따뜻하게"),
+}
+
+@Serializable
+enum class Talk(override val label: String, override val short: String?) : PrefChoice {
+    Quiet("조용히", "조용히"), NoPref("상관없어요", null), Chatty("이야기 좋아요", "이야기 좋아요"),
+}
+
+@Serializable
+enum class Music(override val label: String, override val short: String?) : PrefChoice {
+    Driver("기사님 선곡", null), Mine("제가 고를래요", "음악은 손님이"), Off("음악 없이", "음악 없이"),
 }
 
 @Serializable
@@ -169,8 +212,9 @@ sealed interface WiperLevel {
 /** 운행 중 손님이 보낸 한마디와 받은 시각 */
 data class PassengerMessage(val message: RideMessage, val at: LocalDateTime)
 
+/** 손님이 폰에서 남긴 기사 후기: 별, (예전 폰의) 태그, 직접 쓴 글 */
 @Serializable
-data class Review(val stars: Int, val tags: Set<String>)
+data class Review(val stars: Int, val tags: Set<String>, val text: String = "")
 
 /** 사진 대신 고르는 캐릭터. key는 저장용, label은 TalkBack이 읽는다. */
 data class AvatarChoice(val key: String, val emoji: String, val label: String)

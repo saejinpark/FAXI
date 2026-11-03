@@ -133,6 +133,7 @@ fun ReviewSummary(title: String, review: Review?, empty: String) {
             Row(horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space1), verticalAlignment = Alignment.CenterVertically) {
                 (1..5).forEach { n -> StarIcon(if (n <= review.stars) c.accentInk else c.lineStrong, FaxiDimens.iconMd, filled = n <= review.stars) }
             }
+            if (review.text.isNotBlank()) Text("“${review.text}”", style = t.body, color = c.ink)
             if (review.tags.isNotEmpty()) Text(review.tags.joinToString(", "), style = t.body, color = c.inkMuted)
         }
     }

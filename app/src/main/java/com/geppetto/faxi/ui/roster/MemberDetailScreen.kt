@@ -128,6 +128,16 @@ fun MemberDetailScreen(
                 }
             },
         )
+        full { m ->
+            FaxiCard(m) {
+                SectionTitle("손님으로 탈 때")
+                val prefs = member.prefs.summary
+                Text(
+                    if (prefs.isEmpty()) "따로 바라는 건 없어요." else prefs.joinToString(" · "),
+                    style = t.body, color = if (prefs.isEmpty()) c.inkMuted else c.ink,
+                )
+            }
+        }
         full { m -> PhoneLinkCard(store, memberId, m) }
         full { m -> AvatarPicker(store, memberId, m) }
     }
@@ -147,14 +157,14 @@ private fun MoneySection(
     debts.forEach { d -> DebtRow(store, d, onClick = { onOpenDebt(d) }) }
 }
 
-/** 후기 한 건: 별(채운 별 + 숫자로도), 누가 언제, 태그 */
+/** 후기 한 건: 별(채운 별 + 숫자로도), 누가 언제, 손님이 쓴 글(예전 후기는 태그) */
 @Composable
 private fun ReviewItem(store: FaxiStore, r: Receipt, review: Review) {
     val c = Faxi.colors
     val t = Faxi.type
     Column(
         Modifier.semantics(mergeDescendants = true) {
-            contentDescription = "별 ${review.stars}개, ${store.name(r.passengerId)}, ${review.tags.joinToString()}"
+            contentDescription = "별 ${review.stars}개, ${store.name(r.passengerId)}, ${review.text.ifBlank { review.tags.joinToString() }}"
         },
         verticalArrangement = Arrangement.spacedBy(FaxiDimens.space1),
     ) {
@@ -167,6 +177,7 @@ private fun ReviewItem(store: FaxiStore, r: Receipt, review: Review) {
             }
             Text("  ${store.name(r.passengerId)} · ${r.endedAt.format(ReceiptTimeFormat)} ${r.to}", style = t.caption, color = c.inkMuted)
         }
+        if (review.text.isNotBlank()) Text("“${review.text}”", style = t.body, color = c.ink)
         if (review.tags.isNotEmpty()) Text(review.tags.joinToString(" · "), style = t.body, color = c.ink)
     }
 }

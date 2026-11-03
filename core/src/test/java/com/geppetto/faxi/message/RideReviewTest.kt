@@ -38,4 +38,29 @@ class RideReviewTest {
         assertNull(ReviewEnvelope.parse("FAXIR1|fam|mom|r7|3|NOPE|$now|sig"))
         assertNull(ReviewEnvelope.parse("FAXI1|fam|mom|SLOW|$now|sig"))
     }
+
+    @Test
+    fun `직접 쓴 글은 구분자와 줄바꿈이 있어도 그대로 간다`() {
+        val sent = ReviewEnvelope.create("fam", "mom", "r7", 4, emptyList(), secret, now, text = "오늘 운전 부드러웠어요 | 음악은\n좀 바꿔 주세요")
+        val got = ReviewEnvelope.parse(sent.toLine())!!
+        assertEquals("오늘 운전 부드러웠어요 | 음악은 좀 바꿔 주세요", got.text)
+        assertTrue(got.verify(secret, now))
+    }
+
+    @Test
+    fun `글을 바꾸면 서명이 깨지고, 너무 긴 글은 잘린다`() {
+        val sent = ReviewEnvelope.create("fam", "mom", "r7", 4, emptyList(), secret, now, text = "좋아요")
+        assertFalse(ReviewEnvelope.parse(sent.toLine())!!.copy(text = "별로예요").verify(secret, now))
+        val long = ReviewEnvelope.create("fam", "mom", "r7", 4, emptyList(), secret, now, text = "가".repeat(200))
+        assertEquals(ReviewEnvelope.MAX_TEXT, long.text!!.length)
+    }
+
+    @Test
+    fun `예전 폰이 보낸 글 없는 후기도 읽는다`() {
+        val body = "FAXIR1|fam|mom|r7|5|AGAIN|$now"
+        val got = ReviewEnvelope.parse("$body|${sign(secret, body)}")!!
+        assertNull(got.text)
+        assertEquals(listOf(DriverTag.Again), got.tags)
+        assertTrue(got.verify(secret, now))
+    }
 }

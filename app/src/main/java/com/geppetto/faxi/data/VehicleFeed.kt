@@ -114,10 +114,20 @@ class VehicleFeed(private val context: Context, private val onUpdate: (VehicleRe
         }
         override fun onFailed(e: Exception) = warn("와이퍼", e)
     }
+    /**
+     * 창문 값의 눈금. 이름은 percent지만 차의 WINDOW_POS 값을 그대로 넘겨서, Pleos 에뮬레이터는 0~10이다(Virtual Console 40% → 4).
+     * 플랫폼 설정(CarPropertyConfig)은 앱이 읽을 수 없어서(null), 10보다 큰 값이 한 번이라도 오면 0~100으로 바꿔 센다.
+     */
+    private var windowMax = 10
     private val windows = Windows.entries.associate { (w, place) ->
         w to object : WindowPositionListener {
             override fun onWindowPositionUpdated(percent: Int?) {
-                post { reading.copy(windowPercent = reading.windowPercent + (place to (percent ?: 0).coerceIn(0, 100))) }
+                post {
+                    val raw = percent ?: 0
+                    if (raw > windowMax) windowMax = 100
+                    val pct = (raw * 100 / windowMax).coerceIn(0, 100)
+                    reading.copy(windowPercent = reading.windowPercent + (place to pct))
+                }
             }
             override fun onFailed(e: Exception) = warn("창문 ${w.name}", e)
         }

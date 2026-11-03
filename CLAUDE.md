@@ -38,7 +38,7 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
   - 옵션 요금(SDK, 칸마다 따로 등록해서 하나가 막혀도 나머지는 받는다):
     - 냉난방: HVAC 전원·에어컨은 **실내 전체 구역**(`SeatArea(1열 좌·우, 2열 좌·중·우)` = areaId 117)으로 등록해야 값이 온다(운전석만 등록하면 안 옴, 에뮬레이터 로그로 확인). 설정 온도·실내 온도는 운전석. 판정 `hvacMode`: 꺼짐 → 꺼짐, 에어컨 → 냉방, 에어컨 없이 설정 온도 > 실내 온도 → 난방(실내 온도를 모르면 난방 아님). 권한 CAR_CLIMATE.
     - 엉따: `Seat.registerHvacSeatTemperature` **조수석**(ROW_1_RIGHT, 손님 자리) 값 > 0. 음수는 통풍(요금 없음), 운전석 열선도 요금 없음. 권한 CAR_SEATS.
-    - 와이퍼: `Wiper.registerWiperState` 앞유리 ON. 창문: `Window.registerWindowPosition` 1·2열 네 창 중 하나라도 > 0%. 권한 CAR_WINDOWS.
+    - 와이퍼: `Wiper.registerWiperState` 앞유리 ON. 창문: `Window.registerWindowPosition` 1·2열 네 창 중 하나라도 > 0%. 권한 CAR_WINDOWS. 창문 값은 이름이 percent지만 차의 WINDOW_POS 눈금 그대로라 Pleos 에뮬레이터는 0~10이다(Virtual Console 40% → 4). 플랫폼 설정 최대값은 앱이 못 읽어서(null) 0~10으로 보고, 10보다 큰 값이 오면 0~100으로 바꿔 센다(`windowMax`).
     - 옵션 값이 하나도 안 오면(폰·폴드) `CabinState.Demo`(냉방·엉따 켜짐)를 그대로 둔다. 하나라도 오면 안 온 칸은 꺼짐.
   - 콜백 스레드는 문서에 없어서 모두 메인으로 옮긴다. 차가 아니거나 서비스가 없으면 아무 값도 오지 않는다(그때는 시연 운행).
   - 운행 거리 = 주행거리계 차이와 속도 적분(앞 속도 × 지난 시간) 중 큰 쪽. 계기판은 단위가 굵고(에뮬레이터는 시뮬레이션 주행에 안 따라 움직임) 적분은 잘게 센다.
@@ -63,7 +63,8 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
   - 독촉·후기 낭독은 가족에 따라 공격적으로 들릴 수 있어서 둔 설정이다. "들어 보기"로 미리 듣는다. 테스트 `app SettingsTest`.
 - 가족 등록: 호출명(PAXI·MAXI 같은 이름)은 없다. 사람은 부르는 이름(엄마, 아빠, 첫째, 지우…)과 등급만 가진다.
   - 첫 실행(`store.needsSetup`, 가족이 아무도 없음) → `ui/family/FamilyForms.kt` `FamilySetupScreen` "우리 집 택시를 엽니다": 가장을 첫 기사로 등록(이름만, 늘 정식 기사. `store.startFamily`, 새 가족 ID) 또는 "시연 가족으로 둘러보기"(`store.loadDemo`). 시연 준비·촬영 스크립트는 `am start ... --ez demo true`로 시연 가족을 바로 불러온다.
-  - 가족 추가: 기사 탭 오른쪽 위 "가족 추가" → `AddMemberScreen`(이름 고르기 칸/직접 쓰기 + 운전해요·아직 면허 없어요. 등급은 정식·예비 둘뿐, 운전 안 하는 어른도 정식 기사로 등록해 손님으로 탄다. 예전 장부의 명예 기사는 정식 기사로 읽는다) → `store.addMember` → 그 사람 상세(폰 연결 QR). 몇 명이든 더한다(자식이 12명이어도).
+  - 가족 추가: 기사 탭 오른쪽 위 "가족 추가" → `AddMemberScreen`(이름은 직접 쓰기만, 정해 둔 이름 칸은 뺐다 + 운전해요·아직 면허 없어요. 등급은 정식·예비 둘뿐, 운전 안 하는 어른도 정식 기사로 등록해 손님으로 탄다. 예전 장부의 명예 기사는 정식 기사로 읽는다) → `store.addMember` → 그 사람 상세(폰 연결 QR). 몇 명이든 더한다(자식이 12명이어도).
+  - 손님 취향 `Member.prefs`(`RidePrefs`: 운전 스타일·실내 온도·차 안에서·음악, 각각 셋 중 하나): 가족 추가 화면 오른쪽 칸과 "고치기"에서 고른다. 탑승 화면에서 손님을 고르면 "엄마 손님 취향: 부드럽게 운전 · 시원하게" 한 줄(기본값은 빼고, 자리는 미리 잡음), 기사 상세에도 보인다. 요금과는 상관없고 운행 중 화면에는 넣지 않는다. 시연 가족에는 엄마·지우·할머니 취향이 들어 있다.
   - 가족 색은 `Member.color`(등록 순서, 네 칸을 돌려 씀), 초대 링크 `k=`로 폰에 같이 간다. 별명이 없으면 자격증 제목은 "엄마 기사"(`cardTitle`).
 - `ui/shell/AppShell.kt` 운행 중(`store.rideActive`)이면 운행 중 화면만, 운행 중이 아닌데 기어가 Driving이면 "주차하면 열려요"만, `store.arrival`이 있으면 도착 화면만, 그 외에는 왼쪽 사이드바 + 탭 화면. 탭은 `rememberSaveable`, 내비게이션 라이브러리 없음, 전환 즉시.
 - `ui/boarding/BoardingScreen.kt` 폰 없이 차 화면만으로 된다. (1) 오늘의 기사(`DriverPick`, `store.selectDriver`): 고르기만 하면 차가 기억(`driverSignedIn`, 저장됨). "기사 바꾸기"로 다시, 운행 중에는 못 바꾼다. 고르면 그 기사가 아직 듣지 못한 가장 최근 후기(손님 폰에서 온 것)를 차가 읽어 준다(`reviewLine`, 한 번만). (2) 손님 탑승(`PassengerBoarding`): 손님 → 가족 할증·할인 → 옆자리 손님이 "제가 탈게요 · 미터기 켜기". 설정 `phoneCode`(기본 꺼짐)를 켜면 대신 손님 폰 코드(`store.verifyCode`, TOTP). 폰 연결은 덤(한마디·후기·영수증): 실제 돈이 없는 가족 놀이라 코드가 막을 일이 거의 없고, 심사위원이 차 APK 하나로 돌려 볼 수 있어야 해서 이렇게 정했다. 손님을 고르면 밀린 돈 독촉(화면 + 음성), 기사가 그 손님에게 진 빚이 있으면 "먼저 퉁쳐요" 안내.
@@ -118,7 +119,7 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
   - 차 화면에서는 1dp ≈ 1px 안팎이라 작은 QR은 못 읽는다. 영수증 QR은 카드 안에 작게, 눌러서 화면 높이만큼 크게 띄워 찍는다. 초대 QR은 240dp.
 - 차 앱 QR: `ui/components/QrImage.kt`(밝은 종이 + 4칸 여백, 야간에도 밝게). 기사 상세 "폰 연결" 카드의 초대 QR은 눌러야 보이고(비밀 열쇠), 화면을 떠나면 숨는다. 디버그 빌드이거나 시연 가족이면 도착 때 영수증 링크를 `FaxiReceipt` 로그로 남긴다(에뮬레이터 폰으로 시험용, 비밀 없음).
 - 손님 한마디(폰 → 차, 같은 Wi-Fi). 서버 없이 차 안에서 끝난다.
-  - 기사 후기도 같은 통로: `core/.../message/RideReview.kt` `DriverTag`(코드 고정, 새 태그는 끝에), `ReviewEnvelope`(`FAXIR1|가족|사람|영수증|별|태그,태그|보낸시각|서명`). 차 `store.receiveReview`: 서명·1분, 그 사람이 손님이었던 운행만(`UnknownRide`), 운행 하나에 한 번(`AlreadyReviewed`). 폰은 가장 최근 영수증이 후기 전이면 홈 맨 위에 후기 카드(보내거나 건너뛰면 `reviewed`에 넣어 사라짐). 테스트 `app ReviewTest`, `core RideReviewTest`.
+  - 기사 후기도 같은 통로: `core/.../message/RideReview.kt` `ReviewEnvelope`(`FAXIR2|가족|사람|영수증|별|태그|글(Base64url)|보낸시각|서명`, 예전 `FAXIR1`(글 없음)도 읽는다). 폰에서 별 + 직접 쓴 글(최대 80자, 줄바꿈은 띄어쓰기로)을 보낸다. 태그 고르기는 없앴다(`DriverTag`는 예전 후기를 읽으려고 남김). 차 `store.receiveReview`: 서명·1분, 그 사람이 손님이었던 운행만(`UnknownRide`), 운행 하나에 한 번(`AlreadyReviewed`). 받으면 `store.onReview` → `ReviewNotice` 차 알림("후기가 등록됐어요 · 엄마 손님이 아빠 기사에게 별 4개", 글은 알림에 싣지 않는다: 다음 운행 중에 와도 운전자가 긴 글을 읽지 않게). 권한 POST_NOTIFICATIONS는 처음 켤 때 속도 권한 다음에 묻는다. 글은 도착 화면·기사 상세에 따옴표로, 기사를 고를 때 낭독(`reviewLine`)에 그대로. 폰은 가장 최근 영수증이 후기 전이면 홈 맨 위에 후기 카드(보내거나 건너뛰면 `reviewed`에 넣어 사라짐). 시험·촬영: adb input은 한글을 못 쳐서 `am start -n com.geppetto.faxi.phone/.PhoneActivity --es reviewDraft '글'`로 후기 칸을 채운다(디버그 빌드나 시연 가족만). 테스트 `app ReviewTest`, `core RideReviewTest`.
   - `core/.../message/RideMessage.kt` 정해진 문장 6개(`RideMessage`, 자유 글 없음: 운전자가 힐끗 보고 끝나게), 한 줄 형식 `MessageEnvelope`(`FAXI1|가족|사람|코드|보낸시각|서명`, 서명 = 그 사람 TOTP 열쇠로 HMAC-SHA256 앞 16바이트), 답 `MessageReply`, 포트·NSD 이름 `MessageWire`. 문장은 끝에만 붙인다(코드가 차·폰 약속).
   - 차: `data/MessageServer.kt`(FaxiApp이 켠다) TCP 47800 + NSD `_faxi._tcp`("FAXI-가족"). 받은 줄은 메인 스레드에서 `store.receiveMessage`가 확인: 우리 가족·그 사람 서명·±60초, 지금 손님만(NotRiding), 같은 통 두 번 금지, 한 사람 10초에 한 번(TooSoon). `store.passengerMessage`는 저장하지 않고 운행이 바뀌면 지운다.
   - 폰: `MessageSender.kt` NSD로 차를 찾고(3초), 디버그 빌드이거나 시연 가족이면 못 찾을 때 10.0.2.2로. 홈의 "기사님께 한마디" 카드(2열 타일, 결과 줄은 자리를 미리 잡음).
@@ -127,7 +128,7 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
   - 에뮬레이터 두 대로 시험: `adb -s emulator-5554 forward tcp:47800 tcp:47800`(차) → 폰 디버그 빌드가 10.0.2.2:47800으로 보낸다. (에뮬레이터 둘 사이에서 NSD 검색도 되는 것을 확인했다.) 테스트: `core RideMessageTest`, `app RideMessageStoreTest`.
 - `phone/` 폰 앱: 등록(초대 QR 찍기, 링크 붙여넣기, 시연 가족) → 아래 탭 넷(`PhoneHome.kt` `PhoneMain`, 탭 상태는 `PhoneActivity`의 PhoneApp이 들고 영수증을 찍으면 영수증 탭으로 옮긴다).
   - 한마디(첫 탭): 기사님께 한마디. 후기를 기다리는 영수증이 있으면 맨 위에 "후기 쓰기". 탑승 코드는 설정 탭에 접어 둔다("코드 보기", 차 설정에서 코드 확인을 켠 집만 쓴다) + 기사님께 한마디. 후기를 기다리는 영수증이 있으면 맨 위에 "후기 쓰기".
-  - 영수증: 영수증 QR 찍기 + (후기 전이면) 기사 후기 카드 + 내 영수증(눌러서 항목 펼치기). 주 버튼은 하나: 후기 카드가 있으면 "후기 보내기". 영수증 탭에는 후기를 기다리면 점.
+  - 영수증: 영수증 QR 찍기 + (후기 전이면) 기사 후기 카드(별 + 기사님께 한 줄) + 내 영수증(눌러서 항목 펼치기). 주 버튼은 하나: 후기 카드가 있으면 "후기 보내기". 영수증 탭에는 후기를 기다리면 점.
   - 정산: 마지막 영수증 기준 갚을 돈·받을 돈 합계 + 사람별. "받았어요"는 받은 사람이 차 장부에서.
   - 설정: 내 정보, 탑승 코드(접힘), 차와 연결(근처 기기 권한 상태), 등록 해제(한 번 더 확인), 버전.
   - 카드·보내기 부품은 `PhoneCards.kt`(한마디, 후기, 영수증 줄, 근처 기기 권한 `rememberNearbyGate`).

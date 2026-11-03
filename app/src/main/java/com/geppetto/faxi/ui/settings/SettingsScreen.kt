@@ -58,7 +58,7 @@ fun SettingsScreen(store: FaxiStore, speak: (String) -> Unit) {
                     SectionTitle("후기 읽어 주기")
                     Text("기사를 고를 때 손님 폰에서 온 후기를 읽어요. 읽지 않은 후기도 기사 상세에는 남아요.", style = t.body, color = c.inkMuted)
                     Choices(ReviewsAloud.entries, s.reviewsAloud, { it.label }) { store.updateSettings(s.copy(reviewsAloud = it)) }
-                    val sample = reviewLine("엄마", 5, listOf("길 잘 앎"))
+                    val sample = reviewLine("엄마", 5, emptyList(), "병원 앞에 딱 맞춰 세워 줘서 고마워")
                     Text(
                         if (s.reviewsAloud == ReviewsAloud.Off) "후기를 소리 내어 읽지 않아요." else "\"$sample\"",
                         style = t.bodyStrong, color = c.ink,

@@ -35,11 +35,15 @@ fun dunningLine(amount: Int, days: Int, passenger: String = "손님", tone: Dunn
 
 private val StarWords = listOf("한", "두", "세", "네", "다섯")
 
-/** 후기 낭독 한 줄: "지난 손님 후기입니다. 엄마 손님, 별 세 개. 선곡 최악." */
-fun reviewLine(passenger: String, stars: Int, tags: Collection<String>): String {
+/** 후기 낭독 한 줄: "지난 손님 후기입니다. 엄마 손님, 별 세 개. 아침부터 노래 크게 트는 건 좀…" (손님이 쓴 글, 없으면 예전 태그) */
+fun reviewLine(passenger: String, stars: Int, tags: Collection<String>, text: String = ""): String {
     val count = StarWords.getOrElse(stars.coerceIn(1, 5) - 1) { "$stars" }
-    val tagText = if (tags.isEmpty()) "" else " ${tags.joinToString(", ")}."
-    return "지난 손님 후기입니다. $passenger 손님, 별 $count 개.$tagText"
+    val said = when {
+        text.isNotBlank() -> " $text"
+        tags.isNotEmpty() -> " ${tags.joinToString(", ")}."
+        else -> ""
+    }
+    return "지난 손님 후기입니다. $passenger 손님, 별 $count 개.$said"
 }
 
 /** 면허 땄을 때 차가 읽는 말: "지우, 면허 축하해요. 지금까지 2,140번, 18,204킬로미터를 태워 줬어요. 평생 장부는 14,502,310원이에요. 이제 지우가 기사예요." */

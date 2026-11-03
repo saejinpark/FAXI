@@ -215,7 +215,8 @@ private fun ReceiptsTab(me: FaxiInvite, store: PhoneStore, sender: MessageSender
         if (pending == null) {
             FaxiPrimaryButton("영수증 QR 찍기", onClick = onScan, modifier = Modifier.fillMaxWidth())
         } else {
-            ReviewCard(me, pending, sender, onDone = { text ->
+            ReviewCard(me, pending, sender, draft = store.reviewDraft, onDone = { text ->
+                store.reviewDraft = ""
                 store.markReviewed(pending.id)
                 onNotice(text)
             })
