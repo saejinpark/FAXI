@@ -10,11 +10,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -51,7 +48,6 @@ import com.geppetto.faxi.ui.components.FaxiSecondaryButton
 import com.geppetto.faxi.ui.components.MessageIcon
 import com.geppetto.faxi.ui.components.MoneyRow
 import com.geppetto.faxi.ui.components.SectionTitle
-import com.geppetto.faxi.ui.components.SelectTile
 import com.geppetto.faxi.ui.components.StarIcon
 import com.geppetto.faxi.ui.components.StatusTag
 import com.geppetto.faxi.ui.components.Tone

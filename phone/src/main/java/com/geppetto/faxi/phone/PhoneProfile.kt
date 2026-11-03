@@ -62,14 +62,17 @@ import kotlinx.coroutines.launch
 
 private val SyncTime = DateTimeFormatter.ofPattern("M.d HH:mm")
 
-/** 한 번 맞춘다. 차를 못 찾으면 null(그때 화면 상태 줄만 바꾼다) */
-internal suspend fun syncOnce(me: FaxiInvite, store: PhoneStore, sender: MessageSender): SyncPayload? {
+/**
+ * 한 번 맞춘다. 차를 못 찾으면 null.
+ * manual(사람이 누름)일 때만 "맞추는 중", "못 찾았어요"를 보여 준다. 저절로 맞추다 못 찾으면 조용히 넘어간다(차 밖에서는 늘 못 찾으니까).
+ */
+internal suspend fun syncOnce(me: FaxiInvite, store: PhoneStore, sender: MessageSender, manual: Boolean = true): SyncPayload? {
     val dirty = store.profileDirty
     val photo = if (dirty) store.photo?.let { runCatching { Base64.getDecoder().decode(it) }.getOrNull() } else null
-    store.syncNote = "차와 맞추는 중이에요."
+    if (manual) store.syncNote = "차와 맞추는 중이에요."
     val p = sender.sync(me, if (dirty) store.nickname else null, photo)
     if (p == null) {
-        store.syncNote = "차를 찾지 못했어요. 차와 같은 Wi-Fi에서 다시 맞춰요."
+        if (manual) store.syncNote = "차를 찾지 못했어요. 차와 같은 Wi-Fi에서 다시 맞춰요."
         return null
     }
     val added = store.applySync(p, System.currentTimeMillis() / 1000)
@@ -88,7 +91,7 @@ internal fun AutoSync(me: FaxiInvite, store: PhoneStore, sender: MessageSender) 
     LaunchedEffect(me) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             while (true) {
-                val p = syncOnce(me, store, sender)
+                val p = syncOnce(me, store, sender, manual = false)
                 delay(if (p?.riding == true) 15_000 else 60_000)
             }
         }
@@ -117,7 +120,7 @@ internal fun ProfileCard(me: FaxiInvite, store: PhoneStore, sender: MessageSende
     FaxiCard {
         SectionTitle("내 프로필")
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(FaxiDimens.space4)) {
-            AvatarCircle(null, me.name.take(1), FaxiDimens.controlHeight + FaxiDimens.space6, t.title, c.family(me.color), photo = rememberPhoto(store.photo))
+            AvatarCircle(store.avatar, me.name.take(1), FaxiDimens.controlHeight + FaxiDimens.space6, t.title, c.family(me.color), photo = rememberPhoto(store.photo))
             Column(Modifier.weight(1f)) {
                 Text(me.name, style = t.headline, color = c.ink)
                 Text("사진과 별명은 차 화면의 기사 자격증에 나와요.", style = t.caption, color = c.inkMuted)

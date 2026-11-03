@@ -73,6 +73,8 @@ data class SyncPayload(
     val balances: List<Balance>,
     /** 이 사람이 손님이었던 최근 영수증 링크(faxi://receipt?d=…), 최신이 앞 */
     val receipts: List<String>,
+    /** 차 자격증에 쓰는 캐릭터(이모지). 폰 프로필에도 같은 얼굴을 보여 준다. 없으면 null(예전 차) */
+    val avatar: String? = null,
 )
 
 /** 답 한 줄: `SYNC|<Deflate한 JSON의 Base64>`. 틀리면 null */

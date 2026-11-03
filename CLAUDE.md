@@ -20,6 +20,7 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
 - 제출: 공모전 규칙(https://appdevchallenge.auto-hmg.io/guide/submission)대로 저장소 `apk/`에 release APK를 `팀명_앱이름_release.apk`로 둔다. 개인 참가라 팀명은 "박세진": `박세진_FAXI_release.apk`(차), `박세진_FAXI-phone_release.apk`(폰). `tools/package.sh`가 테스트 → `assembleRelease` → `apk/`(git에 넣음)와 `dist/`(영문 이름 + INSTALL.txt, GitHub Releases용, git에 안 넣음)를 만든다.
   - README에는 앱 이름·한 줄 설명, 실행 방법, 시험 환경, APK 위치가 있어야 한다(규칙).
   - release는 디버그 키로 서명하고 R8(코드 줄이기)은 끈다: 켜면 시작하자마자 kotlin 클래스 IllegalAccessError로 죽었다.
+  - 버전은 1.1(versionCode 2). README의 영상·APK 링크는 GitHub 릴리스 v1.1을 가리킨다.
   - 시연 가족(`DemoFamily`)일 때는 release에서도 시험 도구를 켠다: 폰 → 차 10.0.2.2 대체 주소, 하차 때 영수증 링크 `FaxiReceipt` 로그. 실제 가족은 둘 다 없다.
 - 시연: `tools/demo.sh`(차·폰 에뮬레이터를 AVD 이름으로 찾아 빌드·설치·장부 초기화·권한·포트·실행, `--keep` `--no-build`). 시연 순서 문서는 두지 않는다(README와 영상으로 충분).
 - README·영상 자막은 사람이 쓴 말투로 짧게: 가운뎃점·화살표·괄호 설명·굵은 글씨 목록을 남발하지 않는다.
@@ -131,6 +132,7 @@ FAXI(Family + Taxi)는 가족 차를 가족 택시로 바꾸는 역할놀이 앱
   - 영수증: 영수증 QR 찍기 + (후기 전이면) 기사 후기 카드(별 + 기사님께 한 줄) + 내 영수증(눌러서 항목 펼치기). 주 버튼은 하나: 후기 카드가 있으면 "후기 보내기". 영수증 탭에는 후기를 기다리면 점.
   - 정산: 마지막 영수증 기준 갚을 돈·받을 돈 합계 + 사람별. "받았어요"는 받은 사람이 차 장부에서.
   - 설정: 내 정보, 탑승 코드(접힘), 차와 연결(근처 기기 권한 상태), 등록 해제(한 번 더 확인), 버전.
+  - 동기화 답(`SyncPayload.avatar`)에 차 자격증의 캐릭터 이모지가 실려 와서, 사진이 없으면 폰 프로필 원에도 같은 얼굴이 나온다. 저절로 맞추다 차를 못 찾으면 조용히 넘어가고, "지금 맞추기"를 눌렀을 때만 "차를 찾지 못했어요"를 보여 준다.
   - 카드·보내기 부품은 `PhoneCards.kt`(한마디, 후기, 영수증 줄, 근처 기기 권한 `rememberNearbyGate`).
   - QR 찍기: `QrScanner.kt`(CameraX 미리보기 + :core QrCodec). `faxi://` 링크는 딥 링크로도 열린다(같은 `handleLink`). 초대는 확인 창을 거쳐 등록, 영수증은 내 가족·내 것만 저장.
   - 등록 정보와 영수증은 SharedPreferences(백업 끔). 폰은 차 장부를 바꾸지 못한다.

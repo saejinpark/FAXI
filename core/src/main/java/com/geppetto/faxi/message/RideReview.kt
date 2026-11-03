@@ -4,8 +4,8 @@ import java.security.MessageDigest
 import java.util.Base64
 
 /**
- * 손님이 폰에서 남기는 기사 후기의 태그. 차 화면에서 기사가 보는 앞에서 쓰지 않도록 후기는 폰에서만 쓴다.
- * 코드는 차·폰 약속이라 새 태그는 끝에만 붙인다.
+ * 예전 폰이 보내던 기사 후기 태그. 지금 폰은 직접 쓴 글을 보내고 태그는 비워 둔다. 예전 후기를 읽으려고 남긴다.
+ * 코드는 차·폰 약속이라 바꾸지 않는다.
  */
 enum class DriverTag(val code: String, val text: String) {
     Route("ROUTE", "길 잘 앎"),
